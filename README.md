@@ -24,13 +24,6 @@ collect all the stars on a grid.
 
 ## How the game works right now
 
-Two levels are included:
-
-1. **First Steps** — a straight line, one star, no subroutines. Just to
-   get a feel for placing instructions.
-2. **Around the Corner** — an L-shaped path with a color-conditioned turn
-   and a subroutine (F2) for the second leg. Exercises every mechanic.
-
 To build a program: tap an instruction (or the color dot for a condition)
 in the bottom palette, then tap a slot in the F1/F2 row above it to place
 it there. Tap the eraser, then a slot, to clear it. Use Step to advance one
