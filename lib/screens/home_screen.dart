@@ -4,6 +4,7 @@ import '../data/level_catalog.dart';
 import '../data/progress_store.dart';
 import '../models/level.dart';
 import '../theme/app_colors.dart';
+import '../widgets/rating_prompt_dialog.dart';
 import 'game_screen.dart';
 
 enum _SortBy { difficulty, popularity }
@@ -41,21 +42,33 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   late final Future<List<Level>> _levelsFuture = _loadAllLevels();
   final ProgressStore _progressStore = ProgressStore();
+  final TextEditingController _searchController = TextEditingController();
   Set<String> _completedIds = const {};
   _SortBy _sortBy = _SortBy.difficulty;
   _DifficultyFilter _difficultyFilter = _DifficultyFilter.all;
   bool _hideCompleted = false;
+  String _searchQuery = '';
 
   @override
   void initState() {
     super.initState();
     _refreshCompleted();
+    _searchController.addListener(
+      () => setState(() => _searchQuery = _searchController.text.trim()),
+    );
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _refreshCompleted() async {
     final ids = await _progressStore.loadCompleted();
     if (!mounted) return;
     setState(() => _completedIds = ids);
+    maybeShowRatingPrompt(context, _completedIds.length);
   }
 
   Future<List<Level>> _loadAllLevels() => loadCatalogLevels();
@@ -68,6 +81,13 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_hideCompleted) {
       indexed =
           indexed.where((e) => !_completedIds.contains(e.value.id)).toList();
+    }
+
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase();
+      indexed = indexed
+          .where((e) => e.value.name.toLowerCase().contains(query))
+          .toList();
     }
 
     if (_sortBy == _SortBy.difficulty) {
@@ -152,6 +172,51 @@ class _HomeScreenState extends State<HomeScreen> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
+                        TextField(
+                          controller: _searchController,
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 14),
+                          decoration: InputDecoration(
+                            hintText: 'Search by name',
+                            hintStyle: TextStyle(
+                              color: Colors.white.withValues(alpha: 0.4),
+                            ),
+                            prefixIcon: Icon(
+                              Icons.search_rounded,
+                              color: Colors.white.withValues(alpha: 0.4),
+                            ),
+                            suffixIcon: _searchQuery.isEmpty
+                                ? null
+                                : IconButton(
+                                    icon: Icon(
+                                      Icons.clear_rounded,
+                                      color:
+                                          Colors.white.withValues(alpha: 0.4),
+                                    ),
+                                    onPressed: _searchController.clear,
+                                  ),
+                            filled: true,
+                            fillColor: AppColors.panel,
+                            contentPadding:
+                                const EdgeInsets.symmetric(vertical: 10),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                  color: AppColors.panelBorder),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide: const BorderSide(
+                                  color: AppColors.panelBorder),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(14),
+                              borderSide:
+                                  const BorderSide(color: AppColors.accent),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
                         Row(
                           children: [
                             Text(

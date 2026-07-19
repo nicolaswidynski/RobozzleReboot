@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/program_store.dart';
 import '../data/progress_store.dart';
 import '../engine/interpreter.dart';
 import '../models/instruction.dart';
@@ -49,6 +50,7 @@ class _GameScreenState extends State<GameScreen> {
   static const Duration _clearOverlayDelay = Duration(milliseconds: 220);
 
   final ProgressStore _progressStore = ProgressStore();
+  final ProgramStore _programStore = ProgramStore();
 
   static const Duration _baseStepInterval = Duration(milliseconds: 260);
 
@@ -87,6 +89,21 @@ class _GameScreenState extends State<GameScreen> {
     _eraserSelected = false;
     _selectedCondition = TileColor.any;
     _functionsVisible = true;
+    _restoreSavedProgram();
+  }
+
+  // Loads asynchronously since it's a SharedPreferences ProgramStore.
+  // If the player has already solved this level, drop their saved winning
+  // program in instead of leaving them with a blank slate.
+  Future<void> _restoreSavedProgram() async {
+    final level = _level;
+    final saved = await _programStore.loadSolved(level);
+    if (saved == null) return;
+    if (!mounted || _level != level) return; // stale: level changed meanwhile
+    setState(() {
+      _program = saved;
+      _interpreter = RobotInterpreter(level: _level, program: _program);
+    });
   }
 
   void _resetClearOverlay() {
@@ -212,6 +229,7 @@ class _GameScreenState extends State<GameScreen> {
   void _maybeMarkCompleted() {
     if (_interpreter.status == RunStatus.success) {
       _progressStore.markCompleted(_level.id);
+      _programStore.saveSolved(_level, _program);
       if (!_showClearOverlay && _clearOverlayTimer == null) {
         _clearOverlayTimer = Timer(_clearOverlayDelay, () {
           _clearOverlayTimer = null;
@@ -304,87 +322,96 @@ class _GameScreenState extends State<GameScreen> {
                   const SizedBox(height: 10),
                   Expanded(
                     flex: 6,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        children: [
-                          ControlBar(
-                            status: _interpreter.status,
-                            runSpeed: _runSpeed,
-                            canStepBack: _interpreter.canStepBack,
-                            starsRemaining: _interpreter.starsRemaining,
-                            totalStars: _level.totalStars,
-                            onStep: _step,
-                            onStepBack: _stepBack,
-                            onSetSpeed: _setRunSpeed,
-                            onReset: _reset,
-                          ),
-                          const SizedBox(height: 10),
-                          _FunctionsHandle(
-                            visible: _functionsVisible,
-                            onToggle: () => setState(
-                                () => _functionsVisible = !_functionsVisible),
-                          ),
-                          const SizedBox(height: 4),
-                          AnimatedCrossFade(
-                            duration: const Duration(milliseconds: 220),
-                            crossFadeState: _functionsVisible
-                                ? CrossFadeState.showFirst
-                                : CrossFadeState.showSecond,
-                            firstChild: IgnorePointer(
-                              ignoring: _autoRunTimer != null,
-                              child: AnimatedOpacity(
-                                opacity: _autoRunTimer != null ? 0.4 : 1,
-                                duration: const Duration(milliseconds: 180),
-                                child: Column(
-                                  children: [
-                                    for (var i = 0; i < 5; i++)
-                                      if (_level.slotsPerFunction[i] > 0)
-                                        FunctionPanel(
-                                          label: 'F${i + 1}',
-                                          functionIndex: i,
-                                          function: _program.functions[i],
-                                          highlightSlot:
-                                              _interpreter.highlightFunction ==
-                                                      i
-                                                  ? _interpreter.highlightSlot
-                                                  : null,
-                                          onSlotTap: (slot) =>
-                                              _onSlotTap(i, slot),
-                                          onSlotDrop: (slot, instr) =>
-                                              _onSlotDrop(i, slot, instr),
-                                          onConditionDrop: (slot, color) =>
-                                              _onSlotConditionDrop(
-                                                  i, slot, color),
-                                          onSlotMove: (slot, move) =>
-                                              _onSlotMove(i, slot, move),
-                                          onSlotRemove: (slot) =>
-                                              _onSlotRemove(i, slot),
-                                        ),
-                                  ],
+                    child: Column(
+                      children: [
+                        ControlBar(
+                          status: _interpreter.status,
+                          runSpeed: _runSpeed,
+                          canStepBack: _interpreter.canStepBack,
+                          starsRemaining: _interpreter.starsRemaining,
+                          totalStars: _level.totalStars,
+                          onStep: _step,
+                          onStepBack: _stepBack,
+                          onSetSpeed: _setRunSpeed,
+                          onReset: _reset,
+                        ),
+                        const SizedBox(height: 10),
+                        _FunctionsHandle(
+                          visible: _functionsVisible,
+                          onToggle: () => setState(
+                              () => _functionsVisible = !_functionsVisible),
+                        ),
+                        const SizedBox(height: 4),
+                        // Only the function panels scroll — ControlBar above
+                        // and InstructionPalette below stay fully visible,
+                        // since some puzzles use all 5 functions and won't
+                        // fit in the space left over otherwise. Flexible
+                        // (not Expanded) so this area shrinks to fit when
+                        // functions are hidden or few, instead of always
+                        // claiming the full remaining height as blank space.
+                        Flexible(
+                          child: SingleChildScrollView(
+                            child: AnimatedCrossFade(
+                              duration: const Duration(milliseconds: 220),
+                              crossFadeState: _functionsVisible
+                                  ? CrossFadeState.showFirst
+                                  : CrossFadeState.showSecond,
+                              firstChild: IgnorePointer(
+                                ignoring: _autoRunTimer != null,
+                                child: AnimatedOpacity(
+                                  opacity: _autoRunTimer != null ? 0.4 : 1,
+                                  duration: const Duration(milliseconds: 180),
+                                  child: Column(
+                                    children: [
+                                      for (var i = 0; i < 5; i++)
+                                        if (_level.slotsPerFunction[i] > 0)
+                                          FunctionPanel(
+                                            label: 'F${i + 1}',
+                                            functionIndex: i,
+                                            function: _program.functions[i],
+                                            highlightSlot: _interpreter
+                                                        .highlightFunction ==
+                                                    i
+                                                ? _interpreter.highlightSlot
+                                                : null,
+                                            onSlotTap: (slot) =>
+                                                _onSlotTap(i, slot),
+                                            onSlotDrop: (slot, instr) =>
+                                                _onSlotDrop(i, slot, instr),
+                                            onConditionDrop: (slot, color) =>
+                                                _onSlotConditionDrop(
+                                                    i, slot, color),
+                                            onSlotMove: (slot, move) =>
+                                                _onSlotMove(i, slot, move),
+                                            onSlotRemove: (slot) =>
+                                                _onSlotRemove(i, slot),
+                                          ),
+                                    ],
+                                  ),
                                 ),
                               ),
+                              secondChild: const SizedBox(
+                                  width: double.infinity, height: 0),
                             ),
-                            secondChild: const SizedBox(
-                                width: double.infinity, height: 0),
                           ),
-                          const SizedBox(height: 8),
-                          InstructionPalette(
-                            availableActions: _availableActions,
-                            selectedAction: _selectedAction,
-                            eraserSelected: _eraserSelected,
-                            selectedCondition: _selectedCondition,
-                            enabled: _autoRunTimer == null,
-                            onActionSelected: (a) => setState(() {
-                              _selectedAction = a;
-                              _eraserSelected = false;
-                            }),
-                            onEraserSelected: () =>
-                                setState(() => _eraserSelected = true),
-                            onConditionSelected: (c) =>
-                                setState(() => _selectedCondition = c),
-                          ),
-                        ],
-                      ),
+                        ),
+                        const SizedBox(height: 8),
+                        InstructionPalette(
+                          availableActions: _availableActions,
+                          selectedAction: _selectedAction,
+                          eraserSelected: _eraserSelected,
+                          selectedCondition: _selectedCondition,
+                          enabled: _autoRunTimer == null,
+                          onActionSelected: (a) => setState(() {
+                            _selectedAction = a;
+                            _eraserSelected = false;
+                          }),
+                          onEraserSelected: () =>
+                              setState(() => _eraserSelected = true),
+                          onConditionSelected: (c) =>
+                              setState(() => _selectedCondition = c),
+                        ),
+                      ],
                     ),
                   ),
                 ],
