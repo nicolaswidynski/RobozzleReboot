@@ -41,6 +41,13 @@ class _GameScreenState extends State<GameScreen> {
   Timer? _autoRunTimer;
   int? _runSpeed; // null = paused, otherwise 1, 2, or 8
 
+  // The Clear overlay is shown on a short delay after success rather than
+  // instantly, so it doesn't pop up while the robot's move/turn animation
+  // (see RobotGrid) is still visibly catching up to the winning tile.
+  Timer? _clearOverlayTimer;
+  bool _showClearOverlay = false;
+  static const Duration _clearOverlayDelay = Duration(milliseconds: 220);
+
   final ProgressStore _progressStore = ProgressStore();
 
   static const Duration _baseStepInterval = Duration(milliseconds: 260);
@@ -63,6 +70,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void dispose() {
     _autoRunTimer?.cancel();
+    _clearOverlayTimer?.cancel();
     super.dispose();
   }
 
@@ -70,6 +78,7 @@ class _GameScreenState extends State<GameScreen> {
     _autoRunTimer?.cancel();
     _autoRunTimer = null;
     _runSpeed = null;
+    _resetClearOverlay();
     _level = _levels[index];
     _levelIndex = index;
     _program = RobotProgram.empty(_level);
@@ -78,6 +87,12 @@ class _GameScreenState extends State<GameScreen> {
     _eraserSelected = false;
     _selectedCondition = TileColor.any;
     _functionsVisible = true;
+  }
+
+  void _resetClearOverlay() {
+    _clearOverlayTimer?.cancel();
+    _clearOverlayTimer = null;
+    _showClearOverlay = false;
   }
 
   static const Map<ActionType, TileColor> _paintColorOf = {
@@ -121,6 +136,7 @@ class _GameScreenState extends State<GameScreen> {
       // Editing the program after a run has started invalidates progress —
       // rebuild a fresh interpreter against the edited program.
       _interpreter = RobotInterpreter(level: _level, program: _program);
+      _resetClearOverlay();
     });
   }
 
@@ -132,6 +148,7 @@ class _GameScreenState extends State<GameScreen> {
     setState(() {
       _program.setSlot(functionIndex, slotIndex, instruction);
       _interpreter = RobotInterpreter(level: _level, program: _program);
+      _resetClearOverlay();
     });
   }
 
@@ -145,6 +162,7 @@ class _GameScreenState extends State<GameScreen> {
       _program.setSlot(
           functionIndex, slotIndex, existing.copyWith(condition: color));
       _interpreter = RobotInterpreter(level: _level, program: _program);
+      _resetClearOverlay();
     });
   }
 
@@ -157,6 +175,18 @@ class _GameScreenState extends State<GameScreen> {
       _program.setSlot(move.functionIndex, move.slotIndex, null);
       _program.setSlot(toFunctionIndex, toSlotIndex, move.instruction);
       _interpreter = RobotInterpreter(level: _level, program: _program);
+      _resetClearOverlay();
+    });
+  }
+
+  void _onSlotRemove(int functionIndex, int slotIndex) {
+    if (_interpreter.status == RunStatus.running && _autoRunTimer != null) {
+      return; // don't allow edits mid auto-run
+    }
+    setState(() {
+      _program.setSlot(functionIndex, slotIndex, null);
+      _interpreter = RobotInterpreter(level: _level, program: _program);
+      _resetClearOverlay();
     });
   }
 
@@ -182,6 +212,13 @@ class _GameScreenState extends State<GameScreen> {
   void _maybeMarkCompleted() {
     if (_interpreter.status == RunStatus.success) {
       _progressStore.markCompleted(_level.id);
+      if (!_showClearOverlay && _clearOverlayTimer == null) {
+        _clearOverlayTimer = Timer(_clearOverlayDelay, () {
+          _clearOverlayTimer = null;
+          if (!mounted) return;
+          setState(() => _showClearOverlay = true);
+        });
+      }
     }
   }
 
@@ -190,7 +227,10 @@ class _GameScreenState extends State<GameScreen> {
     if (_autoRunTimer != null) {
       return;
     }
-    setState(() => _interpreter.stepBack());
+    setState(() {
+      _interpreter.stepBack();
+      _resetClearOverlay();
+    });
   }
 
   void _setRunSpeed(int multiplier) {
@@ -229,6 +269,7 @@ class _GameScreenState extends State<GameScreen> {
       _autoRunTimer = null;
       _runSpeed = null;
       _interpreter.reset();
+      _resetClearOverlay();
     });
   }
 
@@ -316,6 +357,8 @@ class _GameScreenState extends State<GameScreen> {
                                                   i, slot, color),
                                           onSlotMove: (slot, move) =>
                                               _onSlotMove(i, slot, move),
+                                          onSlotRemove: (slot) =>
+                                              _onSlotRemove(i, slot),
                                         ),
                                   ],
                                 ),
@@ -348,7 +391,7 @@ class _GameScreenState extends State<GameScreen> {
               ),
             ),
           ),
-          if (_interpreter.status == RunStatus.success)
+          if (_showClearOverlay)
             Positioned.fill(
               child: _ClearOverlay(onNext: _goToNextLevel),
             ),

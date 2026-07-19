@@ -48,7 +48,8 @@ class ControlBar extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 '$collected/$totalStars',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.bold),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -149,10 +150,12 @@ class _RoundIconButton extends StatelessWidget {
         alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: disabled ? Colors.white.withValues(alpha: 0.06) : AppColors.panel,
+          color:
+              disabled ? Colors.white.withValues(alpha: 0.06) : AppColors.panel,
           border: Border.all(color: AppColors.panelBorder),
         ),
-        child: Icon(icon, color: disabled ? Colors.white24 : Colors.white, size: 21),
+        child: Icon(icon,
+            color: disabled ? Colors.white24 : Colors.white, size: 21),
       ),
     );
   }
@@ -163,7 +166,8 @@ class _SpeedButton extends StatelessWidget {
   final bool active;
   final VoidCallback? onTap;
 
-  const _SpeedButton({required this.label, required this.active, required this.onTap});
+  const _SpeedButton(
+      {required this.label, required this.active, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -172,15 +176,17 @@ class _SpeedButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        width: 44,
+        constraints: const BoxConstraints(minWidth: 44),
         height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: disabled
               ? Colors.white.withValues(alpha: 0.06)
               : (active ? AppColors.accent : AppColors.panel),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: active ? AppColors.accent : AppColors.panelBorder),
+          border: Border.all(
+              color: active ? AppColors.accent : AppColors.panelBorder),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -188,18 +194,20 @@ class _SpeedButton extends StatelessWidget {
           children: [
             Icon(
               active ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              size: 15,
+              size: 20,
               color: disabled ? Colors.white24 : Colors.white,
             ),
-            if (label != null)
+            if (label != null) ...[
+              const SizedBox(width: 3),
               Text(
                 label!,
                 style: TextStyle(
                   color: disabled ? Colors.white24 : Colors.white,
                   fontWeight: FontWeight.bold,
-                  fontSize: 11,
+                  fontSize: 13,
                 ),
               ),
+            ],
           ],
         ),
       ),

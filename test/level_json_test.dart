@@ -12,6 +12,7 @@ void main() {
     final json = {
       'sourceId': 195,
       'title': 'Another speed control',
+      'author': 'evko',
       'difficulty': 3,
       'popularity': 158,
       'about': '',
@@ -39,6 +40,7 @@ void main() {
     final level = Level.fromJson(json);
 
     expect(level.name, 'Another speed control');
+    expect(level.author, 'evko');
     expect(level.difficulty, 3);
     expect(level.popularity, 158);
     expect(level.startRow, 11);
@@ -77,6 +79,8 @@ void main() {
           'allowedCommands': allowedCommands,
         };
 
+    // No "author" key in this fixture — defaults to empty, not a crash.
+    expect(Level.fromJson(baseJson(0)).author, '');
     expect(Level.fromJson(baseJson(0)).allowedPaintColors, isEmpty);
     expect(Level.fromJson(baseJson(1)).allowedPaintColors, {TileColor.red});
     expect(Level.fromJson(baseJson(2)).allowedPaintColors, {TileColor.green});

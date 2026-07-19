@@ -64,7 +64,8 @@ class RobotGrid extends StatelessWidget {
               ),
               child: tile.hasStar
                   ? Center(
-                      child: Icon(Icons.star_rounded, color: AppColors.star, size: size * 0.5),
+                      child: Icon(Icons.star_rounded,
+                          color: AppColors.star, size: size * 0.5),
                     )
                   : null,
             ),
@@ -79,25 +80,64 @@ class RobotGrid extends StatelessWidget {
       top: interpreter.row * size,
       width: size,
       height: size,
-      child: AnimatedRotation(
-        duration: const Duration(milliseconds: 180),
-        turns: _turnsFor(interpreter.direction),
-        child: Center(
-          child: Icon(
-            Icons.navigation_rounded,
-            size: size * 0.55,
-            color: interpreter.status == RunStatus.crashed
-                ? Colors.redAccent
-                : Colors.white,
-            shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
-          ),
-        ),
+      child: _RobotSprite(
+        size: size,
+        direction: interpreter.direction,
+        crashed: interpreter.status == RunStatus.crashed,
       ),
     );
   }
+}
 
-  double _turnsFor(Direction direction) {
-    // Icons.navigation points up by default; convert radians to turns.
-    return direction.radians / (2 * 3.141592653589793);
+/// The rotating robot icon. Tracks rotation as a continuous (unwrapped)
+/// turns value rather than always jumping to the new direction's absolute
+/// fraction — [AnimatedRotation] just linearly interpolates the raw number
+/// with no concept of "shortest path", so animating straight to the new
+/// direction's absolute turns can spin the long way around (e.g. a single
+/// 90° turn visually spinning 270° the other way when it wraps past 0).
+class _RobotSprite extends StatefulWidget {
+  final double size;
+  final Direction direction;
+  final bool crashed;
+
+  const _RobotSprite(
+      {required this.size, required this.direction, required this.crashed});
+
+  @override
+  State<_RobotSprite> createState() => _RobotSpriteState();
+}
+
+class _RobotSpriteState extends State<_RobotSprite> {
+  late double _turns = _absoluteTurns(widget.direction);
+
+  @override
+  void didUpdateWidget(_RobotSprite oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.direction != widget.direction) {
+      final target = _absoluteTurns(widget.direction);
+      var delta = (target - _turns) % 1.0; // always in [0, 1) in Dart
+      if (delta > 0.5) delta -= 1.0; // fold into (-0.5, 0.5]: shortest path
+      _turns += delta;
+    }
+  }
+
+  // Icons.navigation points up by default; convert radians to turns.
+  double _absoluteTurns(Direction direction) =>
+      direction.radians / (2 * 3.141592653589793);
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedRotation(
+      duration: const Duration(milliseconds: 180),
+      turns: _turns,
+      child: Center(
+        child: Icon(
+          Icons.navigation_rounded,
+          size: widget.size * 0.55,
+          color: widget.crashed ? Colors.redAccent : Colors.white,
+          shadows: const [Shadow(color: Colors.black54, blurRadius: 4)],
+        ),
+      ),
+    );
   }
 }
