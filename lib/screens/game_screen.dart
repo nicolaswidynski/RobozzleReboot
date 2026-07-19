@@ -186,7 +186,10 @@ class _GameScreenState extends State<GameScreen> {
   }
 
   void _stepBack() {
-    if (_autoRunTimer != null) return; // pause first, mid-run rewinding isn't supported
+    // Pause first — mid-run rewinding isn't supported.
+    if (_autoRunTimer != null) {
+      return;
+    }
     setState(() => _interpreter.stepBack());
   }
 
@@ -229,111 +232,127 @@ class _GameScreenState extends State<GameScreen> {
     });
   }
 
+  // _levels is exactly the list HomeScreen handed us — already in whatever
+  // sort/filter order (difficulty/popularity, Top 30/All) was active there
+  // when the player tapped in — so stepping through it follows that order.
+  VoidCallback? get _goToNextLevel => _levelIndex < _levels.length - 1
+      ? () => setState(() => _loadLevel(_levelIndex + 1))
+      : null;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-          child: Column(
-            children: [
-              _Header(
-                title: _level.name,
-                onHome: () => Navigator.of(context).pop(),
-                onNext: _levelIndex < _levels.length - 1
-                    ? () => setState(() => _loadLevel(_levelIndex + 1))
-                    : null,
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                flex: 4,
-                child: RobotGrid(interpreter: _interpreter),
-              ),
-              const SizedBox(height: 10),
-              Expanded(
-                flex: 6,
-                child: SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      ControlBar(
-                        status: _interpreter.status,
-                        runSpeed: _runSpeed,
-                        canStepBack: _interpreter.canStepBack,
-                        starsRemaining: _interpreter.starsRemaining,
-                        totalStars: _level.totalStars,
-                        onStep: _step,
-                        onStepBack: _stepBack,
-                        onSetSpeed: _setRunSpeed,
-                        onReset: _reset,
-                      ),
-                      const SizedBox(height: 10),
-                      _FunctionsHandle(
-                        visible: _functionsVisible,
-                        onToggle: () => setState(
-                            () => _functionsVisible = !_functionsVisible),
-                      ),
-                      const SizedBox(height: 4),
-                      AnimatedCrossFade(
-                        duration: const Duration(milliseconds: 220),
-                        crossFadeState: _functionsVisible
-                            ? CrossFadeState.showFirst
-                            : CrossFadeState.showSecond,
-                        firstChild: IgnorePointer(
-                          ignoring: _autoRunTimer != null,
-                          child: AnimatedOpacity(
-                            opacity: _autoRunTimer != null ? 0.4 : 1,
-                            duration: const Duration(milliseconds: 180),
-                            child: Column(
-                              children: [
-                                for (var i = 0; i < 5; i++)
-                                  if (_level.slotsPerFunction[i] > 0)
-                                    FunctionPanel(
-                                      label: 'F${i + 1}',
-                                      functionIndex: i,
-                                      function: _program.functions[i],
-                                      highlightSlot:
-                                          _interpreter.highlightFunction == i
-                                              ? _interpreter.highlightSlot
-                                              : null,
-                                      onSlotTap: (slot) => _onSlotTap(i, slot),
-                                      onSlotDrop: (slot, instr) =>
-                                          _onSlotDrop(i, slot, instr),
-                                      onConditionDrop: (slot, color) =>
-                                          _onSlotConditionDrop(i, slot, color),
-                                      onSlotMove: (slot, move) =>
-                                          _onSlotMove(i, slot, move),
-                                    ),
-                              ],
-                            ),
-                          ),
-                        ),
-                        secondChild:
-                            const SizedBox(width: double.infinity, height: 0),
-                      ),
-                      const SizedBox(height: 8),
-                      InstructionPalette(
-                        availableActions: _availableActions,
-                        selectedAction: _selectedAction,
-                        eraserSelected: _eraserSelected,
-                        selectedCondition: _selectedCondition,
-                        enabled: _autoRunTimer == null,
-                        onActionSelected: (a) => setState(() {
-                          _selectedAction = a;
-                          _eraserSelected = false;
-                        }),
-                        onEraserSelected: () =>
-                            setState(() => _eraserSelected = true),
-                        onConditionSelected: (c) =>
-                            setState(() => _selectedCondition = c),
-                      ),
-                    ],
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              child: Column(
+                children: [
+                  _Header(
+                    title: _level.name,
+                    onHome: () => Navigator.of(context).pop(),
+                    onNext: _goToNextLevel,
                   ),
-                ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    flex: 4,
+                    child: RobotGrid(interpreter: _interpreter),
+                  ),
+                  const SizedBox(height: 10),
+                  Expanded(
+                    flex: 6,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        children: [
+                          ControlBar(
+                            status: _interpreter.status,
+                            runSpeed: _runSpeed,
+                            canStepBack: _interpreter.canStepBack,
+                            starsRemaining: _interpreter.starsRemaining,
+                            totalStars: _level.totalStars,
+                            onStep: _step,
+                            onStepBack: _stepBack,
+                            onSetSpeed: _setRunSpeed,
+                            onReset: _reset,
+                          ),
+                          const SizedBox(height: 10),
+                          _FunctionsHandle(
+                            visible: _functionsVisible,
+                            onToggle: () => setState(
+                                () => _functionsVisible = !_functionsVisible),
+                          ),
+                          const SizedBox(height: 4),
+                          AnimatedCrossFade(
+                            duration: const Duration(milliseconds: 220),
+                            crossFadeState: _functionsVisible
+                                ? CrossFadeState.showFirst
+                                : CrossFadeState.showSecond,
+                            firstChild: IgnorePointer(
+                              ignoring: _autoRunTimer != null,
+                              child: AnimatedOpacity(
+                                opacity: _autoRunTimer != null ? 0.4 : 1,
+                                duration: const Duration(milliseconds: 180),
+                                child: Column(
+                                  children: [
+                                    for (var i = 0; i < 5; i++)
+                                      if (_level.slotsPerFunction[i] > 0)
+                                        FunctionPanel(
+                                          label: 'F${i + 1}',
+                                          functionIndex: i,
+                                          function: _program.functions[i],
+                                          highlightSlot:
+                                              _interpreter.highlightFunction ==
+                                                      i
+                                                  ? _interpreter.highlightSlot
+                                                  : null,
+                                          onSlotTap: (slot) =>
+                                              _onSlotTap(i, slot),
+                                          onSlotDrop: (slot, instr) =>
+                                              _onSlotDrop(i, slot, instr),
+                                          onConditionDrop: (slot, color) =>
+                                              _onSlotConditionDrop(
+                                                  i, slot, color),
+                                          onSlotMove: (slot, move) =>
+                                              _onSlotMove(i, slot, move),
+                                        ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            secondChild: const SizedBox(
+                                width: double.infinity, height: 0),
+                          ),
+                          const SizedBox(height: 8),
+                          InstructionPalette(
+                            availableActions: _availableActions,
+                            selectedAction: _selectedAction,
+                            eraserSelected: _eraserSelected,
+                            selectedCondition: _selectedCondition,
+                            enabled: _autoRunTimer == null,
+                            onActionSelected: (a) => setState(() {
+                              _selectedAction = a;
+                              _eraserSelected = false;
+                            }),
+                            onEraserSelected: () =>
+                                setState(() => _eraserSelected = true),
+                            onConditionSelected: (c) =>
+                                setState(() => _selectedCondition = c),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
+          if (_interpreter.status == RunStatus.success)
+            Positioned.fill(
+              child: _ClearOverlay(onNext: _goToNextLevel),
+            ),
+        ],
       ),
     );
   }
@@ -424,6 +443,70 @@ class _FunctionsHandle extends StatelessWidget {
         }
       },
       child: const SizedBox(width: double.infinity, height: 24),
+    );
+  }
+}
+
+/// Shown full-screen over the puzzle once it's solved (all stars collected,
+/// robot at the end). [onNext] advances through [GameScreen.levels] in
+/// whatever order HomeScreen passed them in — i.e. the sort/filter that was
+/// active there when the player tapped in.
+class _ClearOverlay extends StatelessWidget {
+  final VoidCallback? onNext;
+
+  const _ClearOverlay({required this.onNext});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Colors.black.withValues(alpha: 0.6),
+      alignment: Alignment.center,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 32),
+        padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+        decoration: BoxDecoration(
+          color: AppColors.panel,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppColors.success, width: 1.5),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle_rounded,
+                color: AppColors.success, size: 56),
+            const SizedBox(height: 14),
+            const Text(
+              'Clear!',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 24),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: onNext,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.accent,
+                  disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: Text(
+                  onNext == null ? 'Last puzzle' : 'Next',
+                  style: TextStyle(
+                    color: onNext == null ? Colors.white38 : Colors.white,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -26,3 +26,24 @@ Level testLevel() {
     slotsPerFunction: const [6, 0, 0, 0, 0],
   );
 }
+
+/// A second, distinctly-named fixture with the same shape as [testLevel],
+/// for tests that need to confirm navigation moved to a *different* level.
+Level testLevel2() {
+  return Level(
+    id: 'test-fixture-2',
+    name: 'Test Level 2',
+    grid: [
+      [
+        GridTile(color: TileColor.blue),
+        GridTile(color: TileColor.blue),
+        GridTile(color: TileColor.blue),
+        GridTile(color: TileColor.green, hasStar: true),
+      ],
+    ],
+    startRow: 0,
+    startCol: 0,
+    startDirection: Direction.right,
+    slotsPerFunction: const [6, 0, 0, 0, 0],
+  );
+}
