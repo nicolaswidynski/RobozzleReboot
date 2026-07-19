@@ -9,6 +9,11 @@ class Level {
   /// unlike [name], which isn't guaranteed unique across the scraped catalog.
   final String id;
   final String name;
+
+  /// The puzzle's creator, as credited on the source site — empty for a
+  /// handful of original/anonymous puzzles that never had one, or for
+  /// hand-authored levels.
+  final String author;
   final List<List<GridTile?>> grid; // grid[row][col], null = gap
   final int startRow;
   final int startCol;
@@ -36,6 +41,7 @@ class Level {
   const Level({
     required this.id,
     required this.name,
+    this.author = '',
     required this.grid,
     required this.startRow,
     required this.startCol,
@@ -43,7 +49,11 @@ class Level {
     required this.slotsPerFunction,
     this.difficulty = 1,
     this.popularity = 0,
-    this.allowedPaintColors = const {TileColor.red, TileColor.green, TileColor.blue},
+    this.allowedPaintColors = const {
+      TileColor.red,
+      TileColor.green,
+      TileColor.blue
+    },
   }) : assert(slotsPerFunction.length == 5);
 
   /// Parses a level from a `levels_catalog.json` entry (see
@@ -54,7 +64,10 @@ class Level {
     return Level(
       id: 'catalog-${json['sourceId']}',
       name: json['title'] as String,
-      grid: rows.map((row) => row.split('').map(gridTileFromChar).toList()).toList(),
+      author: json['author'] as String? ?? '',
+      grid: rows
+          .map((row) => row.split('').map(gridTileFromChar).toList())
+          .toList(),
       startRow: json['startRow'] as int,
       startCol: json['startCol'] as int,
       startDirection: Direction.values.byName(json['startDirection'] as String),

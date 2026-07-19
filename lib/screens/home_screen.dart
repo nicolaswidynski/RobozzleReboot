@@ -358,6 +358,16 @@ class _LevelCard extends StatelessWidget {
                       fontSize: 15,
                     ),
                   ),
+                  if (level.author.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      'by ${level.author}',
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.45),
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 6),
                   Row(
                     children: [

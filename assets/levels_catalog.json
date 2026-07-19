@@ -2,6 +2,7 @@
   {
     "sourceId": 195,
     "title": "Another speed control",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 158,
     "about": "",
@@ -34,6 +35,7 @@
   {
     "sourceId": 53,
     "title": "Branches",
+    "author": "igoro",
     "difficulty": 4,
     "popularity": 135,
     "about": "",
@@ -65,6 +67,7 @@
   {
     "sourceId": 654,
     "title": "Linked List",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 131,
     "about": "",
@@ -97,6 +100,7 @@
   {
     "sourceId": 189,
     "title": "Cherry Picking",
+    "author": "recursive",
     "difficulty": 4,
     "popularity": 130,
     "about": "Avoid the pits! ... such a great pun ...",
@@ -129,6 +133,7 @@
   {
     "sourceId": 162,
     "title": "\"960\" on blue",
+    "author": "evko",
     "difficulty": 4,
     "popularity": 120,
     "about": "",
@@ -160,6 +165,7 @@
   {
     "sourceId": 328,
     "title": "Replication Engine",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 120,
     "about": "",
@@ -192,6 +198,7 @@
   {
     "sourceId": 212,
     "title": "Parity Checker II",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 111,
     "about": "a little harder than the first",
@@ -224,6 +231,7 @@
   {
     "sourceId": 500,
     "title": "Movable paint",
+    "author": "rainault",
     "difficulty": 3,
     "popularity": 333,
     "about": "",
@@ -254,6 +262,7 @@
   {
     "sourceId": 392,
     "title": "2-Bit Instructions",
+    "author": "shahbawany",
     "difficulty": 3,
     "popularity": 327,
     "about": "",
@@ -286,6 +295,7 @@
   {
     "sourceId": 352,
     "title": "Both Directions",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 108,
     "about": "Only 2 stars to collect; it can't be that hard.",
@@ -313,6 +323,7 @@
   {
     "sourceId": 676,
     "title": "Linked List II",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 107,
     "about": "Visit the rows in order of increasing red tiles",
@@ -345,6 +356,7 @@
   {
     "sourceId": 109,
     "title": "Second kind of memory",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 313,
     "about": "Shortest demo for stack-based memory",
@@ -371,6 +383,7 @@
   {
     "sourceId": 305,
     "title": "Follow directions",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 103,
     "about": "The bottom row tells the robot the colors on which it should turn.",
@@ -402,6 +415,7 @@
   {
     "sourceId": 85,
     "title": "Less or more?",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 205,
     "about": "",
@@ -434,6 +448,7 @@
   {
     "sourceId": 188,
     "title": "Cut in half",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 490,
     "about": "",
@@ -466,6 +481,7 @@
   {
     "sourceId": 213,
     "title": "Can you count in binary?",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 96,
     "about": "binary counting without painting",
@@ -498,6 +514,7 @@
   {
     "sourceId": 558,
     "title": "8 ways",
+    "author": "willbir",
     "difficulty": 3,
     "popularity": 189,
     "about": "",
@@ -530,6 +547,7 @@
   {
     "sourceId": 97,
     "title": "Smart lemma",
+    "author": "evko",
     "difficulty": 4,
     "popularity": 91,
     "about": "clear math, no hacker's features :)",
@@ -560,6 +578,7 @@
   {
     "sourceId": 36,
     "title": "Explore the world",
+    "author": "igoro",
     "difficulty": 4,
     "popularity": 88,
     "about": "It's small... and you have the \"Fast\" button",
@@ -587,6 +606,7 @@
   {
     "sourceId": 354,
     "title": "Both Directions 0",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 264,
     "about": "The prelude to Both Directions",
@@ -608,6 +628,7 @@
   {
     "sourceId": 329,
     "title": "Layered Sheets",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 79,
     "about": "",
@@ -640,6 +661,7 @@
   {
     "sourceId": 318,
     "title": "Arithmetic",
+    "author": "esef",
     "difficulty": 3,
     "popularity": 230,
     "about": "Count red bricks",
@@ -672,6 +694,7 @@
   {
     "sourceId": 310,
     "title": "Very Early Warning",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 75,
     "about": "\"And after that make another right\"",
@@ -704,6 +727,7 @@
   {
     "sourceId": 241,
     "title": "Resonance 2",
+    "author": "esef",
     "difficulty": 3,
     "popularity": 74,
     "about": "With bugfixes",
@@ -729,6 +753,7 @@
   {
     "sourceId": 401,
     "title": "Color Changing",
+    "author": "shahbawany",
     "difficulty": 3,
     "popularity": 296,
     "about": "Toggle at junctions",
@@ -759,6 +784,7 @@
   {
     "sourceId": 80,
     "title": "RRB, RRG",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 422,
     "about": "",
@@ -789,6 +815,7 @@
   {
     "sourceId": 34,
     "title": "Don't fall off the spiral",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 277,
     "about": "",
@@ -820,6 +847,7 @@
   {
     "sourceId": 335,
     "title": "Key mechanism",
+    "author": "andos",
     "difficulty": 3,
     "popularity": 69,
     "about": "It's how you \"handle\" it that matters.",
@@ -845,6 +873,7 @@
   {
     "sourceId": 346,
     "title": "Tree II",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 137,
     "about": "",
@@ -876,6 +905,7 @@
   {
     "sourceId": 56,
     "title": "Turn on red ;-)",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 266,
     "about": "",
@@ -907,6 +937,7 @@
   {
     "sourceId": 145,
     "title": "Speed control",
+    "author": "evko",
     "difficulty": 4,
     "popularity": 65,
     "about": "",
@@ -936,6 +967,7 @@
   {
     "sourceId": 191,
     "title": "Reversed instructions",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 189,
     "about": "Read instructions in reversed order, and then carry them out.",
@@ -967,6 +999,7 @@
   {
     "sourceId": 567,
     "title": "Linked Rings",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 126,
     "about": "",
@@ -999,6 +1032,7 @@
   {
     "sourceId": 2259,
     "title": "The way back",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 63,
     "about": "Make sure you will find it!",
@@ -1031,6 +1065,7 @@
   {
     "sourceId": 249,
     "title": "straying from the path",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 249,
     "about": "",
@@ -1063,6 +1098,7 @@
   {
     "sourceId": 257,
     "title": "Winding Path",
+    "author": "snydej",
     "difficulty": 5,
     "popularity": 62,
     "about": "",
@@ -1094,6 +1130,7 @@
   {
     "sourceId": 236,
     "title": "Getting directions...",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 123,
     "about": "...can be confusing.",
@@ -1125,6 +1162,7 @@
   {
     "sourceId": 597,
     "title": "Cumulative Effect",
+    "author": "chief",
     "difficulty": 4,
     "popularity": 122,
     "about": "",
@@ -1156,6 +1194,7 @@
   {
     "sourceId": 555,
     "title": "The green mile",
+    "author": "rilo",
     "difficulty": 3,
     "popularity": 730,
     "about": "\"Walkin' the mile, walkin' the mile...\"",
@@ -1188,6 +1227,7 @@
   {
     "sourceId": 192,
     "title": "Bridge Finder",
+    "author": "recursive",
     "difficulty": 4,
     "popularity": 118,
     "about": "Remember... get the star.",
@@ -1220,6 +1260,7 @@
   {
     "sourceId": 492,
     "title": "Recursive turning",
+    "author": "rainault",
     "difficulty": 3,
     "popularity": 291,
     "about": "What the HECK are those red tiles for? Something about turning left... or not...",
@@ -1252,6 +1293,7 @@
   {
     "sourceId": 203,
     "title": "Just rectangles",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 58,
     "about": "",
@@ -1283,6 +1325,7 @@
   {
     "sourceId": 1548,
     "title": "Wiggle & Crawl",
+    "author": "kraker",
     "difficulty": 2,
     "popularity": 56,
     "about": "Two basic techniques",
@@ -1314,6 +1357,7 @@
   {
     "sourceId": 309,
     "title": "Early Warning",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 496,
     "about": "\"Turn right when you get up there.\"",
@@ -1346,6 +1390,7 @@
   {
     "sourceId": 511,
     "title": "Up then Down",
+    "author": "ajji",
     "difficulty": 3,
     "popularity": 606,
     "about": "",
@@ -1373,6 +1418,7 @@
   {
     "sourceId": 177,
     "title": "K",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 55,
     "about": "",
@@ -1402,6 +1448,7 @@
   {
     "sourceId": 2848,
     "title": "Pendant Defect",
+    "author": "benjaminrr",
     "difficulty": 2,
     "popularity": 55,
     "about": "",
@@ -1434,6 +1481,7 @@
   {
     "sourceId": 532,
     "title": "Spirelli",
+    "author": "rilo",
     "difficulty": 3,
     "popularity": 960,
     "about": "",
@@ -1466,6 +1514,7 @@
   {
     "sourceId": 765,
     "title": "Rainbow Spiral",
+    "author": "markbyers",
     "difficulty": 2,
     "popularity": 52,
     "about": "",
@@ -1498,6 +1547,7 @@
   {
     "sourceId": 178,
     "title": "Right Experiment",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 103,
     "about": "",
@@ -1530,6 +1580,7 @@
   {
     "sourceId": 571,
     "title": "Bumbling Bee",
+    "author": "thenick22",
     "difficulty": 2,
     "popularity": 1902,
     "about": "Buzzed.",
@@ -1553,6 +1604,7 @@
   {
     "sourceId": 617,
     "title": "Turn around 3",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 51,
     "about": "Clearly inspired by Mark Byers' puzzle",
@@ -1584,6 +1636,7 @@
   {
     "sourceId": 4899,
     "title": "My first maze",
+    "author": "kordalia",
     "difficulty": 2,
     "popularity": 51,
     "about": "A simple maze",
@@ -1616,6 +1669,7 @@
   {
     "sourceId": 1848,
     "title": "Symmetry :)",
+    "author": "lendesg",
     "difficulty": 3,
     "popularity": 50,
     "about": "kind of symmetry",
@@ -1648,6 +1702,7 @@
   {
     "sourceId": 444,
     "title": "Not yet... not yet...",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 599,
     "about": "",
@@ -1680,6 +1735,7 @@
   {
     "sourceId": 1085,
     "title": "Red Light, Green Light",
+    "author": "beaza",
     "difficulty": 2,
     "popularity": 49,
     "about": "",
@@ -1712,6 +1768,7 @@
   {
     "sourceId": 1147,
     "title": "Overlapping Crosses",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 49,
     "about": "",
@@ -1744,6 +1801,7 @@
   {
     "sourceId": 244,
     "title": "Waveform",
+    "author": "recursive",
     "difficulty": 3,
     "popularity": 188,
     "about": "",
@@ -1775,6 +1833,7 @@
   {
     "sourceId": 635,
     "title": "Clean Your Room",
+    "author": "bahkoo",
     "difficulty": 3,
     "popularity": 47,
     "about": "",
@@ -1807,6 +1866,7 @@
   {
     "sourceId": 982,
     "title": "Stack Memory Tutorial 2",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 47,
     "about": "2 Function Method",
@@ -1838,6 +1898,7 @@
   {
     "sourceId": 193,
     "title": "Fix the path",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 322,
     "about": "",
@@ -1869,6 +1930,7 @@
   {
     "sourceId": 332,
     "title": "Power-of-2 generator",
+    "author": "igoro",
     "difficulty": 4,
     "popularity": 184,
     "about": "Don't count the greens",
@@ -1899,6 +1961,7 @@
   {
     "sourceId": 896,
     "title": "Return",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 46,
     "about": "Go back half as far or twice as far",
@@ -1931,6 +1994,7 @@
   {
     "sourceId": 1199,
     "title": "Resonance",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 46,
     "about": "",
@@ -1963,6 +2027,7 @@
   {
     "sourceId": 983,
     "title": "Stack Memory Tutorial 3",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 45,
     "about": "3 function method",
@@ -1992,6 +2057,7 @@
   {
     "sourceId": 1016,
     "title": "Red - Blue",
+    "author": "zephyrmation",
     "difficulty": 3,
     "popularity": 45,
     "about": "With a stylish green background",
@@ -2022,6 +2088,7 @@
   {
     "sourceId": 536,
     "title": "Recursed",
+    "author": "rilo",
     "difficulty": 3,
     "popularity": 796,
     "about": "A simple puzzle for understanding the call stack",
@@ -2053,6 +2120,7 @@
   {
     "sourceId": 345,
     "title": "Orbits",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 44,
     "about": "Visit each planet (then visit Pluto)",
@@ -2085,6 +2153,7 @@
   {
     "sourceId": 55,
     "title": "Zig zig",
+    "author": "stingray",
     "difficulty": 3,
     "popularity": 307,
     "about": "Red means left... no, right... er, left.",
@@ -2117,6 +2186,7 @@
   {
     "sourceId": 293,
     "title": "Multiple Personalities",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 43,
     "about": "Turn which way? on what color?",
@@ -2149,6 +2219,7 @@
   {
     "sourceId": 389,
     "title": "parity snake",
+    "author": "shahbawany",
     "difficulty": 3,
     "popularity": 381,
     "about": "",
@@ -2179,6 +2250,7 @@
   {
     "sourceId": 33,
     "title": "Can you count?",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 168,
     "about": "",
@@ -2208,6 +2280,7 @@
   {
     "sourceId": 317,
     "title": "Divide by 2 - no tricks",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 42,
     "about": "",
@@ -2239,6 +2312,7 @@
   {
     "sourceId": 552,
     "title": "Forest Path",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 126,
     "about": "",
@@ -2271,6 +2345,7 @@
   {
     "sourceId": 3697,
     "title": "MidPoint",
+    "author": "denisb",
     "difficulty": 2,
     "popularity": 42,
     "about": "",
@@ -2303,6 +2378,7 @@
   {
     "sourceId": 333,
     "title": "Learning Stack 2",
+    "author": "abhishikt",
     "difficulty": 2,
     "popularity": 628,
     "about": "",
@@ -2335,6 +2411,7 @@
   {
     "sourceId": 14,
     "title": "Can you reach the stars?",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 373,
     "about": "This puzzle is dedicated to those that enjoy bad puns.",
@@ -2365,6 +2442,7 @@
   {
     "sourceId": 273,
     "title": "Symmetry I",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 41,
     "about": "",
@@ -2396,6 +2474,7 @@
   {
     "sourceId": 356,
     "title": "Balanced Colors",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 41,
     "about": "You've reached the end when you've seen an equal amount of each color",
@@ -2428,6 +2507,7 @@
   {
     "sourceId": 594,
     "title": "Binary Tree",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 41,
     "about": "the title is the hint",
@@ -2460,6 +2540,7 @@
   {
     "sourceId": 217,
     "title": "Towers",
+    "author": "bofh",
     "difficulty": 3,
     "popularity": 40,
     "about": "",
@@ -2492,6 +2573,7 @@
   {
     "sourceId": 286,
     "title": "Measurements",
+    "author": "recursive",
     "difficulty": 3,
     "popularity": 40,
     "about": "Record distance between red tiles - Walk on green",
@@ -2524,6 +2606,7 @@
   {
     "sourceId": 362,
     "title": "Learning Stack 4",
+    "author": "abhishikt",
     "difficulty": 3,
     "popularity": 80,
     "about": "",
@@ -2556,6 +2639,7 @@
   {
     "sourceId": 2468,
     "title": "5 Ways",
+    "author": "anton_s",
     "difficulty": 3,
     "popularity": 40,
     "about": "",
@@ -2587,6 +2671,7 @@
   {
     "sourceId": 66,
     "title": "Reflection",
+    "author": "stingray",
     "difficulty": 4,
     "popularity": 118,
     "about": "Play the first half, then rewind.",
@@ -2619,6 +2704,7 @@
   {
     "sourceId": 319,
     "title": "1 step forwards...",
+    "author": "wallacoloo",
     "difficulty": 4,
     "popularity": 39,
     "about": "2 steps backwards",
@@ -2650,6 +2736,7 @@
   {
     "sourceId": 358,
     "title": "Tree III",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 78,
     "about": "Where did all the leaves go?",
@@ -2682,6 +2769,7 @@
   {
     "sourceId": 516,
     "title": "Forward Slash",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 39,
     "about": "/",
@@ -2713,6 +2801,7 @@
   {
     "sourceId": 941,
     "title": "Chameleon Spiral 2",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 39,
     "about": "A hint for the technique to use to solve Chameleon Spiral.",
@@ -2745,6 +2834,7 @@
   {
     "sourceId": 2482,
     "title": "Polly Want A Cracker?",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 39,
     "about": "",
@@ -2773,6 +2863,7 @@
   {
     "sourceId": 3923,
     "title": "Mountain Chain",
+    "author": "qinn",
     "difficulty": 3,
     "popularity": 39,
     "about": "Hint on how the red paint is used in Early Marked Bridges.",
@@ -2805,6 +2896,7 @@
   {
     "sourceId": 350,
     "title": "Plus or Minus One",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 115,
     "about": "",
@@ -2835,6 +2927,7 @@
   {
     "sourceId": 656,
     "title": "Limit your stack!",
+    "author": "axelbrz",
     "difficulty": 4,
     "popularity": 1450,
     "about": "",
@@ -2867,6 +2960,7 @@
   {
     "sourceId": 216,
     "title": "Mod 3",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 38,
     "about": "count the number of red tiles to know which way to turn",
@@ -2899,6 +2993,7 @@
   {
     "sourceId": 254,
     "title": "two triangles",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 152,
     "about": "they're different sizes on purpose!",
@@ -2931,6 +3026,7 @@
   {
     "sourceId": 469,
     "title": "Fat Snake",
+    "author": "recursive",
     "difficulty": 3,
     "popularity": 38,
     "about": "",
@@ -2963,6 +3059,7 @@
   {
     "sourceId": 2472,
     "title": "Up and down",
+    "author": "hansa",
     "difficulty": 2,
     "popularity": 38,
     "about": "",
@@ -2995,6 +3092,7 @@
   {
     "sourceId": 13654,
     "title": "robosquad 2.0 - iteration and function calls",
+    "author": "robosquad",
     "difficulty": 3,
     "popularity": 38,
     "about": "This puzzle uses iteratrion to get the star!",
@@ -3027,6 +3125,7 @@
   {
     "sourceId": 628,
     "title": "Handcuffs",
+    "author": "thenick22",
     "difficulty": 3,
     "popularity": 226,
     "about": "Are very uncomfortable.",
@@ -3054,6 +3153,7 @@
   {
     "sourceId": 313,
     "title": "Colorful Path",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 186,
     "about": "",
@@ -3086,6 +3186,7 @@
   {
     "sourceId": 29,
     "title": "Space Invader",
+    "author": "",
     "difficulty": 4,
     "popularity": 37,
     "about": "Do the color's help?",
@@ -3117,6 +3218,7 @@
   {
     "sourceId": 76,
     "title": "Count the tiles",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 148,
     "about": "",
@@ -3148,6 +3250,7 @@
   {
     "sourceId": 167,
     "title": "Different kind of counting",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 37,
     "about": "",
@@ -3178,6 +3281,7 @@
   {
     "sourceId": 353,
     "title": "Left or Right",
+    "author": "recursive",
     "difficulty": 3,
     "popularity": 74,
     "about": "",
@@ -3210,6 +3314,7 @@
   {
     "sourceId": 771,
     "title": "Memory hole, or a memory for holes",
+    "author": "petwolverine",
     "difficulty": 3,
     "popularity": 37,
     "about": "",
@@ -3241,6 +3346,7 @@
   {
     "sourceId": 143,
     "title": "Double Recursion 2",
+    "author": "sam0737",
     "difficulty": 3,
     "popularity": 219,
     "about": "Recursion is like a spring - it stores energy",
@@ -3270,6 +3376,7 @@
   {
     "sourceId": 1143,
     "title": "Patience",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 36,
     "about": "Save the stack 'til the end",
@@ -3302,6 +3409,7 @@
   {
     "sourceId": 211,
     "title": "Parity checker",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 35,
     "about": "can you xor?",
@@ -3334,6 +3442,7 @@
   {
     "sourceId": 300,
     "title": "Bridge to 2nd building",
+    "author": "alvarom",
     "difficulty": 4,
     "popularity": 35,
     "about": "",
@@ -3362,6 +3471,7 @@
   {
     "sourceId": 314,
     "title": "triangle towers",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 35,
     "about": "Can you do it with just 2 functions?",
@@ -3386,6 +3496,7 @@
   {
     "sourceId": 595,
     "title": "Just Another Trees",
+    "author": "ssancho",
     "difficulty": 3,
     "popularity": 35,
     "about": "Just don't pass the 1000 move limit...",
@@ -3418,6 +3529,7 @@
   {
     "sourceId": 280,
     "title": "Fun with paint",
+    "author": "evilpettingzoo",
     "difficulty": 2,
     "popularity": 897,
     "about": "See if you can solve this puzzle using the paint commands",
@@ -3445,6 +3557,7 @@
   {
     "sourceId": 439,
     "title": " Easy Peezy",
+    "author": "coolchrisrm",
     "difficulty": 3,
     "popularity": 310,
     "about": "Left on green... right on green?",
@@ -3477,6 +3590,7 @@
   {
     "sourceId": 446,
     "title": "Warning Signs",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 172,
     "about": "",
@@ -3509,6 +3623,7 @@
   {
     "sourceId": 291,
     "title": "Huh? Part2",
+    "author": "sungjin",
     "difficulty": 3,
     "popularity": 171,
     "about": "Is it simple?",
@@ -3541,6 +3656,7 @@
   {
     "sourceId": 181,
     "title": "Watchtower patrol",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 34,
     "about": "",
@@ -3571,6 +3687,7 @@
   {
     "sourceId": 334,
     "title": "Learning Stack 3",
+    "author": "abhishikt",
     "difficulty": 3,
     "popularity": 68,
     "about": "",
@@ -3603,6 +3720,7 @@
   {
     "sourceId": 336,
     "title": "Missing tiles",
+    "author": "abhishikt",
     "difficulty": 3,
     "popularity": 34,
     "about": "",
@@ -3632,6 +3750,7 @@
   {
     "sourceId": 1033,
     "title": "Counting - Green",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 34,
     "about": "",
@@ -3664,6 +3783,7 @@
   {
     "sourceId": 1279,
     "title": "Hmm...maybe?",
+    "author": "spliffen",
     "difficulty": 2,
     "popularity": 34,
     "about": "Hopefully this will be slightly harder ;)",
@@ -3696,6 +3816,7 @@
   {
     "sourceId": 3151,
     "title": "Halving the stack",
+    "author": "yaxlat",
     "difficulty": 3,
     "popularity": 34,
     "about": "Aim for red",
@@ -3725,6 +3846,7 @@
   {
     "sourceId": 3438,
     "title": "Reflection",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 34,
     "about": "",
@@ -3757,6 +3879,7 @@
   {
     "sourceId": 1088,
     "title": "Chain Links",
+    "author": "beaza",
     "difficulty": 2,
     "popularity": 67,
     "about": "",
@@ -3788,6 +3911,7 @@
   {
     "sourceId": 1020,
     "title": "Swirl",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 33,
     "about": "",
@@ -3819,6 +3943,7 @@
   {
     "sourceId": 1070,
     "title": "Get The Reds 2",
+    "author": "rafaelromao",
     "difficulty": 3,
     "popularity": 33,
     "about": "",
@@ -3851,6 +3976,7 @@
   {
     "sourceId": 259,
     "title": "Shortening",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 230,
     "about": "",
@@ -3879,6 +4005,7 @@
   {
     "sourceId": 320,
     "title": "up or down?",
+    "author": "wallacoloo",
     "difficulty": 2,
     "popularity": 620,
     "about": "may look deceptively hard.",
@@ -3905,6 +4032,7 @@
   {
     "sourceId": 907,
     "title": "Backtrack Spiral",
+    "author": "rafaelromao",
     "difficulty": 3,
     "popularity": 65,
     "about": "",
@@ -3937,6 +4065,7 @@
   {
     "sourceId": 170,
     "title": "Different kind of counting II",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 32,
     "about": "",
@@ -3967,6 +4096,7 @@
   {
     "sourceId": 239,
     "title": "Double Staircase",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 32,
     "about": "",
@@ -3999,6 +4129,7 @@
   {
     "sourceId": 272,
     "title": "Follow the arrow",
+    "author": "abhishikt",
     "difficulty": 3,
     "popularity": 32,
     "about": "",
@@ -4029,6 +4160,7 @@
   {
     "sourceId": 418,
     "title": "scattered intructions",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 32,
     "about": "read what's between the red tiles.",
@@ -4061,6 +4193,7 @@
   {
     "sourceId": 612,
     "title": "Reuse",
+    "author": "ssancho",
     "difficulty": 3,
     "popularity": 32,
     "about": "",
@@ -4091,6 +4224,7 @@
   {
     "sourceId": 822,
     "title": "Messy greens",
+    "author": "hbandura",
     "difficulty": 3,
     "popularity": 32,
     "about": "Some greens are not worthy of my attention",
@@ -4122,6 +4256,7 @@
   {
     "sourceId": 1236,
     "title": "Somewhat Wallhugging",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 32,
     "about": "",
@@ -4153,6 +4288,7 @@
   {
     "sourceId": 2277,
     "title": "Cinch ",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 32,
     "about": "Pretty Simple, Enjoy.",
@@ -4185,6 +4321,7 @@
   {
     "sourceId": 2446,
     "title": "Ugly Spiral",
+    "author": "jaex",
     "difficulty": 3,
     "popularity": 32,
     "about": "",
@@ -4217,6 +4354,7 @@
   {
     "sourceId": 3840,
     "title": "Odd or even",
+    "author": "denisb",
     "difficulty": 2,
     "popularity": 32,
     "about": "count the red, and turn accordingly",
@@ -4249,6 +4387,7 @@
   {
     "sourceId": 381,
     "title": "back on double-green",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 63,
     "about": "",
@@ -4281,6 +4420,7 @@
   {
     "sourceId": 137,
     "title": "Delayed Reaction",
+    "author": "recursive",
     "difficulty": 3,
     "popularity": 249,
     "about": "Turn.  No, not here, up there.",
@@ -4313,6 +4453,7 @@
   {
     "sourceId": 110,
     "title": "I`m Yolko :)",
+    "author": "evko",
     "difficulty": 2,
     "popularity": 341,
     "about": "",
@@ -4345,6 +4486,7 @@
   {
     "sourceId": 113,
     "title": "Nested up to madness",
+    "author": "evko",
     "difficulty": 4,
     "popularity": 31,
     "about": "Can you collect second star? ;-)",
@@ -4376,6 +4518,7 @@
   {
     "sourceId": 155,
     "title": "Missing red tile II",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 93,
     "about": "the red tile is a lie",
@@ -4408,6 +4551,7 @@
   {
     "sourceId": 719,
     "title": "Convex Hole",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 31,
     "about": "",
@@ -4440,6 +4584,7 @@
   {
     "sourceId": 757,
     "title": "Three of a Kind",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 31,
     "about": "",
@@ -4472,6 +4617,7 @@
   {
     "sourceId": 791,
     "title": "Progressive Jackpot",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 31,
     "about": "",
@@ -4503,6 +4649,7 @@
   {
     "sourceId": 1030,
     "title": "Connecting blue ones",
+    "author": "axelbrz",
     "difficulty": 3,
     "popularity": 31,
     "about": "Resolve those flexible bypasses",
@@ -4535,6 +4682,7 @@
   {
     "sourceId": 1464,
     "title": "Counting Corners",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 31,
     "about": "Don't count blue. Don't turn left.",
@@ -4567,6 +4715,7 @@
   {
     "sourceId": 1571,
     "title": "Sweep & Crawl",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 31,
     "about": "",
@@ -4599,6 +4748,7 @@
   {
     "sourceId": 1971,
     "title": "Flower",
+    "author": "siezer",
     "difficulty": 2,
     "popularity": 62,
     "about": "",
@@ -4628,6 +4778,7 @@
   {
     "sourceId": 2732,
     "title": "BlueBerry Picking",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 31,
     "about": "",
@@ -4660,6 +4811,7 @@
   {
     "sourceId": 4400,
     "title": "Sokoban",
+    "author": "dannythorne",
     "difficulty": 3,
     "popularity": 31,
     "about": "Push the green crates onto the stars.",
@@ -4692,6 +4844,7 @@
   {
     "sourceId": 584,
     "title": "Boost Spiral",
+    "author": "rafaelromao",
     "difficulty": 3,
     "popularity": 247,
     "about": "Boost on green, left on red and ...",
@@ -4724,6 +4877,7 @@
   {
     "sourceId": 285,
     "title": "The Skull",
+    "author": "deepak",
     "difficulty": 2,
     "popularity": 1754,
     "about": "",
@@ -4750,6 +4904,7 @@
   {
     "sourceId": 714,
     "title": "Ups and Downs",
+    "author": "snydej",
     "difficulty": 2,
     "popularity": 92,
     "about": "",
@@ -4782,6 +4937,7 @@
   {
     "sourceId": 425,
     "title": "Flip Flop",
+    "author": "azrael",
     "difficulty": 2,
     "popularity": 1786,
     "about": "Left on green, right on green... wait, what?",
@@ -4814,6 +4970,7 @@
   {
     "sourceId": 391,
     "title": "Square",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 30,
     "about": "Red = Blue^2",
@@ -4846,6 +5003,7 @@
   {
     "sourceId": 820,
     "title": "A tortuous path for one star 2",
+    "author": "rafaelromao",
     "difficulty": 3,
     "popularity": 30,
     "about": "",
@@ -4878,6 +5036,7 @@
   {
     "sourceId": 849,
     "title": "Airplane 2",
+    "author": "rafaelromao",
     "difficulty": 3,
     "popularity": 30,
     "about": "",
@@ -4907,6 +5066,7 @@
   {
     "sourceId": 1124,
     "title": "twirtel",
+    "author": "style",
     "difficulty": 3,
     "popularity": 30,
     "about": "",
@@ -4939,6 +5099,7 @@
   {
     "sourceId": 1127,
     "title": "(A and B and C)",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 30,
     "about": "",
@@ -4971,6 +5132,7 @@
   {
     "sourceId": 1982,
     "title": "Turnif",
+    "author": "ebusiness",
     "difficulty": 2,
     "popularity": 30,
     "about": "Hard edition available",
@@ -5002,6 +5164,7 @@
   {
     "sourceId": 2471,
     "title": "Two ways",
+    "author": "anton_s",
     "difficulty": 3,
     "popularity": 30,
     "about": "",
@@ -5031,6 +5194,7 @@
   {
     "sourceId": 3109,
     "title": "Pave Your Way II",
+    "author": "kraker",
     "difficulty": 2,
     "popularity": 30,
     "about": "",
@@ -5062,6 +5226,7 @@
   {
     "sourceId": 152,
     "title": "Tree",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 118,
     "about": "Colors and recursion",
@@ -5094,6 +5259,7 @@
   {
     "sourceId": 695,
     "title": "Going to Oz",
+    "author": "beaza",
     "difficulty": 2,
     "popularity": 59,
     "about": "Follow the yellow... err green... err red brick road.",
@@ -5126,6 +5292,7 @@
   {
     "sourceId": 94,
     "title": "Treasure Hunters",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 235,
     "about": "Variation on \"Reflection\" theme",
@@ -5152,6 +5319,7 @@
   {
     "sourceId": 74,
     "title": "Knight",
+    "author": "stingray",
     "difficulty": 2,
     "popularity": 348,
     "about": "",
@@ -5180,6 +5348,7 @@
   {
     "sourceId": 175,
     "title": "Growth",
+    "author": "recursive",
     "difficulty": 4,
     "popularity": 29,
     "about": "Expanding perimeter",
@@ -5210,6 +5379,7 @@
   {
     "sourceId": 258,
     "title": "Stack Magic",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 29,
     "about": "",
@@ -5242,6 +5412,7 @@
   {
     "sourceId": 414,
     "title": "Archimedean Spiral",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 29,
     "about": "",
@@ -5274,6 +5445,7 @@
   {
     "sourceId": 640,
     "title": "Star Striped",
+    "author": "bahkoo",
     "difficulty": 3,
     "popularity": 29,
     "about": "",
@@ -5306,6 +5478,7 @@
   {
     "sourceId": 741,
     "title": "Grand Prix VIII",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 29,
     "about": "Race your car two laps to the finish, then pit stop",
@@ -5338,6 +5511,7 @@
   {
     "sourceId": 2099,
     "title": "Omission ?",
+    "author": "kraker",
     "difficulty": 2,
     "popularity": 29,
     "about": "can't remember to have seen this",
@@ -5361,6 +5535,7 @@
   {
     "sourceId": 2906,
     "title": "Simple Programming",
+    "author": "d0td0td0t",
     "difficulty": 3,
     "popularity": 29,
     "about": "Just think straight forward.",
@@ -5391,6 +5566,7 @@
   {
     "sourceId": 2992,
     "title": "The Rotator",
+    "author": "zetar",
     "difficulty": 2,
     "popularity": 29,
     "about": "",
@@ -5422,6 +5598,7 @@
   {
     "sourceId": 4605,
     "title": "Marked Bridges",
+    "author": "qinn",
     "difficulty": 3,
     "popularity": 29,
     "about": "",
@@ -5454,6 +5631,7 @@
   {
     "sourceId": 14955,
     "title": "Level 17",
+    "author": "faleite",
     "difficulty": 3,
     "popularity": 29,
     "about": "Nave",
@@ -5486,6 +5664,7 @@
   {
     "sourceId": 470,
     "title": "Jagged Edge",
+    "author": "fatbuddha",
     "difficulty": 3,
     "popularity": 229,
     "about": "One function should be enough for anybody",
@@ -5516,6 +5695,7 @@
   {
     "sourceId": 398,
     "title": "Jekyll and Hyde",
+    "author": "cybermg",
     "difficulty": 3,
     "popularity": 428,
     "about": "There's a method to the madness",
@@ -5546,6 +5726,7 @@
   {
     "sourceId": 1347,
     "title": "Coilgun",
+    "author": "dogsonofawolf",
     "difficulty": 2,
     "popularity": 57,
     "about": "Wind-up and release.",
@@ -5570,6 +5751,7 @@
   {
     "sourceId": 311,
     "title": "Follow directions II",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 113,
     "about": "Red is left, Green is right",
@@ -5600,6 +5782,7 @@
   {
     "sourceId": 639,
     "title": "Information Gathering",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 28,
     "about": "",
@@ -5631,6 +5814,7 @@
   {
     "sourceId": 1363,
     "title": "Windmills of your mind",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 28,
     "about": "Expanding \"two triangles\" (254)",
@@ -5663,6 +5847,7 @@
   {
     "sourceId": 1441,
     "title": "Simple instructions VI",
+    "author": "mcfig",
     "difficulty": 3,
     "popularity": 28,
     "about": "",
@@ -5686,6 +5871,7 @@
   {
     "sourceId": 1617,
     "title": "Left on Invisible Green",
+    "author": "katy",
     "difficulty": 3,
     "popularity": 28,
     "about": "",
@@ -5717,6 +5903,7 @@
   {
     "sourceId": 2624,
     "title": "A very strange cross",
+    "author": "anton_s",
     "difficulty": 2,
     "popularity": 28,
     "about": "",
@@ -5748,6 +5935,7 @@
   {
     "sourceId": 2812,
     "title": "Code strip",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 28,
     "about": "if green yes",
@@ -5780,6 +5968,7 @@
   {
     "sourceId": 2991,
     "title": "Doris",
+    "author": "zetar",
     "difficulty": 3,
     "popularity": 28,
     "about": "",
@@ -5812,6 +6001,7 @@
   {
     "sourceId": 4039,
     "title": "Borrowed Stack",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 28,
     "about": "Roses are pushed violets are popped.",
@@ -5843,6 +6033,7 @@
   {
     "sourceId": 4323,
     "title": "Elementary",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 28,
     "about": "A textbook solution",
@@ -5875,6 +6066,7 @@
   {
     "sourceId": 41,
     "title": "The windmill",
+    "author": "poiuy",
     "difficulty": 2,
     "popularity": 2015,
     "about": "",
@@ -5904,6 +6096,7 @@
   {
     "sourceId": 526,
     "title": "Bumpin' around",
+    "author": "rainault",
     "difficulty": 3,
     "popularity": 164,
     "about": "All tiles should be blue when you finish the level.",
@@ -5935,6 +6128,7 @@
   {
     "sourceId": 634,
     "title": "mountains",
+    "author": "timotheeee",
     "difficulty": 2,
     "popularity": 3759,
     "about": "",
@@ -5967,6 +6161,7 @@
   {
     "sourceId": 91,
     "title": "Dangerous Maze",
+    "author": "recursive",
     "difficulty": 5,
     "popularity": 27,
     "about": "Explore the whole maze, but watch out for potholes!",
@@ -5999,6 +6194,7 @@
   {
     "sourceId": 274,
     "title": "Symmetry II",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 27,
     "about": "",
@@ -6031,6 +6227,7 @@
   {
     "sourceId": 407,
     "title": "cubicles",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 27,
     "about": "the only thing that matters is the first corner.",
@@ -6063,6 +6260,7 @@
   {
     "sourceId": 735,
     "title": "Obstructions II",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 27,
     "about": "",
@@ -6095,6 +6293,7 @@
   {
     "sourceId": 746,
     "title": "Waterfalls",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 27,
     "about": "",
@@ -6127,6 +6326,7 @@
   {
     "sourceId": 915,
     "title": "Stargate",
+    "author": "karby",
     "difficulty": 3,
     "popularity": 27,
     "about": "How to slice the circle?",
@@ -6159,6 +6359,7 @@
   {
     "sourceId": 1126,
     "title": "(A or B or C)",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 27,
     "about": "",
@@ -6191,6 +6392,7 @@
   {
     "sourceId": 1366,
     "title": "Two basic techniques needed",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 27,
     "about": "Hint is in the stars on blue",
@@ -6223,6 +6425,7 @@
   {
     "sourceId": 1877,
     "title": "Two stacks",
+    "author": "lendesg",
     "difficulty": 2,
     "popularity": 27,
     "about": "first stack in F2 and second stack in F3",
@@ -6255,6 +6458,7 @@
   {
     "sourceId": 2034,
     "title": "Flight through the void",
+    "author": "vincent",
     "difficulty": 3,
     "popularity": 27,
     "about": "Avoid the void...",
@@ -6278,6 +6482,7 @@
   {
     "sourceId": 2071,
     "title": "one",
+    "author": "onqt",
     "difficulty": 2,
     "popularity": 27,
     "about": "one what ?",
@@ -6305,6 +6510,7 @@
   {
     "sourceId": 2829,
     "title": "Whirling Dervishes ",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 27,
     "about": "whirl your way up and down",
@@ -6336,6 +6542,7 @@
   {
     "sourceId": 3027,
     "title": "The L",
+    "author": "yaxlat",
     "difficulty": 3,
     "popularity": 27,
     "about": "TurnStacker",
@@ -6363,6 +6570,7 @@
   {
     "sourceId": 4837,
     "title": "Eel",
+    "author": "shaggy12",
     "difficulty": 2,
     "popularity": 27,
     "about": "",
@@ -6395,6 +6603,7 @@
   {
     "sourceId": 14010,
     "title": "group1",
+    "author": "bli62",
     "difficulty": 2,
     "popularity": 54,
     "about": "",
@@ -6426,6 +6635,7 @@
   {
     "sourceId": 204,
     "title": "Let the lines guide you",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 1147,
     "about": "An easy puzzle for once ;-)",
@@ -6456,6 +6666,7 @@
   {
     "sourceId": 410,
     "title": "black windows",
+    "author": "matush",
     "difficulty": 3,
     "popularity": 319,
     "about": "paint your way",
@@ -6481,6 +6692,7 @@
   {
     "sourceId": 2699,
     "title": "Only a square",
+    "author": "anton_s",
     "difficulty": 2,
     "popularity": 53,
     "about": "",
@@ -6512,6 +6724,7 @@
   {
     "sourceId": 168,
     "title": "Simple flattening",
+    "author": "prudnikoff",
     "difficulty": 2,
     "popularity": 2008,
     "about": "",
@@ -6533,6 +6746,7 @@
   {
     "sourceId": 87,
     "title": "Red run",
+    "author": "",
     "difficulty": 3,
     "popularity": 286,
     "about": "All work and no play...",
@@ -6565,6 +6779,7 @@
   {
     "sourceId": 226,
     "title": "The Big \"H\"",
+    "author": "wallacoloo",
     "difficulty": 4,
     "popularity": 26,
     "about": "skip & return",
@@ -6596,6 +6811,7 @@
   {
     "sourceId": 465,
     "title": "Majority Rule",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 26,
     "about": "",
@@ -6628,6 +6844,7 @@
   {
     "sourceId": 978,
     "title": "learning stack",
+    "author": "timotheeee",
     "difficulty": 3,
     "popularity": 26,
     "about": "",
@@ -6659,6 +6876,7 @@
   {
     "sourceId": 1128,
     "title": "(A xor B)",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 26,
     "about": "",
@@ -6691,6 +6909,7 @@
   {
     "sourceId": 2016,
     "title": "Spiral 2",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 26,
     "about": "",
@@ -6720,6 +6939,7 @@
   {
     "sourceId": 2168,
     "title": "Spring 2",
+    "author": "keba",
     "difficulty": 3,
     "popularity": 26,
     "about": "",
@@ -6752,6 +6972,7 @@
   {
     "sourceId": 2608,
     "title": "A strange cross",
+    "author": "anton_s",
     "difficulty": 3,
     "popularity": 26,
     "about": "",
@@ -6783,6 +7004,7 @@
   {
     "sourceId": 2738,
     "title": "Bromidic Platitud",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 26,
     "about": "The perfect name for a hackneyed puzzle.",
@@ -6815,6 +7037,7 @@
   {
     "sourceId": 4200,
     "title": "small logarithmic pyramid",
+    "author": "denisb",
     "difficulty": 2,
     "popularity": 26,
     "about": "(hope easy one)",
@@ -6841,6 +7064,7 @@
   {
     "sourceId": 380,
     "title": "Two Paths",
+    "author": "cybermg",
     "difficulty": 3,
     "popularity": 464,
     "about": "Can you take both?",
@@ -6869,6 +7093,7 @@
   {
     "sourceId": 112,
     "title": "Dizziness",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 180,
     "about": "Count steps and turn",
@@ -6899,6 +7124,7 @@
   {
     "sourceId": 82,
     "title": "One Star 2",
+    "author": "glum",
     "difficulty": 3,
     "popularity": 128,
     "about": "It's easy too...",
@@ -6926,6 +7152,7 @@
   {
     "sourceId": 108,
     "title": "First kind of memory",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 179,
     "about": "it's hint to \"Two kind of memory\"",
@@ -6955,6 +7182,7 @@
   {
     "sourceId": 165,
     "title": "Paint your way to the stars",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 230,
     "about": "Use the \"paint red\" command!",
@@ -6977,6 +7205,7 @@
   {
     "sourceId": 185,
     "title": "Explore the world 2",
+    "author": "igoro",
     "difficulty": 4,
     "popularity": 25,
     "about": "No need to be exponential...",
@@ -7007,6 +7236,7 @@
   {
     "sourceId": 234,
     "title": "\"Shuriken\"",
+    "author": "alvarom",
     "difficulty": 3,
     "popularity": 75,
     "about": "can you beat the ninja star?",
@@ -7035,6 +7265,7 @@
   {
     "sourceId": 342,
     "title": "Complete Grid",
+    "author": "recursive",
     "difficulty": 3,
     "popularity": 25,
     "about": "",
@@ -7066,6 +7297,7 @@
   {
     "sourceId": 466,
     "title": "Traversing The Hypotenuse",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 25,
     "about": "",
@@ -7098,6 +7330,7 @@
   {
     "sourceId": 563,
     "title": "Symmetry - Diagonal Path",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 25,
     "about": "",
@@ -7130,6 +7363,7 @@
   {
     "sourceId": 976,
     "title": "another ninja star",
+    "author": "timotheeee",
     "difficulty": 3,
     "popularity": 25,
     "about": "",
@@ -7158,6 +7392,7 @@
   {
     "sourceId": 996,
     "title": "Pac Man",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 25,
     "about": "",
@@ -7189,6 +7424,7 @@
   {
     "sourceId": 1563,
     "title": "Counting disharmony",
+    "author": "kraker",
     "difficulty": 2,
     "popularity": 25,
     "about": "There is a 5-3-2-2 and a 6-2-2 solution (and probably more).",
@@ -7221,6 +7457,7 @@
   {
     "sourceId": 1612,
     "title": "pushd",
+    "author": "dannythorne",
     "difficulty": 3,
     "popularity": 25,
     "about": "",
@@ -7253,6 +7490,7 @@
   {
     "sourceId": 2456,
     "title": "Free Victory!",
+    "author": "benjaminrr",
     "difficulty": 2,
     "popularity": 25,
     "about": "",
@@ -7285,6 +7523,7 @@
   {
     "sourceId": 2458,
     "title": "Once or Twice",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 25,
     "about": "Looks more difficult than it is. Just use a bit of logic.",
@@ -7315,6 +7554,7 @@
   {
     "sourceId": 2952,
     "title": "Turning Tricks",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 25,
     "about": "\"I'm not bad I'm just drawn that way.\", Jessica Rabbit ",
@@ -7346,6 +7586,7 @@
   {
     "sourceId": 3102,
     "title": "Autumn",
+    "author": "kraker",
     "difficulty": 2,
     "popularity": 25,
     "about": "Easier than Spring",
@@ -7378,6 +7619,7 @@
   {
     "sourceId": 3205,
     "title": "3 o'clock",
+    "author": "shaggy12",
     "difficulty": 3,
     "popularity": 25,
     "about": "",
@@ -7410,6 +7652,7 @@
   {
     "sourceId": 3597,
     "title": "Swirly Sue's Stack",
+    "author": "avarga",
     "difficulty": 3,
     "popularity": 25,
     "about": "",
@@ -7441,6 +7684,7 @@
   {
     "sourceId": 9907,
     "title": "ProMan",
+    "author": "niksan",
     "difficulty": 1,
     "popularity": 25,
     "about": "",
@@ -7465,6 +7709,7 @@
   {
     "sourceId": 15093,
     "title": "vid test Level 8",
+    "author": "pschbb12",
     "difficulty": 2,
     "popularity": 25,
     "about": "ICbDJpHTEnQ t=927",
@@ -7496,6 +7741,7 @@
   {
     "sourceId": 615,
     "title": "Turn around",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 1348,
     "about": "",
@@ -7517,6 +7763,7 @@
   {
     "sourceId": 761,
     "title": "mirror percent",
+    "author": "timotheeee",
     "difficulty": 2,
     "popularity": 49,
     "about": "",
@@ -7549,6 +7796,7 @@
   {
     "sourceId": 909,
     "title": "Stack and Turn 2",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 49,
     "about": "This two function counting technique is useful to know for the Symmetry puzzles.",
@@ -7579,6 +7827,7 @@
   {
     "sourceId": 88,
     "title": "Incomplete grid",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 361,
     "about": "",
@@ -7610,6 +7859,7 @@
   {
     "sourceId": 302,
     "title": "Use the map II",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 24,
     "about": "",
@@ -7642,6 +7892,7 @@
   {
     "sourceId": 308,
     "title": "Blobs and Bridges",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 24,
     "about": "",
@@ -7674,6 +7925,7 @@
   {
     "sourceId": 322,
     "title": "Bigger is better",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 24,
     "about": "",
@@ -7706,6 +7958,7 @@
   {
     "sourceId": 412,
     "title": "Triangle",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 24,
     "about": "",
@@ -7734,6 +7987,7 @@
   {
     "sourceId": 442,
     "title": "Burnt Bridges",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 24,
     "about": "",
@@ -7759,6 +8013,7 @@
   {
     "sourceId": 462,
     "title": "Just a spiral",
+    "author": "willbir",
     "difficulty": 3,
     "popularity": 24,
     "about": "",
@@ -7791,6 +8046,7 @@
   {
     "sourceId": 467,
     "title": "Traversing The Hypotenuse (finished)",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 24,
     "about": "This is the way it was meant to be...",
@@ -7823,6 +8079,7 @@
   {
     "sourceId": 486,
     "title": "Follow The Snakes",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 24,
     "about": "",
@@ -7855,6 +8112,7 @@
   {
     "sourceId": 645,
     "title": "Lessons Learned",
+    "author": "bahkoo",
     "difficulty": 3,
     "popularity": 24,
     "about": "Obstacle Course! Play other puzzles if you're having difficulty with a section!",
@@ -7887,6 +8145,7 @@
   {
     "sourceId": 1049,
     "title": "Compact Instructions",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 24,
     "about": "Half-sized instructions",
@@ -7918,6 +8177,7 @@
   {
     "sourceId": 1060,
     "title": "Red Continuation",
+    "author": "rafaelromao",
     "difficulty": 3,
     "popularity": 24,
     "about": "",
@@ -7950,6 +8210,7 @@
   {
     "sourceId": 1189,
     "title": "Variable Crosses Lite",
+    "author": "keba",
     "difficulty": 3,
     "popularity": 24,
     "about": "Add one per turn. Have we started too close?",
@@ -7982,6 +8243,7 @@
   {
     "sourceId": 1201,
     "title": "Synapses",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 24,
     "about": "",
@@ -8014,6 +8276,7 @@
   {
     "sourceId": 1288,
     "title": "Harp stacking",
+    "author": "style",
     "difficulty": 2,
     "popularity": 48,
     "about": "",
@@ -8046,6 +8309,7 @@
   {
     "sourceId": 1357,
     "title": "treesearch",
+    "author": "spliffen",
     "difficulty": 3,
     "popularity": 24,
     "about": "hoping to learn something from this...",
@@ -8077,6 +8341,7 @@
   {
     "sourceId": 1465,
     "title": "Ends II",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 24,
     "about": "Or 'Huh Part3'",
@@ -8109,6 +8374,7 @@
   {
     "sourceId": 1469,
     "title": "Incremental",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 24,
     "about": "Fall through plus one. (My version of a classic)",
@@ -8141,6 +8407,7 @@
   {
     "sourceId": 1511,
     "title": "Combo Breaker",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 24,
     "about": "",
@@ -8173,6 +8440,7 @@
   {
     "sourceId": 1519,
     "title": "Meandering Margins",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 24,
     "about": "Linear symmetry with a nesty little twist.",
@@ -8205,6 +8473,7 @@
   {
     "sourceId": 1542,
     "title": "Interception",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 24,
     "about": "Shift technique at the proper moment",
@@ -8237,6 +8506,7 @@
   {
     "sourceId": 1684,
     "title": "Left Turn",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 24,
     "about": "Inspired by 5-command 'Split Personality'",
@@ -8269,6 +8539,7 @@
   {
     "sourceId": 1723,
     "title": "Direction Deception - Red Arrow",
+    "author": "masterluk",
     "difficulty": 3,
     "popularity": 24,
     "about": "Defy the red arrow.",
@@ -8300,6 +8571,7 @@
   {
     "sourceId": 1870,
     "title": "Double your count...",
+    "author": "lendesg",
     "difficulty": 2,
     "popularity": 24,
     "about": "half?",
@@ -8331,6 +8603,7 @@
   {
     "sourceId": 1990,
     "title": "Count to 3",
+    "author": "ebusiness",
     "difficulty": 3,
     "popularity": 24,
     "about": "Add 1 on blue, subtract 1 on green, turn and reset when the sum is 3.",
@@ -8361,6 +8634,7 @@
   {
     "sourceId": 2604,
     "title": "Left or Right?",
+    "author": "mooofdoom",
     "difficulty": 3,
     "popularity": 24,
     "about": "Use the reds to help you decide...",
@@ -8393,6 +8667,7 @@
   {
     "sourceId": 2733,
     "title": "Stack-extra",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 24,
     "about": "",
@@ -8423,6 +8698,7 @@
   {
     "sourceId": 2982,
     "title": "Telephone",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 24,
     "about": "*ring ring*",
@@ -8454,6 +8730,7 @@
   {
     "sourceId": 587,
     "title": "The Cross",
+    "author": "diechort",
     "difficulty": 2,
     "popularity": 1957,
     "about": "It's a a cross",
@@ -8483,6 +8760,7 @@
   {
     "sourceId": 278,
     "title": "Return of the Robo",
+    "author": "abhishikt",
     "difficulty": 2,
     "popularity": 381,
     "about": "",
@@ -8512,6 +8790,7 @@
   {
     "sourceId": 1211,
     "title": "Stacking for newbies",
+    "author": "style",
     "difficulty": 2,
     "popularity": 119,
     "about": "",
@@ -8543,6 +8822,7 @@
   {
     "sourceId": 151,
     "title": "Graph",
+    "author": "recursive",
     "difficulty": 3,
     "popularity": 379,
     "about": "Upsides and Downsides",
@@ -8575,6 +8855,7 @@
   {
     "sourceId": 20,
     "title": "Spiral to victory",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 517,
     "about": "",
@@ -8606,6 +8887,7 @@
   {
     "sourceId": 577,
     "title": "Symmetry - Right on Green",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 47,
     "about": "",
@@ -8631,6 +8913,7 @@
   {
     "sourceId": 755,
     "title": "Blue Star Bizzar",
+    "author": "ammonzing",
     "difficulty": 2,
     "popularity": 47,
     "about": "Worm Hole! in Timespace!",
@@ -8663,6 +8946,7 @@
   {
     "sourceId": 2464,
     "title": "Foursquare puzzle",
+    "author": "anton_s",
     "difficulty": 2,
     "popularity": 70,
     "about": "",
@@ -8694,6 +8978,7 @@
   {
     "sourceId": 218,
     "title": "Mod 3 II",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 23,
     "about": "The red tile are 1. The blue tiles are 0. They form binary numbers (MSB first).",
@@ -8726,6 +9011,7 @@
   {
     "sourceId": 246,
     "title": "Gridlock",
+    "author": "recursive",
     "difficulty": 4,
     "popularity": 23,
     "about": "Make your way through traffic to the checkpoints",
@@ -8758,6 +9044,7 @@
   {
     "sourceId": 343,
     "title": "Writ Large",
+    "author": "recursive",
     "difficulty": 4,
     "popularity": 23,
     "about": "",
@@ -8790,6 +9077,7 @@
   {
     "sourceId": 437,
     "title": "Spot The Difference",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 23,
     "about": "",
@@ -8821,6 +9109,7 @@
   {
     "sourceId": 463,
     "title": "Big F",
+    "author": "willbir",
     "difficulty": 3,
     "popularity": 46,
     "about": "",
@@ -8853,6 +9142,7 @@
   {
     "sourceId": 528,
     "title": "Long Journey",
+    "author": "rafaelromao",
     "difficulty": 3,
     "popularity": 23,
     "about": "",
@@ -8885,6 +9175,7 @@
   {
     "sourceId": 747,
     "title": "Measurements 2",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 23,
     "about": "",
@@ -8917,6 +9208,7 @@
   {
     "sourceId": 762,
     "title": "blue -> red",
+    "author": "timotheeee",
     "difficulty": 3,
     "popularity": 23,
     "about": "",
@@ -8949,6 +9241,7 @@
   {
     "sourceId": 962,
     "title": "Castle Walls",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 46,
     "about": "",
@@ -8981,6 +9274,7 @@
   {
     "sourceId": 1377,
     "title": "Obstructions III",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 23,
     "about": "Keep track of the growing limit",
@@ -9013,6 +9307,7 @@
   {
     "sourceId": 1851,
     "title": "Symmetry :) 4",
+    "author": "lendesg",
     "difficulty": 3,
     "popularity": 23,
     "about": "",
@@ -9041,6 +9336,7 @@
   {
     "sourceId": 1935,
     "title": "Quadrupling",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 23,
     "about": "would be easy with 3-6",
@@ -9072,6 +9368,7 @@
   {
     "sourceId": 2008,
     "title": "Comb for trendy haircuts",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 23,
     "about": "inspired by axorion (1961)",
@@ -9104,6 +9401,7 @@
   {
     "sourceId": 2094,
     "title": "Stack and Look II",
+    "author": "keith",
     "difficulty": 3,
     "popularity": 23,
     "about": "Blue mean something minor, Red and Green mean the same things at different times",
@@ -9135,6 +9433,7 @@
   {
     "sourceId": 2476,
     "title": "There and Back Again",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 23,
     "about": "A trilogy but definitely not a hobbit's tale. Hint:The shortcut leads to Shelob.",
@@ -9166,6 +9465,7 @@
   {
     "sourceId": 2800,
     "title": "Avalanche",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 23,
     "about": "should be easy",
@@ -9198,6 +9498,7 @@
   {
     "sourceId": 2953,
     "title": "Road Less Traveled",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 23,
     "about": "Hint : 1674",
@@ -9230,6 +9531,7 @@
   {
     "sourceId": 3028,
     "title": "Cattle prod",
+    "author": "yaxlat",
     "difficulty": 3,
     "popularity": 23,
     "about": "Stackin' and wackin'",
@@ -9253,6 +9555,7 @@
   {
     "sourceId": 3526,
     "title": "Spiral 0-3",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 23,
     "about": "Due to lack of place, the initial pattern is reduced ...",
@@ -9285,6 +9588,7 @@
   {
     "sourceId": 4527,
     "title": "Painting an Aztec Pyramid",
+    "author": "benjaminrr",
     "difficulty": 2,
     "popularity": 23,
     "about": "",
@@ -9317,6 +9621,7 @@
   {
     "sourceId": 8525,
     "title": "pop",
+    "author": "mat8",
     "difficulty": 2,
     "popularity": 23,
     "about": "no coments",
@@ -9349,6 +9654,7 @@
   {
     "sourceId": 171,
     "title": "1-2-3-4-5",
+    "author": "evko",
     "difficulty": 2,
     "popularity": 547,
     "about": "it's easy",
@@ -9380,6 +9686,7 @@
   {
     "sourceId": 827,
     "title": "when to turn ?",
+    "author": "timotheeee",
     "difficulty": 2,
     "popularity": 68,
     "about": "",
@@ -9412,6 +9719,7 @@
   {
     "sourceId": 247,
     "title": "Make love, not war",
+    "author": "anthares",
     "difficulty": 2,
     "popularity": 1308,
     "about": "",
@@ -9441,6 +9749,7 @@
   {
     "sourceId": 520,
     "title": "Shoots and Ladders",
+    "author": "ammonzing",
     "difficulty": 3,
     "popularity": 45,
     "about": "ahhh shooot!",
@@ -9473,6 +9782,7 @@
   {
     "sourceId": 321,
     "title": "Rift",
+    "author": "snydej",
     "difficulty": 5,
     "popularity": 22,
     "about": "",
@@ -9505,6 +9815,7 @@
   {
     "sourceId": 339,
     "title": "complement mirror",
+    "author": "alvarom",
     "difficulty": 4,
     "popularity": 22,
     "about": "",
@@ -9534,6 +9845,7 @@
   {
     "sourceId": 394,
     "title": "Deadly Dead Ends",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 22,
     "about": "",
@@ -9564,6 +9876,7 @@
   {
     "sourceId": 509,
     "title": "The Bends",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 22,
     "about": "",
@@ -9596,6 +9909,7 @@
   {
     "sourceId": 716,
     "title": "Obstructions",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 44,
     "about": "",
@@ -9628,6 +9942,7 @@
   {
     "sourceId": 990,
     "title": "Counting - First Sequence",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 22,
     "about": "The red sequence is the same length as the first green or blue sequence.",
@@ -9659,6 +9974,7 @@
   {
     "sourceId": 1078,
     "title": "insect",
+    "author": "timotheeee",
     "difficulty": 3,
     "popularity": 22,
     "about": "",
@@ -9690,6 +10006,7 @@
   {
     "sourceId": 1098,
     "title": "Snaky",
+    "author": "trold",
     "difficulty": 3,
     "popularity": 22,
     "about": "Bend your threes",
@@ -9719,6 +10036,7 @@
   {
     "sourceId": 1167,
     "title": "Ternary Path 1 M",
+    "author": "keba",
     "difficulty": 3,
     "popularity": 22,
     "about": "M is for memory, mirror and maze",
@@ -9750,6 +10068,7 @@
   {
     "sourceId": 1529,
     "title": "Monochrome II",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 22,
     "about": "Build complexity from the bottom up.",
@@ -9779,6 +10098,7 @@
   {
     "sourceId": 1780,
     "title": "Counting",
+    "author": "lendesg",
     "difficulty": 3,
     "popularity": 22,
     "about": "",
@@ -9810,6 +10130,7 @@
   {
     "sourceId": 1849,
     "title": "Symmetry :) 2",
+    "author": "lendesg",
     "difficulty": 3,
     "popularity": 22,
     "about": "realy?",
@@ -9841,6 +10162,7 @@
   {
     "sourceId": 2005,
     "title": "just a spiral",
+    "author": "onqt",
     "difficulty": 2,
     "popularity": 44,
     "about": "",
@@ -9873,6 +10195,7 @@
   {
     "sourceId": 2017,
     "title": "Spiral 3",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 22,
     "about": "",
@@ -9905,6 +10228,7 @@
   {
     "sourceId": 2349,
     "title": "Valley Night",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 22,
     "about": "A positive reciprocal slope.",
@@ -9936,6 +10260,7 @@
   {
     "sourceId": 2832,
     "title": "4 Hole Golf Course -- Flagsticks",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 22,
     "about": "",
@@ -9968,6 +10293,7 @@
   {
     "sourceId": 3162,
     "title": "Stretched duplicate",
+    "author": "jouni",
     "difficulty": 3,
     "popularity": 22,
     "about": "Make a duplicate of the original figure, and stretch it horizontally.",
@@ -9999,6 +10325,7 @@
   {
     "sourceId": 3768,
     "title": "Square",
+    "author": "scathaniel",
     "difficulty": 3,
     "popularity": 22,
     "about": "simple square puzzle",
@@ -10023,6 +10350,7 @@
   {
     "sourceId": 3815,
     "title": "Turn right on stars III",
+    "author": "dorian_gray",
     "difficulty": 2,
     "popularity": 22,
     "about": "From the idea of the puzzle 779. Easy",
@@ -10055,6 +10383,7 @@
   {
     "sourceId": 4318,
     "title": "Blue++",
+    "author": "shaggy12",
     "difficulty": 3,
     "popularity": 22,
     "about": "",
@@ -10086,6 +10415,7 @@
   {
     "sourceId": 4639,
     "title": "Turn and pass",
+    "author": "marchan",
     "difficulty": 3,
     "popularity": 22,
     "about": "",
@@ -10118,6 +10448,7 @@
   {
     "sourceId": 4952,
     "title": "Until red",
+    "author": "marchan",
     "difficulty": 3,
     "popularity": 22,
     "about": "",
@@ -10150,6 +10481,7 @@
   {
     "sourceId": 5166,
     "title": "Dota 2 like if you like Dota 2/comment",
+    "author": "haydenp1",
     "difficulty": 2,
     "popularity": 22,
     "about": "",
@@ -10179,6 +10511,7 @@
   {
     "sourceId": 1043,
     "title": "Fermat's Spiral 3",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 43,
     "about": "Just six commands and no greens on the way back.",
@@ -10208,6 +10541,7 @@
   {
     "sourceId": 428,
     "title": "String Escaping",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 128,
     "about": "Jump on red",
@@ -10240,6 +10574,7 @@
   {
     "sourceId": 159,
     "title": "labyrinth",
+    "author": "patatino",
     "difficulty": 2,
     "popularity": 1531,
     "about": "",
@@ -10272,6 +10607,7 @@
   {
     "sourceId": 268,
     "title": "Spining Madness",
+    "author": "sungjin",
     "difficulty": 3,
     "popularity": 106,
     "about": "Avoid the hole! and SPIN!",
@@ -10299,6 +10635,7 @@
   {
     "sourceId": 846,
     "title": "The Mysterious Stair",
+    "author": "dvorjakque",
     "difficulty": 2,
     "popularity": 127,
     "about": "",
@@ -10326,6 +10663,7 @@
   {
     "sourceId": 169,
     "title": "Loopy Maze",
+    "author": "recursive",
     "difficulty": 4,
     "popularity": 21,
     "about": "Don't miss the loop",
@@ -10358,6 +10696,7 @@
   {
     "sourceId": 240,
     "title": "All Directions",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 21,
     "about": "",
@@ -10389,6 +10728,7 @@
   {
     "sourceId": 327,
     "title": "Seven Squares",
+    "author": "blake",
     "difficulty": 3,
     "popularity": 21,
     "about": "How many are important?",
@@ -10419,6 +10759,7 @@
   {
     "sourceId": 348,
     "title": "Diagonal Branching",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 21,
     "about": "",
@@ -10451,6 +10792,7 @@
   {
     "sourceId": 413,
     "title": "Winding Path II",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 21,
     "about": "",
@@ -10483,6 +10825,7 @@
   {
     "sourceId": 591,
     "title": "Action Replay",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 21,
     "about": "",
@@ -10515,6 +10858,7 @@
   {
     "sourceId": 729,
     "title": "Push and Pop",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 21,
     "about": "",
@@ -10545,6 +10889,7 @@
   {
     "sourceId": 776,
     "title": "Turn on Pair",
+    "author": "markbyers",
     "difficulty": 2,
     "popularity": 105,
     "about": "",
@@ -10577,6 +10922,7 @@
   {
     "sourceId": 910,
     "title": "Chameleon Spiral",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 21,
     "about": "",
@@ -10609,6 +10955,7 @@
   {
     "sourceId": 934,
     "title": "Almost Square",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 21,
     "about": "two solutions - one uses paint, the other uses F1 for each edge",
@@ -10641,6 +10988,7 @@
   {
     "sourceId": 1048,
     "title": "Path of Darkness",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 21,
     "about": "The outer 34 tiles show the true colours of the tiles on the Path of Darkness.",
@@ -10673,6 +11021,7 @@
   {
     "sourceId": 1300,
     "title": "Just get'm all",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 21,
     "about": "",
@@ -10705,6 +11054,7 @@
   {
     "sourceId": 1416,
     "title": "Red tile stabilizer",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 21,
     "about": "",
@@ -10737,6 +11087,7 @@
   {
     "sourceId": 1458,
     "title": "Forest and river",
+    "author": "termos",
     "difficulty": 3,
     "popularity": 21,
     "about": "Climb trees and swim in the river",
@@ -10769,6 +11120,7 @@
   {
     "sourceId": 1581,
     "title": "Yet Another Tree",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 21,
     "about": "",
@@ -10801,6 +11153,7 @@
   {
     "sourceId": 1651,
     "title": "Spin on Red!",
+    "author": "mzxrules",
     "difficulty": 3,
     "popularity": 21,
     "about": "What if you count your Blues and Greens?",
@@ -10828,6 +11181,7 @@
   {
     "sourceId": 1882,
     "title": "Delayed stack",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 21,
     "about": "Only turn right",
@@ -10860,6 +11214,7 @@
   {
     "sourceId": 2070,
     "title": "Correct measure",
+    "author": "ebusiness",
     "difficulty": 3,
     "popularity": 21,
     "about": "I can't walk straight",
@@ -10892,6 +11247,7 @@
   {
     "sourceId": 2459,
     "title": "Blue - Blue",
+    "author": "jaex",
     "difficulty": 3,
     "popularity": 21,
     "about": "Line[3].Length = Line[1].Blue - Line[2].Blue",
@@ -10924,6 +11280,7 @@
   {
     "sourceId": 2634,
     "title": "Interesting or boring?",
+    "author": "anton_s",
     "difficulty": 2,
     "popularity": 21,
     "about": "",
@@ -10956,6 +11313,7 @@
   {
     "sourceId": 3985,
     "title": "Green middle",
+    "author": "mike239x",
     "difficulty": 3,
     "popularity": 21,
     "about": "something about sum of two numbers",
@@ -10986,6 +11344,7 @@
   {
     "sourceId": 4469,
     "title": "O_o",
+    "author": "zero",
     "difficulty": 3,
     "popularity": 21,
     "about": "just smile",
@@ -11015,6 +11374,7 @@
   {
     "sourceId": 4561,
     "title": "Resist The Urge",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 21,
     "about": "...to use a bot, it's only six commands.",
@@ -11047,6 +11407,7 @@
   {
     "sourceId": 4725,
     "title": "Zen spiral",
+    "author": "dtadams",
     "difficulty": 3,
     "popularity": 21,
     "about": "as you stare into Puzzle. so Puzzle stares into you",
@@ -11076,6 +11437,7 @@
   {
     "sourceId": 5021,
     "title": "Sweep away 5",
+    "author": "marchan",
     "difficulty": 2,
     "popularity": 21,
     "about": "",
@@ -11106,6 +11468,7 @@
   {
     "sourceId": 8526,
     "title": "Sting",
+    "author": "antonbootsma",
     "difficulty": 2,
     "popularity": 21,
     "about": "Sting this",
@@ -11138,6 +11501,7 @@
   {
     "sourceId": 981,
     "title": "Stack Memory Tutorial 1",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 83,
     "about": "1 Function Method",
@@ -11169,6 +11533,7 @@
   {
     "sourceId": 230,
     "title": "red star",
+    "author": "alvarom",
     "difficulty": 3,
     "popularity": 62,
     "about": "",
@@ -11201,6 +11566,7 @@
   {
     "sourceId": 166,
     "title": "Left on green... the first time",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 1918,
     "about": "",
@@ -11231,6 +11597,7 @@
   {
     "sourceId": 789,
     "title": "3-Bar With Hole",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 41,
     "about": "",
@@ -11254,6 +11621,7 @@
   {
     "sourceId": 2139,
     "title": "L",
+    "author": "ebusiness",
     "difficulty": 2,
     "popularity": 41,
     "about": "",
@@ -11286,6 +11654,7 @@
   {
     "sourceId": 223,
     "title": "right on red, ??? on green",
+    "author": "wallacoloo",
     "difficulty": 2,
     "popularity": 3713,
     "about": "",
@@ -11314,6 +11683,7 @@
   {
     "sourceId": 616,
     "title": "Turn around 2",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 1040,
     "about": "",
@@ -11338,6 +11708,7 @@
   {
     "sourceId": 307,
     "title": "Double Spiral",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 61,
     "about": "",
@@ -11369,6 +11740,7 @@
   {
     "sourceId": 84,
     "title": "Simple spiral",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 1068,
     "about": "",
@@ -11394,6 +11766,7 @@
   {
     "sourceId": 114,
     "title": "Prison",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 60,
     "about": "",
@@ -11421,6 +11794,7 @@
   {
     "sourceId": 248,
     "title": "Backtracking",
+    "author": "recursive",
     "difficulty": 3,
     "popularity": 20,
     "about": "You come to a crossroads ...",
@@ -11453,6 +11827,7 @@
   {
     "sourceId": 576,
     "title": "Symmetry - Zigzag",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 20,
     "about": "",
@@ -11485,6 +11860,7 @@
   {
     "sourceId": 797,
     "title": "Directed Graph Traversal",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 20,
     "about": "Green means go, red means no",
@@ -11517,6 +11893,7 @@
   {
     "sourceId": 875,
     "title": "Devil's Whirl",
+    "author": "dvorjakque",
     "difficulty": 3,
     "popularity": 20,
     "about": "",
@@ -11545,6 +11922,7 @@
   {
     "sourceId": 1029,
     "title": "Xmas Lights",
+    "author": "sticky",
     "difficulty": 2,
     "popularity": 60,
     "about": "Ugly Christmas Lights",
@@ -11577,6 +11955,7 @@
   {
     "sourceId": 1206,
     "title": "Patience III",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 20,
     "about": "Like Patience I, but with symmetry",
@@ -11609,6 +11988,7 @@
   {
     "sourceId": 1586,
     "title": "Switching Sides",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 20,
     "about": "",
@@ -11641,6 +12021,7 @@
   {
     "sourceId": 1960,
     "title": "All the way down",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 20,
     "about": "",
@@ -11670,6 +12051,7 @@
   {
     "sourceId": 2069,
     "title": "Take seven",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 20,
     "about": "",
@@ -11702,6 +12084,7 @@
   {
     "sourceId": 2082,
     "title": "Stack and Look I",
+    "author": "keith",
     "difficulty": 3,
     "popularity": 20,
     "about": "Blue means nothing, Red means one thing, Green means two things",
@@ -11733,6 +12116,7 @@
   {
     "sourceId": 3144,
     "title": "Doulble or half?",
+    "author": "yaxlat",
     "difficulty": 2,
     "popularity": 20,
     "about": "",
@@ -11765,6 +12149,7 @@
   {
     "sourceId": 3520,
     "title": "Lucky four-leaf clover",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 20,
     "about": "Record,replay and repaint, then redo",
@@ -11796,6 +12181,7 @@
   {
     "sourceId": 3680,
     "title": "Wirl ...",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 20,
     "about": "('1000' limit could be  at the corner ...)",
@@ -11828,6 +12214,7 @@
   {
     "sourceId": 3686,
     "title": "Minimum",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 20,
     "about": "choose the closest green",
@@ -11860,6 +12247,7 @@
   {
     "sourceId": 4242,
     "title": "small pyramid with big step",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 20,
     "about": "",
@@ -11891,6 +12279,7 @@
   {
     "sourceId": 4244,
     "title": "Small Spiral",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 20,
     "about": "",
@@ -11923,6 +12312,7 @@
   {
     "sourceId": 5183,
     "title": "Tilt",
+    "author": "dannythorne",
     "difficulty": 3,
     "popularity": 20,
     "about": "right",
@@ -11955,6 +12345,7 @@
   {
     "sourceId": 11163,
     "title": "Ternary tree",
+    "author": "scorpio",
     "difficulty": 3,
     "popularity": 20,
     "about": "Not all reds are the same",
@@ -11987,6 +12378,7 @@
   {
     "sourceId": 780,
     "title": "Criss Cross",
+    "author": "ryusho",
     "difficulty": 2,
     "popularity": 138,
     "about": "Ryusho's First puzzle",
@@ -12018,6 +12410,7 @@
   {
     "sourceId": 483,
     "title": "spiral web",
+    "author": "alvarom",
     "difficulty": 2,
     "popularity": 4016,
     "about": "",
@@ -12050,6 +12443,7 @@
   {
     "sourceId": 43,
     "title": "Do while",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 295,
     "about": "",
@@ -12075,6 +12469,7 @@
   {
     "sourceId": 2467,
     "title": "Magic square",
+    "author": "anton_s",
     "difficulty": 2,
     "popularity": 59,
     "about": "",
@@ -12107,6 +12502,7 @@
   {
     "sourceId": 144,
     "title": "snail",
+    "author": "frfunny",
     "difficulty": 4,
     "popularity": 39,
     "about": "",
@@ -12136,6 +12532,7 @@
   {
     "sourceId": 179,
     "title": "LIFO to FIFO",
+    "author": "evko",
     "difficulty": 4,
     "popularity": 58,
     "about": "",
@@ -12162,6 +12559,7 @@
   {
     "sourceId": 644,
     "title": "Right on red",
+    "author": "sarsdp",
     "difficulty": 3,
     "popularity": 4130,
     "about": "",
@@ -12190,6 +12588,7 @@
   {
     "sourceId": 475,
     "title": "Two Stars",
+    "author": "fatbuddha",
     "difficulty": 4,
     "popularity": 19,
     "about": "By the time you've collected one star you should be nearly there...",
@@ -12221,6 +12620,7 @@
   {
     "sourceId": 687,
     "title": "Hurricane",
+    "author": "catbert",
     "difficulty": 3,
     "popularity": 19,
     "about": "",
@@ -12253,6 +12653,7 @@
   {
     "sourceId": 740,
     "title": "Sorting III",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 19,
     "about": "",
@@ -12285,6 +12686,7 @@
   {
     "sourceId": 786,
     "title": "The Map",
+    "author": "petwolverine",
     "difficulty": 3,
     "popularity": 19,
     "about": "is not the territory",
@@ -12317,6 +12719,7 @@
   {
     "sourceId": 823,
     "title": "Messy Greens 2",
+    "author": "hbandura",
     "difficulty": 3,
     "popularity": 19,
     "about": "With a dizzy twist",
@@ -12348,6 +12751,7 @@
   {
     "sourceId": 884,
     "title": "Symmetry - Double Width",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 19,
     "about": "",
@@ -12378,6 +12782,7 @@
   {
     "sourceId": 965,
     "title": "Tetris Pieces",
+    "author": "dvorjakque",
     "difficulty": 3,
     "popularity": 19,
     "about": "This should give you an idea of how to solve my larger puzzle: Tetris",
@@ -12409,6 +12814,7 @@
   {
     "sourceId": 1094,
     "title": "Count to 4",
+    "author": "ebusiness",
     "difficulty": 4,
     "popularity": 19,
     "about": "And don't forget the last star.",
@@ -12441,6 +12847,7 @@
   {
     "sourceId": 1209,
     "title": "Barbells",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 19,
     "about": "Build strength and alternate hands",
@@ -12472,6 +12879,7 @@
   {
     "sourceId": 1398,
     "title": "Cascade",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 19,
     "about": "This may help you to solve Linked List II (676)",
@@ -12504,6 +12912,7 @@
   {
     "sourceId": 1568,
     "title": "Simple Crawl",
+    "author": "caled",
     "difficulty": 3,
     "popularity": 19,
     "about": "Just another simple crawl",
@@ -12536,6 +12945,7 @@
   {
     "sourceId": 1921,
     "title": "It takes two to tango (2)",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 19,
     "about": "I would like to add some background music here",
@@ -12565,6 +12975,7 @@
   {
     "sourceId": 2152,
     "title": "Drunken painter",
+    "author": "ebusiness",
     "difficulty": 3,
     "popularity": 19,
     "about": "",
@@ -12597,6 +13008,7 @@
   {
     "sourceId": 2276,
     "title": "Store Length",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 19,
     "about": "",
@@ -12629,6 +13041,7 @@
   {
     "sourceId": 2303,
     "title": "The green stared corners",
+    "author": "mcc900",
     "difficulty": 3,
     "popularity": 19,
     "about": "Green means \"turn\". There's no doubt about that. But... which way?",
@@ -12661,6 +13074,7 @@
   {
     "sourceId": 2605,
     "title": "My fantasy puzzle",
+    "author": "anton_s",
     "difficulty": 3,
     "popularity": 19,
     "about": "",
@@ -12692,6 +13106,7 @@
   {
     "sourceId": 3838,
     "title": "Why stack (full recursion)?",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 19,
     "about": "Because it allows 3 funct: down/forward end/turn up:2/3, rich but hard, complex",
@@ -12724,6 +13139,7 @@
   {
     "sourceId": 4053,
     "title": "Red Blossoms",
+    "author": "kakuoh",
     "difficulty": 3,
     "popularity": 19,
     "about": "If you dislike a random walk, use normal method.",
@@ -12753,6 +13169,7 @@
   {
     "sourceId": 4982,
     "title": "Whirl",
+    "author": "orlando_l",
     "difficulty": 2,
     "popularity": 19,
     "about": "???",
@@ -12785,6 +13202,7 @@
   {
     "sourceId": 10571,
     "title": "Redz",
+    "author": "fffrank",
     "difficulty": 2,
     "popularity": 19,
     "about": "Every other red tile",
@@ -12815,6 +13233,7 @@
   {
     "sourceId": 10797,
     "title": "Strange stack",
+    "author": "scorpio",
     "difficulty": 3,
     "popularity": 19,
     "about": "Fractal training (#10794 and #10795)",
@@ -12846,6 +13265,7 @@
   {
     "sourceId": 51,
     "title": "Cartwheel",
+    "author": "stingray",
     "difficulty": 3,
     "popularity": 94,
     "about": "Recursion is a piece of cake.",
@@ -12878,6 +13298,7 @@
   {
     "sourceId": 153,
     "title": "Wrong Turn",
+    "author": "recursive",
     "difficulty": 3,
     "popularity": 187,
     "about": "Turn left.  Usually.",
@@ -12910,6 +13331,7 @@
   {
     "sourceId": 1676,
     "title": "Double Your Count",
+    "author": "benjaminrr",
     "difficulty": 2,
     "popularity": 56,
     "about": "",
@@ -12940,6 +13362,7 @@
   {
     "sourceId": 267,
     "title": "Existence sign",
+    "author": "sungjin",
     "difficulty": 3,
     "popularity": 93,
     "about": "Use paint tile carefully.",
@@ -12969,6 +13392,7 @@
   {
     "sourceId": 1031,
     "title": "Ruby String",
+    "author": "axelbrz",
     "difficulty": 3,
     "popularity": 37,
     "about": "Let's go to the big ruby",
@@ -13000,6 +13424,7 @@
   {
     "sourceId": 1475,
     "title": "JAP",
+    "author": "engraved",
     "difficulty": 3,
     "popularity": 37,
     "about": "Just another puzzle",
@@ -13031,6 +13456,7 @@
   {
     "sourceId": 2593,
     "title": "Addition 2",
+    "author": "ruilov",
     "difficulty": 2,
     "popularity": 37,
     "about": "variation on the same concept",
@@ -13059,6 +13485,7 @@
   {
     "sourceId": 13827,
     "title": "level 13",
+    "author": "Louis",
     "difficulty": 2,
     "popularity": 37,
     "about": "",
@@ -13091,6 +13518,7 @@
   {
     "sourceId": 129,
     "title": "Cross",
+    "author": "evko",
     "difficulty": 4,
     "popularity": 18,
     "about": "",
@@ -13123,6 +13551,7 @@
   {
     "sourceId": 337,
     "title": "log base 2",
+    "author": "alvarom",
     "difficulty": 4,
     "popularity": 18,
     "about": "... times 2",
@@ -13152,6 +13581,7 @@
   {
     "sourceId": 384,
     "title": "Funnels",
+    "author": "recursive",
     "difficulty": 4,
     "popularity": 18,
     "about": "Some good old fashioned multi-recursion",
@@ -13184,6 +13614,7 @@
   {
     "sourceId": 385,
     "title": "double width",
+    "author": "shahbawany",
     "difficulty": 3,
     "popularity": 36,
     "about": "",
@@ -13216,6 +13647,7 @@
   {
     "sourceId": 593,
     "title": "Snowflake",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 18,
     "about": "",
@@ -13247,6 +13679,7 @@
   {
     "sourceId": 618,
     "title": "Turn around 4 - Tree",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 18,
     "about": "",
@@ -13278,6 +13711,7 @@
   {
     "sourceId": 903,
     "title": "The Narrow Way",
+    "author": "xodusprime",
     "difficulty": 3,
     "popularity": 36,
     "about": "The way between is narrow and wrought with danger.",
@@ -13305,6 +13739,7 @@
   {
     "sourceId": 971,
     "title": "Counting and Doubling 2 (v2)",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 18,
     "about": "A hint for the original puzzle.",
@@ -13336,6 +13771,7 @@
   {
     "sourceId": 1191,
     "title": "Saint John's Arms",
+    "author": "sticky",
     "difficulty": 4,
     "popularity": 18,
     "about": "Not 'LUCKY CHARMS!'",
@@ -13364,6 +13800,7 @@
   {
     "sourceId": 1234,
     "title": "Training Day III (hacking)",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 18,
     "about": "Should I really be teaching this? Hint:As in chess this piece cannot be blocked.",
@@ -13396,6 +13833,7 @@
   {
     "sourceId": 1296,
     "title": "Rewind Tape - Simplified",
+    "author": "countdown_0",
     "difficulty": 3,
     "popularity": 18,
     "about": "Are you sure you have to turn?",
@@ -13426,6 +13864,7 @@
   {
     "sourceId": 1334,
     "title": "Go back",
+    "author": "theoz",
     "difficulty": 2,
     "popularity": 36,
     "about": "",
@@ -13455,6 +13894,7 @@
   {
     "sourceId": 1468,
     "title": "Stack & Plain (stubborn)",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 36,
     "about": "",
@@ -13487,6 +13927,7 @@
   {
     "sourceId": 1551,
     "title": "Hushpuppy",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 18,
     "about": "Learn to crawl!",
@@ -13519,6 +13960,7 @@
   {
     "sourceId": 1635,
     "title": "7",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 18,
     "about": "",
@@ -13549,6 +13991,7 @@
   {
     "sourceId": 1663,
     "title": "Dizzy Distance",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 18,
     "about": "",
@@ -13581,6 +14024,7 @@
   {
     "sourceId": 1767,
     "title": "Triple your count",
+    "author": "lendesg",
     "difficulty": 3,
     "popularity": 18,
     "about": "",
@@ -13613,6 +14057,7 @@
   {
     "sourceId": 1885,
     "title": "Near Miss",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 18,
     "about": "So close and yet so far away.",
@@ -13645,6 +14090,7 @@
   {
     "sourceId": 2138,
     "title": "Simple Math 4",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 18,
     "about": "C=A+B; Where A is start to red, B is green to red and C is red to end.",
@@ -13677,6 +14123,7 @@
   {
     "sourceId": 2171,
     "title": "3 holes",
+    "author": "onqt",
     "difficulty": 2,
     "popularity": 36,
     "about": "",
@@ -13709,6 +14156,7 @@
   {
     "sourceId": 2378,
     "title": "Skyscrapers",
+    "author": "qinn",
     "difficulty": 4,
     "popularity": 18,
     "about": "Green = -1, Red = +1",
@@ -13740,6 +14188,7 @@
   {
     "sourceId": 2575,
     "title": "Strange spiral 3",
+    "author": "anton_s",
     "difficulty": 3,
     "popularity": 18,
     "about": "The last strange spiral.",
@@ -13772,6 +14221,7 @@
   {
     "sourceId": 2712,
     "title": "s",
+    "author": "kapla",
     "difficulty": 3,
     "popularity": 18,
     "about": "",
@@ -13800,6 +14250,7 @@
   {
     "sourceId": 3127,
     "title": "Hourglass",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 18,
     "about": "",
@@ -13832,6 +14283,7 @@
   {
     "sourceId": 3851,
     "title": "Turn `after red`",
+    "author": "shaggy12",
     "difficulty": 3,
     "popularity": 18,
     "about": "Hope such puzzle does not exist :)",
@@ -13854,6 +14306,7 @@
   {
     "sourceId": 3867,
     "title": "Repeating Tree",
+    "author": "azure",
     "difficulty": 3,
     "popularity": 18,
     "about": "Simple repeating tree with paint.",
@@ -13886,6 +14339,7 @@
   {
     "sourceId": 3892,
     "title": "Green Lane",
+    "author": "shaggy12",
     "difficulty": 3,
     "popularity": 18,
     "about": "Collect the stars from the grass and the seashore",
@@ -13918,6 +14372,7 @@
   {
     "sourceId": 4233,
     "title": "design puzzle",
+    "author": "denisb",
     "difficulty": 2,
     "popularity": 18,
     "about": "to solve the puzzle should be easier than to design it...",
@@ -13948,6 +14403,7 @@
   {
     "sourceId": 5124,
     "title": "Tim's Puzzle #8",
+    "author": "timthree",
     "difficulty": 2,
     "popularity": 18,
     "about": "Enjoy!",
@@ -13980,6 +14436,7 @@
   {
     "sourceId": 7257,
     "title": "Addition",
+    "author": "babosae",
     "difficulty": 3,
     "popularity": 18,
     "about": "",
@@ -14012,6 +14469,7 @@
   {
     "sourceId": 10379,
     "title": "Jumpers",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 18,
     "about": "",
@@ -14044,6 +14502,7 @@
   {
     "sourceId": 10460,
     "title": "Programmed Snake",
+    "author": "jojois74",
     "difficulty": 3,
     "popularity": 18,
     "about": "Remember your instructions.",
@@ -14075,6 +14534,7 @@
   {
     "sourceId": 12969,
     "title": "Will the call stack be on the test?",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 18,
     "about": "You can count on it.",
@@ -14107,6 +14567,7 @@
   {
     "sourceId": 15090,
     "title": "vid test Level 5",
+    "author": "pschbb12",
     "difficulty": 2,
     "popularity": 18,
     "about": "ICbDJpHTEnQ t=390",
@@ -14133,6 +14594,7 @@
   {
     "sourceId": 365,
     "title": "Upstairs, downstairs",
+    "author": "rafaelromao",
     "difficulty": 3,
     "popularity": 475,
     "about": "",
@@ -14162,6 +14624,7 @@
   {
     "sourceId": 773,
     "title": "LUCKY CHARMS!",
+    "author": "ammonzing",
     "difficulty": 2,
     "popularity": 70,
     "about": "in honer of Taintedfalcon!",
@@ -14189,6 +14652,7 @@
   {
     "sourceId": 833,
     "title": "x",
+    "author": "ammonzing",
     "difficulty": 2,
     "popularity": 140,
     "about": "marks teh spot",
@@ -14221,6 +14685,7 @@
   {
     "sourceId": 1592,
     "title": " along the margin",
+    "author": "samarth",
     "difficulty": 2,
     "popularity": 35,
     "about": "dedeen neerg on",
@@ -14250,6 +14715,7 @@
   {
     "sourceId": 1690,
     "title": "Noose",
+    "author": "kraker",
     "difficulty": 2,
     "popularity": 35,
     "about": "",
@@ -14282,6 +14748,7 @@
   {
     "sourceId": 15126,
     "title": "...?",
+    "author": "Idunn0",
     "difficulty": 2,
     "popularity": 35,
     "about": "Idunn0",
@@ -14308,6 +14775,7 @@
   {
     "sourceId": 260,
     "title": "crosshairs",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 34,
     "about": "",
@@ -14340,6 +14808,7 @@
   {
     "sourceId": 283,
     "title": "Use the map",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 17,
     "about": "",
@@ -14372,6 +14841,7 @@
   {
     "sourceId": 378,
     "title": "Oscillations",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 17,
     "about": "One side tells you how far to go",
@@ -14403,6 +14873,7 @@
   {
     "sourceId": 510,
     "title": "Lawn Mower",
+    "author": "rafaelromao",
     "difficulty": 2,
     "popularity": 85,
     "about": "",
@@ -14428,6 +14899,7 @@
   {
     "sourceId": 624,
     "title": "Imperfect Reflection",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 17,
     "about": "",
@@ -14459,6 +14931,7 @@
   {
     "sourceId": 859,
     "title": "Jade Key",
+    "author": "dvorjakque",
     "difficulty": 3,
     "popularity": 17,
     "about": "",
@@ -14491,6 +14964,7 @@
   {
     "sourceId": 1013,
     "title": "Widening",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 17,
     "about": "",
@@ -14519,6 +14993,7 @@
   {
     "sourceId": 1086,
     "title": "Binary",
+    "author": "ebusiness",
     "difficulty": 4,
     "popularity": 17,
     "about": "There are 10 kinds of people in the world...",
@@ -14551,6 +15026,7 @@
   {
     "sourceId": 1095,
     "title": "Chess Knight II",
+    "author": "karby",
     "difficulty": 3,
     "popularity": 17,
     "about": "The usual drill - right on green, left on red...",
@@ -14583,6 +15059,7 @@
   {
     "sourceId": 1373,
     "title": "Turning Red",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 17,
     "about": "Right on red",
@@ -14615,6 +15092,7 @@
   {
     "sourceId": 1376,
     "title": "Step Memory",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 17,
     "about": "",
@@ -14647,6 +15125,7 @@
   {
     "sourceId": 1378,
     "title": "Symmetric Protrusions",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 17,
     "about": "",
@@ -14679,6 +15158,7 @@
   {
     "sourceId": 1569,
     "title": "Impertinent Datum (Butterfly)",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 17,
     "about": "The spacing from green to green is deliberately misleading.",
@@ -14710,6 +15190,7 @@
   {
     "sourceId": 1606,
     "title": "the lady or the tiger",
+    "author": "flarghsnoofter",
     "difficulty": 2,
     "popularity": 34,
     "about": "",
@@ -14734,6 +15215,7 @@
   {
     "sourceId": 1613,
     "title": "Push and Paint",
+    "author": "dannythorne",
     "difficulty": 3,
     "popularity": 17,
     "about": "Pop and turn",
@@ -14765,6 +15247,7 @@
   {
     "sourceId": 1647,
     "title": "Keep on turning",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 17,
     "about": "At the end",
@@ -14797,6 +15280,7 @@
   {
     "sourceId": 1677,
     "title": "Another growing cross puzzle",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 17,
     "about": "Don't switch, be consistent",
@@ -14828,6 +15312,7 @@
   {
     "sourceId": 2044,
     "title": "Glic Eochair",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 17,
     "about": "Clever Key",
@@ -14853,6 +15338,7 @@
   {
     "sourceId": 2053,
     "title": "Glitches in Programming",
+    "author": "masterluk",
     "difficulty": 4,
     "popularity": 17,
     "about": "Syntax Error: Blue tile expected.",
@@ -14884,6 +15370,7 @@
   {
     "sourceId": 2128,
     "title": "Simple Math 2",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 17,
     "about": "C=2A; This time A can equal zero instead of B. Hint: C=2(A+B)-2B",
@@ -14916,6 +15403,7 @@
   {
     "sourceId": 2328,
     "title": "Four Star Challenge",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 17,
     "about": "Can you use an unconditional function call?",
@@ -14947,6 +15435,7 @@
   {
     "sourceId": 2440,
     "title": "EZX",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 17,
     "about": "A new slant on an old stacker.",
@@ -14979,6 +15468,7 @@
   {
     "sourceId": 2626,
     "title": "A bit problem in the spiral",
+    "author": "anton_s",
     "difficulty": 3,
     "popularity": 17,
     "about": "",
@@ -15011,6 +15501,7 @@
   {
     "sourceId": 3453,
     "title": "Yet another  almost full screen",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 17,
     "about": "",
@@ -15043,6 +15534,7 @@
   {
     "sourceId": 3512,
     "title": "Spring leaves",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 17,
     "about": "Record first, reload then",
@@ -15075,6 +15567,7 @@
   {
     "sourceId": 3535,
     "title": "Shamrock ?",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 17,
     "about": "No paint, no pain",
@@ -15107,6 +15600,7 @@
   {
     "sourceId": 3981,
     "title": "Compass",
+    "author": "sticky",
     "difficulty": 2,
     "popularity": 17,
     "about": "",
@@ -15138,6 +15632,7 @@
   {
     "sourceId": 4001,
     "title": "Tim's Puzzle #1",
+    "author": "timthree",
     "difficulty": 2,
     "popularity": 34,
     "about": "My first puzzle.  Good luck!",
@@ -15168,6 +15663,7 @@
   {
     "sourceId": 4009,
     "title": "kite",
+    "author": "abhishekgargg",
     "difficulty": 2,
     "popularity": 17,
     "about": "",
@@ -15198,6 +15694,7 @@
   {
     "sourceId": 4468,
     "title": "Green Stars",
+    "author": "jojoshow",
     "difficulty": 3,
     "popularity": 17,
     "about": "",
@@ -15229,6 +15726,7 @@
   {
     "sourceId": 4525,
     "title": "Aztec Pyramid",
+    "author": "benjaminrr",
     "difficulty": 2,
     "popularity": 17,
     "about": "",
@@ -15261,6 +15759,7 @@
   {
     "sourceId": 8585,
     "title": "i forgot",
+    "author": "sebdx",
     "difficulty": 2,
     "popularity": 17,
     "about": "a bit of my test",
@@ -15288,6 +15787,7 @@
   {
     "sourceId": 9846,
     "title": "magic B",
+    "author": "Bristoche",
     "difficulty": 2,
     "popularity": 17,
     "about": "",
@@ -15318,6 +15818,7 @@
   {
     "sourceId": 10226,
     "title": "Choose your path",
+    "author": "Dvalen2",
     "difficulty": 2,
     "popularity": 17,
     "about": "Try the second path",
@@ -15350,6 +15851,7 @@
   {
     "sourceId": 11261,
     "title": "Robin",
+    "author": "codeKameleon",
     "difficulty": 2,
     "popularity": 17,
     "about": "",
@@ -15378,6 +15880,7 @@
   {
     "sourceId": 104,
     "title": "coroutines",
+    "author": "jacob_c",
     "difficulty": 2,
     "popularity": 611,
     "about": "",
@@ -15404,6 +15907,7 @@
   {
     "sourceId": 17,
     "title": "The star-studded path I",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 745,
     "about": "",
@@ -15436,6 +15940,7 @@
   {
     "sourceId": 154,
     "title": "Missing red tile",
+    "author": "snydej",
     "difficulty": 2,
     "popularity": 962,
     "about": "maybe it's a red herring",
@@ -15468,6 +15973,7 @@
   {
     "sourceId": 23,
     "title": "Two stripes",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 4365,
     "about": "There is a short solution.",
@@ -15494,6 +16000,7 @@
   {
     "sourceId": 199,
     "title": "Fibonacci Spiral",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 101,
     "about": "",
@@ -15526,6 +16033,7 @@
   {
     "sourceId": 201,
     "title": "Square Growth",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 50,
     "about": "",
@@ -15556,6 +16064,7 @@
   {
     "sourceId": 387,
     "title": "Gift Wrapped",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 33,
     "about": "",
@@ -15587,6 +16096,7 @@
   {
     "sourceId": 1806,
     "title": "up & over",
+    "author": "onqt",
     "difficulty": 2,
     "popularity": 33,
     "about": "green!",
@@ -15618,6 +16128,7 @@
   {
     "sourceId": 2202,
     "title": "One Left Turn",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 33,
     "about": "Hint: 24 right turns",
@@ -15649,6 +16160,7 @@
   {
     "sourceId": 2424,
     "title": "Broken Symmetry",
+    "author": "jaex",
     "difficulty": 2,
     "popularity": 33,
     "about": "",
@@ -15681,6 +16193,7 @@
   {
     "sourceId": 42,
     "title": "The powers",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 955,
     "about": "",
@@ -15706,6 +16219,7 @@
   {
     "sourceId": 106,
     "title": "zipline 2",
+    "author": "jacob_c",
     "difficulty": 2,
     "popularity": 688,
     "about": "",
@@ -15728,6 +16242,7 @@
   {
     "sourceId": 1227,
     "title": "Stacking for not so newbies",
+    "author": "style",
     "difficulty": 2,
     "popularity": 65,
     "about": "i guess?",
@@ -15760,6 +16275,7 @@
   {
     "sourceId": 289,
     "title": "Colorful Bar",
+    "author": "sungjin",
     "difficulty": 2,
     "popularity": 1735,
     "about": "But I want blue bar!",
@@ -15789,6 +16305,7 @@
   {
     "sourceId": 148,
     "title": "Light goes out",
+    "author": "evko",
     "difficulty": 4,
     "popularity": 16,
     "about": "",
@@ -15820,6 +16337,7 @@
   {
     "sourceId": 341,
     "title": "Perspective",
+    "author": "recursive",
     "difficulty": 4,
     "popularity": 16,
     "about": "",
@@ -15851,6 +16369,7 @@
   {
     "sourceId": 388,
     "title": "Perspective II",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 16,
     "about": "",
@@ -15882,6 +16401,7 @@
   {
     "sourceId": 479,
     "title": "sorting",
+    "author": "alvarom",
     "difficulty": 4,
     "popularity": 16,
     "about": "list on the right = sort (list of green sequences on the left)",
@@ -15914,6 +16434,7 @@
   {
     "sourceId": 529,
     "title": "One lap",
+    "author": "rainault",
     "difficulty": 3,
     "popularity": 32,
     "about": "Turn left. Probably.",
@@ -15944,6 +16465,7 @@
   {
     "sourceId": 620,
     "title": "Symmetry - Ribbon",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 16,
     "about": "",
@@ -15976,6 +16498,7 @@
   {
     "sourceId": 759,
     "title": "Battery 2",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 16,
     "about": "",
@@ -16008,6 +16531,7 @@
   {
     "sourceId": 925,
     "title": "Staircases",
+    "author": "azure",
     "difficulty": 3,
     "popularity": 16,
     "about": "Descend the staircases to win.",
@@ -16040,6 +16564,7 @@
   {
     "sourceId": 1018,
     "title": "Straight Line 1",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 16,
     "about": "compare to \"Straight Line 2\" - see how function size matters",
@@ -16063,6 +16588,7 @@
   {
     "sourceId": 1042,
     "title": "Fermat's Spiral 2",
+    "author": "markbyers",
     "difficulty": 2,
     "popularity": 80,
     "about": "Same as Fermat's Spiral but with only one function.",
@@ -16092,6 +16618,7 @@
   {
     "sourceId": 1129,
     "title": "(A and B) or (C and D)",
+    "author": "beaza",
     "difficulty": 4,
     "popularity": 16,
     "about": "",
@@ -16124,6 +16651,7 @@
   {
     "sourceId": 1145,
     "title": "finferad",
+    "author": "style",
     "difficulty": 3,
     "popularity": 32,
     "about": "",
@@ -16156,6 +16684,7 @@
   {
     "sourceId": 1555,
     "title": "Three Phase",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 16,
     "about": "Sequential behavior loops",
@@ -16188,6 +16717,7 @@
   {
     "sourceId": 1602,
     "title": "Pseudosymmetric",
+    "author": "axorion",
     "difficulty": 4,
     "popularity": 16,
     "about": "Copy: Left to right, Right to left, Top to bottom, Bottom to top.",
@@ -16220,6 +16750,7 @@
   {
     "sourceId": 1623,
     "title": "Branches with directions",
+    "author": "igoro",
     "difficulty": 4,
     "popularity": 16,
     "about": "",
@@ -16250,6 +16781,7 @@
   {
     "sourceId": 1854,
     "title": "Symmetry :) 7",
+    "author": "lendesg",
     "difficulty": 3,
     "popularity": 16,
     "about": "",
@@ -16280,6 +16812,7 @@
   {
     "sourceId": 1859,
     "title": "Code Green",
+    "author": "masterluk",
     "difficulty": 3,
     "popularity": 16,
     "about": "Most likely the hardest of the three colors.",
@@ -16306,6 +16839,7 @@
   {
     "sourceId": 2167,
     "title": "Bitshift",
+    "author": "ebusiness",
     "difficulty": 3,
     "popularity": 16,
     "about": "Move the colours forward as you go.",
@@ -16338,6 +16872,7 @@
   {
     "sourceId": 2312,
     "title": "That other one.",
+    "author": "gm101",
     "difficulty": 3,
     "popularity": 16,
     "about": "",
@@ -16370,6 +16905,7 @@
   {
     "sourceId": 2419,
     "title": "First & Last Color",
+    "author": "jaex",
     "difficulty": 2,
     "popularity": 32,
     "about": "",
@@ -16402,6 +16938,7 @@
   {
     "sourceId": 2453,
     "title": "Wind Flower",
+    "author": "jaex",
     "difficulty": 3,
     "popularity": 16,
     "about": "",
@@ -16433,6 +16970,7 @@
   {
     "sourceId": 2883,
     "title": "Loose Ends VII",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 16,
     "about": "straight on on (4x + 1)",
@@ -16465,6 +17003,7 @@
   {
     "sourceId": 3147,
     "title": "Going around and around",
+    "author": "jouni",
     "difficulty": 3,
     "popularity": 16,
     "about": "",
@@ -16496,6 +17035,7 @@
   {
     "sourceId": 3559,
     "title": "Glasses",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 16,
     "about": "",
@@ -16528,6 +17068,7 @@
   {
     "sourceId": 3687,
     "title": "Maximum",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 16,
     "about": "get the farthest one ",
@@ -16560,6 +17101,7 @@
   {
     "sourceId": 3873,
     "title": "Alt.",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 16,
     "about": "",
@@ -16592,6 +17134,7 @@
   {
     "sourceId": 8895,
     "title": "Selection: Weird Hook Thing",
+    "author": "engr100",
     "difficulty": 2,
     "popularity": 16,
     "about": "",
@@ -16623,6 +17166,7 @@
   {
     "sourceId": 10343,
     "title": "The Roundabout II",
+    "author": "19s4105",
     "difficulty": 2,
     "popularity": 16,
     "about": "",
@@ -16650,6 +17194,7 @@
   {
     "sourceId": 10581,
     "title": "Pyramid",
+    "author": "drmazhar",
     "difficulty": 3,
     "popularity": 16,
     "about": "Dr Mazhar's advice \" Walk awkwardly, Count & decrease 1 at Green\"",
@@ -16682,6 +17227,7 @@
   {
     "sourceId": 11250,
     "title": "Painting delay",
+    "author": "scorpio",
     "difficulty": 3,
     "popularity": 16,
     "about": "Helpful for #11240, #11243 and #9180",
@@ -16714,6 +17260,7 @@
   {
     "sourceId": 15092,
     "title": "vid test Level 7",
+    "author": "pschbb12",
     "difficulty": 1,
     "popularity": 16,
     "about": "ICbDJpHTEnQ t=863",
@@ -16738,6 +17285,7 @@
   {
     "sourceId": 539,
     "title": "Hypnotize",
+    "author": "ammonzing",
     "difficulty": 2,
     "popularity": 2574,
     "about": "dizzy yet?",
@@ -16770,6 +17318,7 @@
   {
     "sourceId": 666,
     "title": "Halloween(2)",
+    "author": "kraker",
     "difficulty": 2,
     "popularity": 63,
     "about": "",
@@ -16798,6 +17347,7 @@
   {
     "sourceId": 828,
     "title": "Dizzy",
+    "author": "mheiberg",
     "difficulty": 3,
     "popularity": 63,
     "about": "Spinning can be healthy.",
@@ -16827,6 +17377,7 @@
   {
     "sourceId": 135,
     "title": "Getting loopy",
+    "author": "aaronla",
     "difficulty": 2,
     "popularity": 359,
     "about": "",
@@ -16857,6 +17408,7 @@
   {
     "sourceId": 163,
     "title": "Burst of activity ",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 31,
     "about": "",
@@ -16888,6 +17440,7 @@
   {
     "sourceId": 478,
     "title": "Mirror image",
+    "author": "willbir",
     "difficulty": 3,
     "popularity": 31,
     "about": "",
@@ -16920,6 +17473,7 @@
   {
     "sourceId": 1422,
     "title": "Alternating Tree",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 31,
     "about": "",
@@ -16952,6 +17506,7 @@
   {
     "sourceId": 1442,
     "title": "Saluting dancer",
+    "author": "kraker",
     "difficulty": 2,
     "popularity": 31,
     "about": "A good beginning is half the work",
@@ -16984,6 +17539,7 @@
   {
     "sourceId": 1643,
     "title": "A Knight's Codex",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 31,
     "about": "Each color encodes three moves and some turns.",
@@ -17016,6 +17572,7 @@
   {
     "sourceId": 1956,
     "title": "Still a simple cross",
+    "author": "sffallen",
     "difficulty": 3,
     "popularity": 31,
     "about": "",
@@ -17048,6 +17605,7 @@
   {
     "sourceId": 2241,
     "title": "Waves",
+    "author": "jaex",
     "difficulty": 2,
     "popularity": 31,
     "about": "",
@@ -17079,6 +17637,7 @@
   {
     "sourceId": 1381,
     "title": "Socrates",
+    "author": "philosopher",
     "difficulty": 2,
     "popularity": 61,
     "about": "",
@@ -17109,6 +17668,7 @@
   {
     "sourceId": 12772,
     "title": "level 1",
+    "author": "Casualuser",
     "difficulty": 1,
     "popularity": 91,
     "about": "",
@@ -17139,6 +17699,7 @@
   {
     "sourceId": 316,
     "title": "Simply Connected Shape II",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 15,
     "about": "Hopefully free of bugs this time!",
@@ -17171,6 +17732,7 @@
   {
     "sourceId": 423,
     "title": "Incremental Buildup",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 15,
     "about": "",
@@ -17197,6 +17759,7 @@
   {
     "sourceId": 614,
     "title": "Symmetry - Parity Snake",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 15,
     "about": "",
@@ -17228,6 +17791,7 @@
   {
     "sourceId": 641,
     "title": "Interpolation",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 15,
     "about": "",
@@ -17258,6 +17822,7 @@
   {
     "sourceId": 712,
     "title": "Skewed Maze",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 45,
     "about": "",
@@ -17290,6 +17855,7 @@
   {
     "sourceId": 715,
     "title": "Cross the Bridges",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 15,
     "about": "",
@@ -17321,6 +17887,7 @@
   {
     "sourceId": 732,
     "title": "Equal?",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 15,
     "about": "",
@@ -17353,6 +17920,7 @@
   {
     "sourceId": 766,
     "title": "Rainbow Spiral 2",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 15,
     "about": "",
@@ -17385,6 +17953,7 @@
   {
     "sourceId": 817,
     "title": "Slinky",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 15,
     "about": "I thought springs stored energy... oh wait... they do.",
@@ -17417,6 +17986,7 @@
   {
     "sourceId": 862,
     "title": "Spiralnaut",
+    "author": "cybermg",
     "difficulty": 4,
     "popularity": 15,
     "about": "",
@@ -17448,6 +18018,7 @@
   {
     "sourceId": 926,
     "title": "Early Warning 2",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 30,
     "about": "left if you've seen red or no blue, otherwise right",
@@ -17480,6 +18051,7 @@
   {
     "sourceId": 963,
     "title": "Rose",
+    "author": "rafaelromao",
     "difficulty": 2,
     "popularity": 90,
     "about": "",
@@ -17511,6 +18083,7 @@
   {
     "sourceId": 1019,
     "title": "Straight Line 2",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 15,
     "about": "compare to \"Straight Line 1\" - see how function size matters",
@@ -17534,6 +18107,7 @@
   {
     "sourceId": 1037,
     "title": "Stairs and Ladders",
+    "author": "sticky",
     "difficulty": 4,
     "popularity": 15,
     "about": "Down the stairs, up the ladders",
@@ -17566,6 +18140,7 @@
   {
     "sourceId": 1056,
     "title": "Path of Darkness - Flip Flop",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 15,
     "about": "",
@@ -17598,6 +18173,7 @@
   {
     "sourceId": 1151,
     "title": "symmetry + paint 3",
+    "author": "timotheeee",
     "difficulty": 3,
     "popularity": 15,
     "about": "",
@@ -17628,6 +18204,7 @@
   {
     "sourceId": 1286,
     "title": "Order",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 15,
     "about": "Two stacks in reverse order",
@@ -17660,6 +18237,7 @@
   {
     "sourceId": 1527,
     "title": "Solitary Actuary",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 15,
     "about": "Account for 3R2R2L+R/4 arrows.",
@@ -17691,6 +18269,7 @@
   {
     "sourceId": 1857,
     "title": "Double duty",
+    "author": "bert",
     "difficulty": 3,
     "popularity": 15,
     "about": "Build up, release, build up, release",
@@ -17723,6 +18302,7 @@
   {
     "sourceId": 1933,
     "title": "Not easy",
+    "author": "nima_",
     "difficulty": 3,
     "popularity": 15,
     "about": "",
@@ -17755,6 +18335,7 @@
   {
     "sourceId": 1983,
     "title": "Turnif - hard edition",
+    "author": "ebusiness",
     "difficulty": 3,
     "popularity": 30,
     "about": "Solve Turnif first",
@@ -17787,6 +18368,7 @@
   {
     "sourceId": 2542,
     "title": "Puzzle time",
+    "author": "anton_s",
     "difficulty": 3,
     "popularity": 15,
     "about": "",
@@ -17817,6 +18399,7 @@
   {
     "sourceId": 2569,
     "title": "Seven Eleven",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 15,
     "about": "This stacker might look harder than it is.",
@@ -17848,6 +18431,7 @@
   {
     "sourceId": 2625,
     "title": "More cross",
+    "author": "anton_s",
     "difficulty": 3,
     "popularity": 15,
     "about": "",
@@ -17878,6 +18462,7 @@
   {
     "sourceId": 2656,
     "title": "Popcorn",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 15,
     "about": "Can you predict the first pop?",
@@ -17909,6 +18494,7 @@
   {
     "sourceId": 3219,
     "title": "easy as water",
+    "author": "juanpablo",
     "difficulty": 2,
     "popularity": 60,
     "about": "",
@@ -17936,6 +18522,7 @@
   {
     "sourceId": 3299,
     "title": "Juggernaut",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 15,
     "about": "",
@@ -17967,6 +18554,7 @@
   {
     "sourceId": 3681,
     "title": "No limit",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 15,
     "about": "Don't worry about the limit, you will reach it ...",
@@ -17999,6 +18587,7 @@
   {
     "sourceId": 3727,
     "title": "Isosceles rectangled triangles",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 15,
     "about": "(can help for previous squares)",
@@ -18031,6 +18620,7 @@
   {
     "sourceId": 3900,
     "title": "easy one",
+    "author": "cagdassalur",
     "difficulty": 2,
     "popularity": 30,
     "about": "",
@@ -18059,6 +18649,7 @@
   {
     "sourceId": 4853,
     "title": "Don't worry, be happy",
+    "author": "akavari",
     "difficulty": 2,
     "popularity": 15,
     "about": "Life's to short to always be looking back:)",
@@ -18091,6 +18682,7 @@
   {
     "sourceId": 4908,
     "title": "what?",
+    "author": "jokey",
     "difficulty": 2,
     "popularity": 15,
     "about": "what am i missing axorion?",
@@ -18122,6 +18714,7 @@
   {
     "sourceId": 4936,
     "title": "Sweep before cross",
+    "author": "marchan",
     "difficulty": 3,
     "popularity": 15,
     "about": "",
@@ -18154,6 +18747,7 @@
   {
     "sourceId": 9656,
     "title": "Skyscrapers",
+    "author": "markthebrit",
     "difficulty": 2,
     "popularity": 15,
     "about": "",
@@ -18185,6 +18779,7 @@
   {
     "sourceId": 10497,
     "title": "Dual purpose",
+    "author": "drmazhar",
     "difficulty": 2,
     "popularity": 15,
     "about": "Dr Mazhar's advice\"One stack can be used for dual purpose.\"",
@@ -18217,6 +18812,7 @@
   {
     "sourceId": 11066,
     "title": "3. fucntion call",
+    "author": "imxm7",
     "difficulty": 2,
     "popularity": 15,
     "about": "LIB",
@@ -18240,6 +18836,7 @@
   {
     "sourceId": 12652,
     "title": "Simple puzzle",
+    "author": "kserikba",
     "difficulty": 2,
     "popularity": 15,
     "about": "Left on red",
@@ -18271,6 +18868,7 @@
   {
     "sourceId": 142,
     "title": "Single Recursion 1",
+    "author": "sam0737",
     "difficulty": 2,
     "popularity": 608,
     "about": "Recursion is like a spring - it stores energy",
@@ -18292,6 +18890,7 @@
   {
     "sourceId": 12726,
     "title": "Letter T",
+    "author": "hanness",
     "difficulty": 2,
     "popularity": 44,
     "about": "",
@@ -18321,6 +18920,7 @@
   {
     "sourceId": 770,
     "title": "HANG MAN",
+    "author": "ammonzing",
     "difficulty": 2,
     "popularity": 161,
     "about": "5 Function word! _ _ _ _ _",
@@ -18353,6 +18953,7 @@
   {
     "sourceId": 548,
     "title": "Cube Extreme",
+    "author": "ammonzing",
     "difficulty": 2,
     "popularity": 860,
     "about": "O_o",
@@ -18382,6 +18983,7 @@
   {
     "sourceId": 59,
     "title": "Recursion",
+    "author": "mandark",
     "difficulty": 2,
     "popularity": 582,
     "about": "... the other recursion !",
@@ -18405,6 +19007,7 @@
   {
     "sourceId": 432,
     "title": "Stoplight",
+    "author": "zephyrmation",
     "difficulty": 2,
     "popularity": 2808,
     "about": "Green means go",
@@ -18428,6 +19031,7 @@
   {
     "sourceId": 679,
     "title": "learning the call stack",
+    "author": "timotheeee",
     "difficulty": 3,
     "popularity": 29,
     "about": "",
@@ -18460,6 +19064,7 @@
   {
     "sourceId": 944,
     "title": "Simple Cross 2",
+    "author": "rafaelromao",
     "difficulty": 2,
     "popularity": 116,
     "about": "",
@@ -18485,6 +19090,7 @@
   {
     "sourceId": 973,
     "title": "Wiggle 2",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 29,
     "about": "one small piece of the \"Wiggle\" puzzle",
@@ -18517,6 +19123,7 @@
   {
     "sourceId": 1144,
     "title": "Prealgebra",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 29,
     "about": "Distance to first green plus twice distance to second green",
@@ -18549,6 +19156,7 @@
   {
     "sourceId": 1315,
     "title": "Eiffel Tower?",
+    "author": "sli_92",
     "difficulty": 3,
     "popularity": 29,
     "about": "Might be harder than it seems~",
@@ -18578,6 +19186,7 @@
   {
     "sourceId": 1451,
     "title": "Simple Galaxy",
+    "author": "termos",
     "difficulty": 2,
     "popularity": 29,
     "about": "",
@@ -18607,6 +19216,7 @@
   {
     "sourceId": 1999,
     "title": "3X",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 29,
     "about": "Just for fun.",
@@ -18639,6 +19249,7 @@
   {
     "sourceId": 2220,
     "title": "Pattern",
+    "author": "jaex",
     "difficulty": 2,
     "popularity": 29,
     "about": "",
@@ -18668,6 +19279,7 @@
   {
     "sourceId": 2666,
     "title": "Green is nerved",
+    "author": "anton_s",
     "difficulty": 2,
     "popularity": 29,
     "about": "",
@@ -18700,6 +19312,7 @@
   {
     "sourceId": 4457,
     "title": "Sneaky spiral",
+    "author": "zero",
     "difficulty": 2,
     "popularity": 29,
     "about": "",
@@ -18732,6 +19345,7 @@
   {
     "sourceId": 131,
     "title": "driving in the uk",
+    "author": "w4keme",
     "difficulty": 2,
     "popularity": 1940,
     "about": "",
@@ -18764,6 +19378,7 @@
   {
     "sourceId": 456,
     "title": "island hopping",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 43,
     "about": "Green points the way.",
@@ -18795,6 +19410,7 @@
   {
     "sourceId": 485,
     "title": "Two Greyhounds",
+    "author": "honey",
     "difficulty": 3,
     "popularity": 43,
     "about": "\"Think about it!\"",
@@ -18826,6 +19442,7 @@
   {
     "sourceId": 881,
     "title": "Easy Double Spiral",
+    "author": "azure",
     "difficulty": 3,
     "popularity": 43,
     "about": "Simple stack based double spiral puzzle.",
@@ -18854,6 +19471,7 @@
   {
     "sourceId": 25,
     "title": "A window",
+    "author": "",
     "difficulty": 2,
     "popularity": 644,
     "about": " ",
@@ -18880,6 +19498,7 @@
   {
     "sourceId": 35,
     "title": "Kind of math...",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 114,
     "about": "Does not quite fit.",
@@ -18909,6 +19528,7 @@
   {
     "sourceId": 330,
     "title": "Learning Stack",
+    "author": "abhishikt",
     "difficulty": 2,
     "popularity": 625,
     "about": "",
@@ -18941,6 +19561,7 @@
   {
     "sourceId": 164,
     "title": "Hidden rule",
+    "author": "evko",
     "difficulty": 4,
     "popularity": 28,
     "about": "",
@@ -18973,6 +19594,7 @@
   {
     "sourceId": 198,
     "title": "Binary Counting",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 14,
     "about": "",
@@ -19005,6 +19627,7 @@
   {
     "sourceId": 282,
     "title": "Facsimile II",
+    "author": "snydej",
     "difficulty": 5,
     "popularity": 14,
     "about": "Now with added stack tricks!",
@@ -19036,6 +19659,7 @@
   {
     "sourceId": 363,
     "title": "Hammered",
+    "author": "emi4a",
     "difficulty": 5,
     "popularity": 56,
     "about": "",
@@ -19059,6 +19683,7 @@
   {
     "sourceId": 447,
     "title": "When to turn?",
+    "author": "wallacoloo",
     "difficulty": 4,
     "popularity": 14,
     "about": "oh, you turn on green ;-)",
@@ -19091,6 +19716,7 @@
   {
     "sourceId": 508,
     "title": "Holiday Tree",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 14,
     "about": "turn out the lights",
@@ -19122,6 +19748,7 @@
   {
     "sourceId": 601,
     "title": "Symmetry - Don't Miss The Turn",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 14,
     "about": "",
@@ -19154,6 +19781,7 @@
   {
     "sourceId": 723,
     "title": "Enter, don't enter",
+    "author": "axelbrz",
     "difficulty": 2,
     "popularity": 70,
     "about": "",
@@ -19186,6 +19814,7 @@
   {
     "sourceId": 756,
     "title": "Pairs",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 42,
     "about": "",
@@ -19218,6 +19847,7 @@
   {
     "sourceId": 769,
     "title": "Batteries Plus Paint",
+    "author": "azure",
     "difficulty": 5,
     "popularity": 14,
     "about": "Similar to Battery2 with right on red once and recharging as needed.",
@@ -19250,6 +19880,7 @@
   {
     "sourceId": 851,
     "title": "Batteries Plus Paint II",
+    "author": "azure",
     "difficulty": 4,
     "popularity": 14,
     "about": "Easier Version, No Recharging, Turn Left If Non-Blue In Shimmy Part.",
@@ -19282,6 +19913,7 @@
   {
     "sourceId": 937,
     "title": "Simple Spiral",
+    "author": "azure",
     "difficulty": 3,
     "popularity": 42,
     "about": "",
@@ -19314,6 +19946,7 @@
   {
     "sourceId": 955,
     "title": "Carbon Copy: Vertical Flip",
+    "author": "beaza",
     "difficulty": 4,
     "popularity": 14,
     "about": "",
@@ -19346,6 +19979,7 @@
   {
     "sourceId": 970,
     "title": "Counting and Doubling 2",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 14,
     "about": "A hint for the original puzzle.",
@@ -19377,6 +20011,7 @@
   {
     "sourceId": 1021,
     "title": "New Paint Job",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -19409,6 +20044,7 @@
   {
     "sourceId": 1022,
     "title": "Widening 2",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 14,
     "about": "",
@@ -19439,6 +20075,7 @@
   {
     "sourceId": 1091,
     "title": "Binary path",
+    "author": "ebusiness",
     "difficulty": 3,
     "popularity": 14,
     "about": "This puzzle is slightly easier. I promise.",
@@ -19470,6 +20107,7 @@
   {
     "sourceId": 1214,
     "title": "Simple Recursive Precursion v1.1",
+    "author": "axorion",
     "difficulty": 4,
     "popularity": 14,
     "about": "Red is the new Green. Hint: Mark the midpoints.",
@@ -19502,6 +20140,7 @@
   {
     "sourceId": 1476,
     "title": "Wheel Of Misfortune",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 14,
     "about": "Simpler than Critical Mass.",
@@ -19533,6 +20172,7 @@
   {
     "sourceId": 1508,
     "title": "Coloured Stack (irritated)",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -19560,6 +20200,7 @@
   {
     "sourceId": 1841,
     "title": "Double Flip Flop II",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -19592,6 +20233,7 @@
   {
     "sourceId": 1842,
     "title": "Double Flip Flop I (Retry)",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -19623,6 +20265,7 @@
   {
     "sourceId": 1904,
     "title": "Where the turn?",
+    "author": "lendesg",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -19655,6 +20298,7 @@
   {
     "sourceId": 1906,
     "title": "Stack Toy",
+    "author": "axorion",
     "difficulty": 4,
     "popularity": 14,
     "about": "Taking the left star isn't right unless the right star isn't left.",
@@ -19687,6 +20331,7 @@
   {
     "sourceId": 1940,
     "title": "Classic Stacker",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 14,
     "about": "An easier puzzle. A pattern can be found. Counting required.",
@@ -19718,6 +20363,7 @@
   {
     "sourceId": 2030,
     "title": "Copycat - Improved Version",
+    "author": "masterluk",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -19745,6 +20391,7 @@
   {
     "sourceId": 2051,
     "title": "Neighbors",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -19774,6 +20421,7 @@
   {
     "sourceId": 2056,
     "title": "Increasing Squares",
+    "author": "qinn",
     "difficulty": 4,
     "popularity": 14,
     "about": "",
@@ -19806,6 +20454,7 @@
   {
     "sourceId": 2072,
     "title": "Resume",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -19837,6 +20486,7 @@
   {
     "sourceId": 2107,
     "title": "Delay tutorial",
+    "author": "kraker",
     "difficulty": 2,
     "popularity": 28,
     "about": "",
@@ -19869,6 +20519,7 @@
   {
     "sourceId": 2546,
     "title": "What you can do?",
+    "author": "anton_s",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -19900,6 +20551,7 @@
   {
     "sourceId": 2863,
     "title": "Shaded Pole",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 14,
     "about": "Single phase with a twist.",
@@ -19929,6 +20581,7 @@
   {
     "sourceId": 2877,
     "title": "Thick Loose End II",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -19961,6 +20614,7 @@
   {
     "sourceId": 2999,
     "title": "Crawler Stacker 2",
+    "author": "geniussavant",
     "difficulty": 3,
     "popularity": 14,
     "about": "The same but different",
@@ -19993,6 +20647,7 @@
   {
     "sourceId": 3003,
     "title": "Snail",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -20025,6 +20680,7 @@
   {
     "sourceId": 3007,
     "title": "Spring 6",
+    "author": "keba",
     "difficulty": 4,
     "popularity": 14,
     "about": "",
@@ -20057,6 +20713,7 @@
   {
     "sourceId": 3116,
     "title": "Minimal Music",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 14,
     "about": "... or pave your way III",
@@ -20089,6 +20746,7 @@
   {
     "sourceId": 3267,
     "title": "X",
+    "author": "mohre",
     "difficulty": 2,
     "popularity": 28,
     "about": "",
@@ -20118,6 +20776,7 @@
   {
     "sourceId": 3439,
     "title": "Imitation",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 14,
     "about": "It's the sincerest form of flattery.",
@@ -20150,6 +20809,7 @@
   {
     "sourceId": 3673,
     "title": "Right on Red, Left on Green",
+    "author": "azure",
     "difficulty": 3,
     "popularity": 14,
     "about": "Go forward turn on red/green. Trivial 4 commands until I forgot the green.",
@@ -20182,6 +20842,7 @@
   {
     "sourceId": 3705,
     "title": "Plateau",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 14,
     "about": "Basic stacking.",
@@ -20214,6 +20875,7 @@
   {
     "sourceId": 3751,
     "title": "River in the rocks",
+    "author": "shaggy12",
     "difficulty": 3,
     "popularity": 14,
     "about": "Once it was one rock, now they are two, but the river is disappearing",
@@ -20243,6 +20905,7 @@
   {
     "sourceId": 3899,
     "title": ".",
+    "author": "nikoswolf",
     "difficulty": 2,
     "popularity": 28,
     "about": "",
@@ -20269,6 +20932,7 @@
   {
     "sourceId": 4091,
     "title": "Photosynthesis",
+    "author": "talkol",
     "difficulty": 3,
     "popularity": 14,
     "about": "Can you use only 1 red command?",
@@ -20301,6 +20965,7 @@
   {
     "sourceId": 4250,
     "title": "Fading Whirl",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -20333,6 +20998,7 @@
   {
     "sourceId": 4261,
     "title": "If-then-else",
+    "author": "shaggy12",
     "difficulty": 2,
     "popularity": 14,
     "about": "",
@@ -20365,6 +21031,7 @@
   {
     "sourceId": 4529,
     "title": "Round trip",
+    "author": "marchan",
     "difficulty": 2,
     "popularity": 14,
     "about": "",
@@ -20394,6 +21061,7 @@
   {
     "sourceId": 4594,
     "title": "Apricot Picking",
+    "author": "carykh",
     "difficulty": 3,
     "popularity": 14,
     "about": "Apricots have larger pits than cherries!",
@@ -20426,6 +21094,7 @@
   {
     "sourceId": 4606,
     "title": "Hole in One",
+    "author": "masterluk",
     "difficulty": 3,
     "popularity": 14,
     "about": "In terms of tile layout, yes. In terms of golf performance, not quite.",
@@ -20458,6 +21127,7 @@
   {
     "sourceId": 8363,
     "title": "Challenge Puzzle",
+    "author": "csfresh2019",
     "difficulty": 3,
     "popularity": 14,
     "about": "Good luck!",
@@ -20488,6 +21158,7 @@
   {
     "sourceId": 9177,
     "title": "Half information (Version 2)",
+    "author": "drmazhar",
     "difficulty": 2,
     "popularity": 14,
     "about": "Doctor Mazhar's advice\"-4,count,left,-1 and repeat\"",
@@ -20520,6 +21191,7 @@
   {
     "sourceId": 9573,
     "title": "Wide angles",
+    "author": "scorpio",
     "difficulty": 3,
     "popularity": 14,
     "about": "Fractal training 2 (9222 & 9223)",
@@ -20552,6 +21224,7 @@
   {
     "sourceId": 10305,
     "title": "Terraced Buildings",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -20584,6 +21257,7 @@
   {
     "sourceId": 10526,
     "title": "Turn right onece",
+    "author": "ussef_bhl",
     "difficulty": 2,
     "popularity": 14,
     "about": "",
@@ -20614,6 +21288,7 @@
   {
     "sourceId": 10992,
     "title": "Blue Pac-Man",
+    "author": "CandyApples",
     "difficulty": 2,
     "popularity": 14,
     "about": "You can do this with less.",
@@ -20645,6 +21320,7 @@
   {
     "sourceId": 11247,
     "title": "Down then Up",
+    "author": "drmazhar",
     "difficulty": 2,
     "popularity": 14,
     "about": "Happy Time \"Dr Mazhar\"",
@@ -20676,6 +21352,7 @@
   {
     "sourceId": 11266,
     "title": "Double Red Dead End",
+    "author": "jnpollack",
     "difficulty": 3,
     "popularity": 14,
     "about": "Inspired by drmazhar's 10434 - identical stack function (see comment in 10434)",
@@ -20707,6 +21384,7 @@
   {
     "sourceId": 12709,
     "title": "Climb the pyramid",
+    "author": "bobbywankenobi",
     "difficulty": 2,
     "popularity": 28,
     "about": "",
@@ -20733,6 +21411,7 @@
   {
     "sourceId": 12870,
     "title": "Shades til it disappears",
+    "author": "BalanceBreaker",
     "difficulty": 2,
     "popularity": 28,
     "about": "",
@@ -20761,6 +21440,7 @@
   {
     "sourceId": 12910,
     "title": "Cumulative Complexity",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 14,
     "about": "",
@@ -20792,6 +21472,7 @@
   {
     "sourceId": 13956,
     "title": "Simple spiral",
+    "author": "Weildcard",
     "difficulty": 2,
     "popularity": 14,
     "about": "Inspired by 13906.  Hint: F2 on green.",
@@ -20824,6 +21505,7 @@
   {
     "sourceId": 14585,
     "title": "The Long and Winding Road",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 14,
     "about": "...no, you can't hack it...",
@@ -20856,6 +21538,7 @@
   {
     "sourceId": 14908,
     "title": "Stairs with green ends.For John",
+    "author": "AlexPav",
     "difficulty": 2,
     "popularity": 28,
     "about": "For John.",
@@ -20888,6 +21571,7 @@
   {
     "sourceId": 15078,
     "title": "Stop on star",
+    "author": "Kildetoft",
     "difficulty": 2,
     "popularity": 14,
     "about": "But how?",
@@ -20917,6 +21601,7 @@
   {
     "sourceId": 15089,
     "title": "vid test Level 4",
+    "author": "pschbb12",
     "difficulty": 2,
     "popularity": 14,
     "about": "ICbDJpHTEnQ t=248",
@@ -20948,6 +21633,7 @@
   {
     "sourceId": 503,
     "title": "marine march ",
+    "author": "ammonzing",
     "difficulty": 3,
     "popularity": 375,
     "about": "stand hut!",
@@ -20973,6 +21659,7 @@
   {
     "sourceId": 227,
     "title": "propeller",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 441,
     "about": "",
@@ -21002,6 +21689,7 @@
   {
     "sourceId": 2547,
     "title": "Strange spiral 2",
+    "author": "anton_s",
     "difficulty": 2,
     "popularity": 55,
     "about": "",
@@ -21034,6 +21722,7 @@
   {
     "sourceId": 499,
     "title": "Feeling a little cross",
+    "author": "rainault",
     "difficulty": 2,
     "popularity": 699,
     "about": "",
@@ -21061,6 +21750,7 @@
   {
     "sourceId": 93,
     "title": "Fly in the sky",
+    "author": "evko",
     "difficulty": 4,
     "popularity": 41,
     "about": "simple recursion, hard path",
@@ -21092,6 +21782,7 @@
   {
     "sourceId": 1412,
     "title": "Curvy",
+    "author": "kraker",
     "difficulty": 2,
     "popularity": 41,
     "about": "(and straight)",
@@ -21123,6 +21814,7 @@
   {
     "sourceId": 405,
     "title": "Another Hidden Rule",
+    "author": "snydej",
     "difficulty": 2,
     "popularity": 95,
     "about": "",
@@ -21155,6 +21847,7 @@
   {
     "sourceId": 873,
     "title": "T is for Trivial",
+    "author": "beaza",
     "difficulty": 2,
     "popularity": 95,
     "about": "",
@@ -21186,6 +21879,7 @@
   {
     "sourceId": 988,
     "title": "Follow The Wall",
+    "author": "rafaelromao",
     "difficulty": 3,
     "popularity": 27,
     "about": "",
@@ -21215,6 +21909,7 @@
   {
     "sourceId": 1438,
     "title": "Tag reuse (lite)",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 27,
     "about": "",
@@ -21247,6 +21942,7 @@
   {
     "sourceId": 2179,
     "title": "acute angle",
+    "author": "onqt",
     "difficulty": 2,
     "popularity": 54,
     "about": "",
@@ -21273,6 +21969,7 @@
   {
     "sourceId": 2670,
     "title": "3 Spirals",
+    "author": "anton_s",
     "difficulty": 2,
     "popularity": 27,
     "about": "3 little spirals. Very easy and simple.",
@@ -21298,6 +21995,7 @@
   {
     "sourceId": 2854,
     "title": "Blocks",
+    "author": "benjaminrr",
     "difficulty": 2,
     "popularity": 27,
     "about": "Childs Play",
@@ -21329,6 +22027,7 @@
   {
     "sourceId": 2899,
     "title": "More or Less",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 27,
     "about": "An easy puzzle.",
@@ -21361,6 +22060,7 @@
   {
     "sourceId": 7209,
     "title": "Tim's Puzzle #13",
+    "author": "timthree",
     "difficulty": 2,
     "popularity": 27,
     "about": "Enjoy!",
@@ -21384,6 +22084,7 @@
   {
     "sourceId": 2248,
     "title": "Windows",
+    "author": "jaex",
     "difficulty": 2,
     "popularity": 67,
     "about": "",
@@ -21413,6 +22114,7 @@
   {
     "sourceId": 225,
     "title": "timer",
+    "author": "mathew995",
     "difficulty": 2,
     "popularity": 1283,
     "about": "",
@@ -21445,6 +22147,7 @@
   {
     "sourceId": 494,
     "title": "Blue Bee",
+    "author": "rilo",
     "difficulty": 3,
     "popularity": 80,
     "about": "",
@@ -21475,6 +22178,7 @@
   {
     "sourceId": 540,
     "title": "Turn Right At The Stars",
+    "author": "rafaelromao",
     "difficulty": 3,
     "popularity": 40,
     "about": "",
@@ -21507,6 +22211,7 @@
   {
     "sourceId": 801,
     "title": "Plus (part 2)",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 40,
     "about": "shows how one simple turn at the start affects \"Plus (part 1)\"",
@@ -21536,6 +22241,7 @@
   {
     "sourceId": 1217,
     "title": "Training Day I (3.25 laps)",
+    "author": "axorion",
     "difficulty": 2,
     "popularity": 40,
     "about": "To curse, or recurse: that is the question.",
@@ -21567,6 +22273,7 @@
   {
     "sourceId": 325,
     "title": "Return of Robo 2",
+    "author": "abhishikt",
     "difficulty": 3,
     "popularity": 53,
     "about": "",
@@ -21598,6 +22305,7 @@
   {
     "sourceId": 783,
     "title": "Spiral Technique III",
+    "author": "axelbrz",
     "difficulty": 2,
     "popularity": 53,
     "about": "",
@@ -21630,6 +22338,7 @@
   {
     "sourceId": 945,
     "title": "Laser Reflection",
+    "author": "axelbrz",
     "difficulty": 2,
     "popularity": 53,
     "about": "",
@@ -21662,6 +22371,7 @@
   {
     "sourceId": 13804,
     "title": "Lv.4",
+    "author": "Giromi",
     "difficulty": 1,
     "popularity": 53,
     "about": "",
@@ -21688,6 +22398,7 @@
   {
     "sourceId": 102,
     "title": "Two kinds of memory",
+    "author": "evko",
     "difficulty": 5,
     "popularity": 13,
     "about": "",
@@ -21719,6 +22430,7 @@
   {
     "sourceId": 194,
     "title": "RoboZZle vs Turing machine (Part I)",
+    "author": "evko",
     "difficulty": 5,
     "popularity": 13,
     "about": "Warning! Binary math detected!",
@@ -21751,6 +22463,7 @@
   {
     "sourceId": 367,
     "title": "multiplication",
+    "author": "alvarom",
     "difficulty": 4,
     "popularity": 13,
     "about": "red X green = blue",
@@ -21783,6 +22496,7 @@
   {
     "sourceId": 371,
     "title": "division",
+    "author": "alvarom",
     "difficulty": 4,
     "popularity": 13,
     "about": "blue / red = green",
@@ -21815,6 +22529,7 @@
   {
     "sourceId": 534,
     "title": "Perspective IV",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 13,
     "about": "",
@@ -21846,6 +22561,7 @@
   {
     "sourceId": 545,
     "title": "Ternary Tree Symmetry",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 13,
     "about": "",
@@ -21877,6 +22593,7 @@
   {
     "sourceId": 613,
     "title": "Symmetry - Dizziness",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 13,
     "about": "",
@@ -21909,6 +22626,7 @@
   {
     "sourceId": 702,
     "title": "Linked List III",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 13,
     "about": "Relative indexing",
@@ -21940,6 +22658,7 @@
   {
     "sourceId": 744,
     "title": "Long Journey 3",
+    "author": "rafaelromao",
     "difficulty": 3,
     "popularity": 13,
     "about": "Collect The Fruits",
@@ -21972,6 +22691,7 @@
   {
     "sourceId": 754,
     "title": "Chambers",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 13,
     "about": "",
@@ -22003,6 +22723,7 @@
   {
     "sourceId": 784,
     "title": "run 4 ur life!",
+    "author": "ammonzing",
     "difficulty": 3,
     "popularity": 26,
     "about": "nice Stiletto's?",
@@ -22035,6 +22756,7 @@
   {
     "sourceId": 806,
     "title": "double call stack",
+    "author": "timotheeee",
     "difficulty": 3,
     "popularity": 26,
     "about": "",
@@ -22063,6 +22785,7 @@
   {
     "sourceId": 829,
     "title": "Stacked",
+    "author": "sticky",
     "difficulty": 4,
     "popularity": 13,
     "about": "",
@@ -22095,6 +22818,7 @@
   {
     "sourceId": 932,
     "title": "Unmarked Turn Spiral 2",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 13,
     "about": "Just a different starting position.",
@@ -22127,6 +22851,7 @@
   {
     "sourceId": 974,
     "title": "Pyramid",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 13,
     "about": "",
@@ -22155,6 +22880,7 @@
   {
     "sourceId": 985,
     "title": "Counting And Halving",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 13,
     "about": "A hint for 'Counting and Doubling'.",
@@ -22186,6 +22912,7 @@
   {
     "sourceId": 1237,
     "title": "Resonance 3",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 13,
     "about": "",
@@ -22218,6 +22945,7 @@
   {
     "sourceId": 1277,
     "title": "Steroids II",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 13,
     "about": "The sandbox club. (Hackers be wear!)",
@@ -22250,6 +22978,7 @@
   {
     "sourceId": 1471,
     "title": "Decremental",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 13,
     "about": "Do you know the signs of poor incremental health?",
@@ -22281,6 +23010,7 @@
   {
     "sourceId": 1497,
     "title": "The Sixth Power",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 26,
     "about": "Attempt to count to 64 by doubling. Don't count red.",
@@ -22312,6 +23042,7 @@
   {
     "sourceId": 1537,
     "title": "Flic-flac",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 13,
     "about": "Extending flip-flop",
@@ -22344,6 +23075,7 @@
   {
     "sourceId": 1552,
     "title": "Another crawler",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 13,
     "about": "Clockwise or counterclockwise?",
@@ -22376,6 +23108,7 @@
   {
     "sourceId": 1582,
     "title": "Endless Belt (lite)",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 13,
     "about": "Similar principle, less commands",
@@ -22406,6 +23139,7 @@
   {
     "sourceId": 1590,
     "title": "tank",
+    "author": "samarth",
     "difficulty": 3,
     "popularity": 13,
     "about": "one step ahead",
@@ -22434,6 +23168,7 @@
   {
     "sourceId": 1627,
     "title": "Edition",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 13,
     "about": "Find the green edits.",
@@ -22466,6 +23201,7 @@
   {
     "sourceId": 1631,
     "title": "On to the Autobahn",
+    "author": "kraker",
     "difficulty": 4,
     "popularity": 13,
     "about": "Another crawl stack",
@@ -22497,6 +23233,7 @@
   {
     "sourceId": 1633,
     "title": "Chromatic odd or even",
+    "author": "igoro",
     "difficulty": 3,
     "popularity": 13,
     "about": "Odd = right, even = left",
@@ -22528,6 +23265,7 @@
   {
     "sourceId": 1766,
     "title": "Twist 2",
+    "author": "lendesg",
     "difficulty": 3,
     "popularity": 13,
     "about": "",
@@ -22557,6 +23295,7 @@
   {
     "sourceId": 1991,
     "title": "Count to 0",
+    "author": "ebusiness",
     "difficulty": 3,
     "popularity": 13,
     "about": "Turn whenever you have passed an equal number of blue and green tiles.",
@@ -22589,6 +23328,7 @@
   {
     "sourceId": 2083,
     "title": "Triangle towers II",
+    "author": "ebusiness",
     "difficulty": 3,
     "popularity": 13,
     "about": "The same, yet totally different.",
@@ -22615,6 +23355,7 @@
   {
     "sourceId": 2121,
     "title": "Simple Math",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 13,
     "about": "C=2(A-B); Start on A, End on C, B is red to red.",
@@ -22647,6 +23388,7 @@
   {
     "sourceId": 2132,
     "title": "Stack Overflow",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 13,
     "about": "The stack is not empty at the corners.",
@@ -22679,6 +23421,7 @@
   {
     "sourceId": 2146,
     "title": "Double back on red",
+    "author": "ebusiness",
     "difficulty": 3,
     "popularity": 13,
     "about": "",
@@ -22711,6 +23454,7 @@
   {
     "sourceId": 2151,
     "title": "Unhackable",
+    "author": "ebusiness",
     "difficulty": 4,
     "popularity": 13,
     "about": "The same as 'Double back on red', just crammed, optimised and unhackable.",
@@ -22743,6 +23487,7 @@
   {
     "sourceId": 2227,
     "title": "Two Way",
+    "author": "jaex",
     "difficulty": 3,
     "popularity": 13,
     "about": "",
@@ -22774,6 +23519,7 @@
   {
     "sourceId": 2235,
     "title": "Nested Stacks",
+    "author": "qinn",
     "difficulty": 4,
     "popularity": 13,
     "about": "",
@@ -22806,6 +23552,7 @@
   {
     "sourceId": 2263,
     "title": "Decreasing Squares",
+    "author": "qinn",
     "difficulty": 3,
     "popularity": 13,
     "about": "",
@@ -22838,6 +23585,7 @@
   {
     "sourceId": 2292,
     "title": "2 Bit Way",
+    "author": "jaex",
     "difficulty": 2,
     "popularity": 26,
     "about": "GR = Forward, GG = Right, RG = Left, RR = Turn 180 & Forward",
@@ -22870,6 +23618,7 @@
   {
     "sourceId": 2523,
     "title": "Three Phase 2",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 26,
     "about": "No stacking required.",
@@ -22902,6 +23651,7 @@
   {
     "sourceId": 2529,
     "title": "colourgame",
+    "author": "tier",
     "difficulty": 3,
     "popularity": 13,
     "about": "youe don't need all places? Please say it to me!",
@@ -22934,6 +23684,7 @@
   {
     "sourceId": 2623,
     "title": "It must have been love",
+    "author": "carrben12",
     "difficulty": 3,
     "popularity": 13,
     "about": "But it's over now",
@@ -22964,6 +23715,7 @@
   {
     "sourceId": 2653,
     "title": "Quadrant",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 13,
     "about": "Three custom copies.",
@@ -22995,6 +23747,7 @@
   {
     "sourceId": 2687,
     "title": "Pushing Teal",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 13,
     "about": "Nothing new. Optimized 1663: Dizzy Distance",
@@ -23027,6 +23780,7 @@
   {
     "sourceId": 2705,
     "title": "Eastern Constellation",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 13,
     "about": "Daily RoboZZle",
@@ -23058,6 +23812,7 @@
   {
     "sourceId": 2950,
     "title": "Trail of Shadows",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 13,
     "about": "A little less foreboding than the Path of Darkness 2946.",
@@ -23090,6 +23845,7 @@
   {
     "sourceId": 2962,
     "title": "Second Chance",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 13,
     "about": "but don't look back",
@@ -23121,7 +23877,8 @@
   },
   {
     "sourceId": 2973,
-    "title": "Hélices de Feu ",
+    "title": "H\u00e9lices de Feu ",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 13,
     "about": "",
@@ -23154,6 +23911,7 @@
   {
     "sourceId": 3098,
     "title": "5 Stars - Other",
+    "author": "shaggy12",
     "difficulty": 3,
     "popularity": 13,
     "about": "",
@@ -23186,6 +23944,7 @@
   {
     "sourceId": 3121,
     "title": "Easy tree",
+    "author": "pulver",
     "difficulty": 4,
     "popularity": 13,
     "about": "...with a twist",
@@ -23218,6 +23977,7 @@
   {
     "sourceId": 3149,
     "title": "Counting spiral",
+    "author": "yaxlat",
     "difficulty": 2,
     "popularity": 13,
     "about": "What to count?",
@@ -23246,6 +24006,7 @@
   {
     "sourceId": 3270,
     "title": "Torn Paper",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 13,
     "about": "",
@@ -23278,6 +24039,7 @@
   {
     "sourceId": 3677,
     "title": "Von Koch",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 13,
     "about": "full version  (see comment)",
@@ -23307,6 +24069,7 @@
   {
     "sourceId": 3689,
     "title": "Recursive",
+    "author": "avalancher",
     "difficulty": 3,
     "popularity": 13,
     "about": "thinking stacks",
@@ -23338,6 +24101,7 @@
   {
     "sourceId": 4333,
     "title": "\"Off-By-One\" Error 3",
+    "author": "theme",
     "difficulty": 3,
     "popularity": 13,
     "about": "Finally no alternatives!",
@@ -23370,6 +24134,7 @@
   {
     "sourceId": 4455,
     "title": "My first try",
+    "author": "jojoshow",
     "difficulty": 3,
     "popularity": 13,
     "about": "",
@@ -23402,6 +24167,7 @@
   {
     "sourceId": 4549,
     "title": "Maze (Hard)",
+    "author": "vorujack",
     "difficulty": 3,
     "popularity": 13,
     "about": "Track Red Line",
@@ -23432,6 +24198,7 @@
   {
     "sourceId": 4559,
     "title": "Where would you turn?",
+    "author": "mohammadhm",
     "difficulty": 2,
     "popularity": 13,
     "about": "By MHM",
@@ -23462,6 +24229,7 @@
   {
     "sourceId": 7222,
     "title": "Big Maze",
+    "author": "scorpio",
     "difficulty": 3,
     "popularity": 13,
     "about": "Which hand do you prefer?",
@@ -23494,6 +24262,7 @@
   {
     "sourceId": 7248,
     "title": "Oops, back again",
+    "author": "myname",
     "difficulty": 2,
     "popularity": 13,
     "about": "go too far",
@@ -23525,6 +24294,7 @@
   {
     "sourceId": 8640,
     "title": "#11 puzzle",
+    "author": "Shanou",
     "difficulty": 2,
     "popularity": 13,
     "about": "",
@@ -23554,6 +24324,7 @@
   {
     "sourceId": 8774,
     "title": "A trip to the top (Part two)",
+    "author": "drmazhar",
     "difficulty": 2,
     "popularity": 13,
     "about": "Dr Mazhar advice \"Do the same as Part one\"",
@@ -23582,6 +24353,7 @@
   {
     "sourceId": 9808,
     "title": "Colorful line",
+    "author": "21s5039",
     "difficulty": 2,
     "popularity": 13,
     "about": "Follow the colors!",
@@ -23614,6 +24386,7 @@
   {
     "sourceId": 9872,
     "title": "Apple tree",
+    "author": "akabab",
     "difficulty": 2,
     "popularity": 13,
     "about": "Can you grab the last apple ?",
@@ -23645,6 +24418,7 @@
   {
     "sourceId": 10357,
     "title": "Special Spiral",
+    "author": "drmazhar",
     "difficulty": 2,
     "popularity": 13,
     "about": "Good Luck",
@@ -23677,6 +24451,7 @@
   {
     "sourceId": 10398,
     "title": "Filter",
+    "author": "drmazhar",
     "difficulty": 3,
     "popularity": 13,
     "about": "Dr Mazha's advice \"Store only the distances that can be used for spiral.\"",
@@ -23709,6 +24484,7 @@
   {
     "sourceId": 11177,
     "title": "Beachcombing",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 13,
     "about": "1284: Island Hopping 2",
@@ -23741,6 +24517,7 @@
   {
     "sourceId": 12574,
     "title": "Odds and Evens (Lite edition)",
+    "author": "scorpio",
     "difficulty": 3,
     "popularity": 13,
     "about": "Useful for #12522",
@@ -23773,6 +24550,7 @@
   {
     "sourceId": 12647,
     "title": "unsolved",
+    "author": "tjwjdgjs22",
     "difficulty": 2,
     "popularity": 13,
     "about": ".",
@@ -23802,6 +24580,7 @@
   {
     "sourceId": 13951,
     "title": "Iteration ",
+    "author": "MYFZ",
     "difficulty": 2,
     "popularity": 13,
     "about": "Team 7 (also uses selection)",
@@ -23829,6 +24608,7 @@
   {
     "sourceId": 570,
     "title": "Blue X",
+    "author": "rafaelromao",
     "difficulty": 2,
     "popularity": 2985,
     "about": "",
@@ -23854,6 +24634,7 @@
   {
     "sourceId": 999,
     "title": "Get The Greens",
+    "author": "rafaelromao",
     "difficulty": 1,
     "popularity": 516,
     "about": "",
@@ -23886,6 +24667,7 @@
   {
     "sourceId": 132,
     "title": "Split",
+    "author": "recursive",
     "difficulty": 3,
     "popularity": 296,
     "about": "So close, yet so far",
@@ -23916,6 +24698,7 @@
   {
     "sourceId": 116,
     "title": "I'm Batman",
+    "author": "raijuzero",
     "difficulty": 3,
     "popularity": 267,
     "about": "A themed descent into madness.",
@@ -23948,6 +24731,7 @@
   {
     "sourceId": 1008,
     "title": "Dampening II",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 38,
     "about": "",
@@ -23980,6 +24764,7 @@
   {
     "sourceId": 1440,
     "title": "Monolithic III",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 38,
     "about": "Two knights in a culdesac.",
@@ -24012,6 +24797,7 @@
   {
     "sourceId": 758,
     "title": "Rounded Corner Spiral",
+    "author": "markbyers",
     "difficulty": 2,
     "popularity": 139,
     "about": "",
@@ -24044,6 +24830,7 @@
   {
     "sourceId": 19,
     "title": "Red loop",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 1085,
     "about": "",
@@ -24074,6 +24861,7 @@
   {
     "sourceId": 2026,
     "title": "color code",
+    "author": "onqt",
     "difficulty": 2,
     "popularity": 213,
     "about": "easy",
@@ -24105,6 +24893,7 @@
   {
     "sourceId": 224,
     "title": "Evil Green",
+    "author": "surgency",
     "difficulty": 2,
     "popularity": 977,
     "about": "",
@@ -24134,6 +24923,7 @@
   {
     "sourceId": 180,
     "title": "Red lines",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 25,
     "about": "",
@@ -24166,6 +24956,7 @@
   {
     "sourceId": 972,
     "title": "Count Sequences",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 25,
     "about": "Count the number of sequences of green or blue.",
@@ -24198,6 +24989,7 @@
   {
     "sourceId": 15100,
     "title": "functions without functions",
+    "author": "SamPanda129",
     "difficulty": 2,
     "popularity": 25,
     "about": "how is it done?",
@@ -24222,6 +25014,7 @@
   {
     "sourceId": 2183,
     "title": "easy paint",
+    "author": "onqt",
     "difficulty": 2,
     "popularity": 37,
     "about": "",
@@ -24254,6 +25047,7 @@
   {
     "sourceId": 984,
     "title": "Pinwheel",
+    "author": "beaza",
     "difficulty": 2,
     "popularity": 49,
     "about": "",
@@ -24286,6 +25080,7 @@
   {
     "sourceId": 1515,
     "title": "o.O",
+    "author": "neotoby",
     "difficulty": 2,
     "popularity": 49,
     "about": "Let the functinon build the puzzle.",
@@ -24312,6 +25107,7 @@
   {
     "sourceId": 648,
     "title": "Tight Area",
+    "author": "rafaelromao",
     "difficulty": 2,
     "popularity": 2101,
     "about": "Easy",
@@ -24343,6 +25139,7 @@
   {
     "sourceId": 2325,
     "title": "Square Object",
+    "author": "jaex",
     "difficulty": 2,
     "popularity": 183,
     "about": "",
@@ -24374,6 +25171,7 @@
   {
     "sourceId": 811,
     "title": "Counting by turns",
+    "author": "0cache",
     "difficulty": 2,
     "popularity": 85,
     "about": "(a hint for Bad Medicine)",
@@ -24399,6 +25197,7 @@
   {
     "sourceId": 103,
     "title": "left on grn, right on blu",
+    "author": "jacob_c",
     "difficulty": 2,
     "popularity": 388,
     "about": "",
@@ -24430,6 +25229,7 @@
   {
     "sourceId": 745,
     "title": "glasses",
+    "author": "timotheeee",
     "difficulty": 2,
     "popularity": 109,
     "about": "",
@@ -24461,6 +25261,7 @@
   {
     "sourceId": 172,
     "title": "1-2-3-4... emm... 5...",
+    "author": "evko",
     "difficulty": 4,
     "popularity": 12,
     "about": "see \"1-2-3-4-5\" as hint",
@@ -24492,6 +25293,7 @@
   {
     "sourceId": 271,
     "title": "Stack Magic: Episode II",
+    "author": "snydej",
     "difficulty": 5,
     "popularity": 12,
     "about": "A Stack of the Clones (Actual Description: Stack Magic + Tree)",
@@ -24524,6 +25326,7 @@
   {
     "sourceId": 294,
     "title": "Search the World",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 12,
     "about": "Oh, the depths I will go to to try to be first.",
@@ -24556,6 +25359,7 @@
   {
     "sourceId": 351,
     "title": "Plus or Minus One and...",
+    "author": "snydej",
     "difficulty": 5,
     "popularity": 12,
     "about": "...Jump on Red",
@@ -24587,6 +25391,7 @@
   {
     "sourceId": 399,
     "title": "Modulo",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 12,
     "about": "Blue = Red mod Green",
@@ -24619,6 +25424,7 @@
   {
     "sourceId": 426,
     "title": "Fractal",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 12,
     "about": "",
@@ -24649,6 +25455,7 @@
   {
     "sourceId": 495,
     "title": "Mountain",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 12,
     "about": "",
@@ -24680,6 +25487,7 @@
   {
     "sourceId": 573,
     "title": "Twisted Tree",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 12,
     "about": "",
@@ -24712,6 +25520,7 @@
   {
     "sourceId": 743,
     "title": "Battery",
+    "author": "cybermg",
     "difficulty": 3,
     "popularity": 24,
     "about": "See: Dizziness",
@@ -24742,6 +25551,7 @@
   {
     "sourceId": 838,
     "title": "Push, Pop, and Peek",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 12,
     "about": "red/blue columns recall the first element on the stack without removing it",
@@ -24772,6 +25582,7 @@
   {
     "sourceId": 953,
     "title": "Equal Ends",
+    "author": "markbyers",
     "difficulty": 4,
     "popularity": 12,
     "about": "",
@@ -24804,6 +25615,7 @@
   {
     "sourceId": 1097,
     "title": "Spiral",
+    "author": "user137",
     "difficulty": 2,
     "popularity": 84,
     "about": "Something too much...",
@@ -24833,6 +25645,7 @@
   {
     "sourceId": 1230,
     "title": "A viewpoint on tree",
+    "author": "evko",
     "difficulty": 4,
     "popularity": 12,
     "about": "",
@@ -24865,6 +25678,7 @@
   {
     "sourceId": 1538,
     "title": "Chromatic Convolution",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 24,
     "about": "Remember which way to turn until you get to the corner. ",
@@ -24896,6 +25710,7 @@
   {
     "sourceId": 1550,
     "title": "Stack & Crawl",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 12,
     "about": "Inspired by kraker",
@@ -24928,6 +25743,7 @@
   {
     "sourceId": 1561,
     "title": "Weave II",
+    "author": "keba",
     "difficulty": 2,
     "popularity": 24,
     "about": "Challenge mode: don't use F3",
@@ -24959,6 +25775,7 @@
   {
     "sourceId": 1562,
     "title": "Moat",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 24,
     "about": "",
@@ -24989,6 +25806,7 @@
   {
     "sourceId": 1901,
     "title": "Huh? Part 5",
+    "author": "sungjin",
     "difficulty": 3,
     "popularity": 12,
     "about": "Is it simple?",
@@ -25014,6 +25832,7 @@
   {
     "sourceId": 1977,
     "title": "Triquarter",
+    "author": "axorion",
     "difficulty": 4,
     "popularity": 12,
     "about": "Don't you just love Star Trek technobabble.",
@@ -25046,6 +25865,7 @@
   {
     "sourceId": 1998,
     "title": "Modulus",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 12,
     "about": "",
@@ -25078,6 +25898,7 @@
   {
     "sourceId": 2007,
     "title": "Square Algorithme",
+    "author": "kraker",
     "difficulty": 4,
     "popularity": 12,
     "about": "remember: (n+1)^2-n^2=2n+1",
@@ -25110,6 +25931,7 @@
   {
     "sourceId": 2170,
     "title": "Lorem Ipsum",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 24,
     "about": "Move 5, Add 5",
@@ -25142,6 +25964,7 @@
   {
     "sourceId": 2182,
     "title": "1/3 Jacked Up",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 24,
     "about": "Paint the blue tiles red. Stack the paint path. Use the stack for green. Repeat.",
@@ -25174,6 +25997,7 @@
   {
     "sourceId": 2238,
     "title": "Maxima",
+    "author": "smylic",
     "difficulty": 4,
     "popularity": 12,
     "about": "",
@@ -25206,6 +26030,7 @@
   {
     "sourceId": 2333,
     "title": "Mask",
+    "author": "jaex",
     "difficulty": 3,
     "popularity": 12,
     "about": "",
@@ -25238,6 +26063,7 @@
   {
     "sourceId": 2551,
     "title": "The star is very high",
+    "author": "anton_s",
     "difficulty": 2,
     "popularity": 24,
     "about": "",
@@ -25267,6 +26093,7 @@
   {
     "sourceId": 2665,
     "title": "Back to Basics",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 12,
     "about": "Learning to copy.",
@@ -25298,6 +26125,7 @@
   {
     "sourceId": 2841,
     "title": "Loose Ends IV",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 12,
     "about": "just whirl the first circle, the rest will be given unto you",
@@ -25330,9 +26158,10 @@
   {
     "sourceId": 2851,
     "title": "Unusual cross",
+    "author": "anton_s",
     "difficulty": 3,
     "popularity": 24,
-    "about": "It´s not complicated.",
+    "about": "It\u00b4s not complicated.",
     "rows": [
       "    RGR    ",
       "   RBBBR   ",
@@ -25361,6 +26190,7 @@
   {
     "sourceId": 2931,
     "title": "Tree IV",
+    "author": "smylic",
     "difficulty": 4,
     "popularity": 12,
     "about": "",
@@ -25393,6 +26223,7 @@
   {
     "sourceId": 3009,
     "title": "Regular Ant",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 12,
     "about": "... or robozzle nightmare ...",
@@ -25425,6 +26256,7 @@
   {
     "sourceId": 3197,
     "title": "gm006 revisited",
+    "author": "azure",
     "difficulty": 3,
     "popularity": 12,
     "about": "Same as puzzle 2768, but with limited steps which makes it interesting.",
@@ -25448,6 +26280,7 @@
   {
     "sourceId": 3240,
     "title": "Selective Manufacturing",
+    "author": "benjaminrr",
     "difficulty": 3,
     "popularity": 12,
     "about": "",
@@ -25480,6 +26313,7 @@
   {
     "sourceId": 3555,
     "title": "Dual",
+    "author": "denisb",
     "difficulty": 3,
     "popularity": 12,
     "about": "",
@@ -25510,6 +26344,7 @@
   {
     "sourceId": 3682,
     "title": "Newton's Third",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 12,
     "about": "You know, equal and opposite.",
@@ -25541,6 +26376,7 @@
   {
     "sourceId": 3837,
     "title": "Whirled Domination",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 12,
     "about": "Well of course it isn't easy.",
@@ -25572,6 +26408,7 @@
   {
     "sourceId": 4119,
     "title": "Mitigated Spiral ",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 12,
     "about": "",
@@ -25600,6 +26437,7 @@
   {
     "sourceId": 4228,
     "title": "Remainders",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 12,
     "about": "8/3, 11/5, 12/8, 14/11",
@@ -25632,6 +26470,7 @@
   {
     "sourceId": 4289,
     "title": "+",
+    "author": "denisb",
     "difficulty": 2,
     "popularity": 24,
     "about": "",
@@ -25664,6 +26503,7 @@
   {
     "sourceId": 4291,
     "title": "Accumulation",
+    "author": "cowans",
     "difficulty": 3,
     "popularity": 12,
     "about": "",
@@ -25696,6 +26536,7 @@
   {
     "sourceId": 4519,
     "title": "Triangles",
+    "author": "shaggy12",
     "difficulty": 3,
     "popularity": 12,
     "about": "Two functions - one for each side",
@@ -25728,6 +26569,7 @@
   {
     "sourceId": 4593,
     "title": "Image Copier",
+    "author": "carykh",
     "difficulty": 3,
     "popularity": 12,
     "about": "Copy the image.",
@@ -25760,6 +26602,7 @@
   {
     "sourceId": 4607,
     "title": "Marked Bridges Reverse",
+    "author": "qinn",
     "difficulty": 3,
     "popularity": 12,
     "about": "Luckily there's a big bridge in the middle..",
@@ -25792,6 +26635,7 @@
   {
     "sourceId": 4689,
     "title": "Limitations",
+    "author": "masterluk",
     "difficulty": 2,
     "popularity": 12,
     "about": "",
@@ -25815,6 +26659,7 @@
   {
     "sourceId": 4741,
     "title": "Snake",
+    "author": "darkchowder",
     "difficulty": 3,
     "popularity": 12,
     "about": "Comeback Recursion",
@@ -25845,6 +26690,7 @@
   {
     "sourceId": 4868,
     "title": "Offset",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 12,
     "about": "",
@@ -25877,6 +26723,7 @@
   {
     "sourceId": 7250,
     "title": "Bumfuzzled ",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 12,
     "about": "",
@@ -25908,6 +26755,7 @@
   {
     "sourceId": 8498,
     "title": "Quadro Floptical",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 12,
     "about": "",
@@ -25939,6 +26787,7 @@
   {
     "sourceId": 8742,
     "title": "666",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 12,
     "about": "",
@@ -25968,6 +26817,7 @@
   {
     "sourceId": 9132,
     "title": "Linked Squares",
+    "author": "drmazhar",
     "difficulty": 3,
     "popularity": 12,
     "about": "Happy Time",
@@ -25998,6 +26848,7 @@
   {
     "sourceId": 9194,
     "title": "Backup & Restore",
+    "author": "drmazhar",
     "difficulty": 3,
     "popularity": 12,
     "about": "Doctor Mazhar's advice \"Store steps with red&blue then restore them with green\"",
@@ -26030,6 +26881,7 @@
   {
     "sourceId": 9676,
     "title": "Red Light",
+    "author": "dh915",
     "difficulty": 2,
     "popularity": 12,
     "about": "",
@@ -26060,6 +26912,7 @@
   {
     "sourceId": 9835,
     "title": "LOOP",
+    "author": "boby",
     "difficulty": 2,
     "popularity": 12,
     "about": "",
@@ -26092,6 +26945,7 @@
   {
     "sourceId": 10467,
     "title": "e",
+    "author": "ethio992",
     "difficulty": 2,
     "popularity": 24,
     "about": "",
@@ -26119,6 +26973,7 @@
   {
     "sourceId": 10479,
     "title": "Dispersion (Version 2)",
+    "author": "drmazhar",
     "difficulty": 2,
     "popularity": 12,
     "about": "Dr Mazhar's advice \" I think this puzzle is a hint for Dispersion version 1\"",
@@ -26151,6 +27006,7 @@
   {
     "sourceId": 10551,
     "title": "Line of symmetry.",
+    "author": "drmazhar",
     "difficulty": 3,
     "popularity": 12,
     "about": "Happy time Dr Mazhar",
@@ -26182,6 +27038,7 @@
   {
     "sourceId": 10840,
     "title": "Turn on not blue II",
+    "author": "drmazhar",
     "difficulty": 3,
     "popularity": 12,
     "about": "Dr Mazhar's advice\"After Red remember what you did.\"",
@@ -26214,6 +27071,7 @@
   {
     "sourceId": 11270,
     "title": "Dual purpose (Version 2)",
+    "author": "drmazhar",
     "difficulty": 3,
     "popularity": 12,
     "about": "Dr Mazhar's advice\"One stack can be used for dual purpose.\"",
@@ -26246,6 +27104,7 @@
   {
     "sourceId": 11283,
     "title": "Some Changing",
+    "author": "drmazhar",
     "difficulty": 2,
     "popularity": 12,
     "about": "Dr Mazhar's advice\"Copy then change while pasting.\"",
@@ -26273,6 +27132,7 @@
   {
     "sourceId": 12368,
     "title": "Preparations III",
+    "author": "drmazhar",
     "difficulty": 2,
     "popularity": 12,
     "about": "Dr Mazhar's Advice\"Count only for number of turns.\"",
@@ -26305,6 +27165,7 @@
   {
     "sourceId": 12384,
     "title": "\"2X\" Or \"X+1\"",
+    "author": "drmazhar",
     "difficulty": 3,
     "popularity": 12,
     "about": "Happy Time \"Dr Mazhar\"",
@@ -26337,6 +27198,7 @@
   {
     "sourceId": 12530,
     "title": "Gate at the half",
+    "author": "drmazhar",
     "difficulty": 3,
     "popularity": 12,
     "about": "\"Good Luck\" Dr Mazhar",
@@ -26369,6 +27231,7 @@
   {
     "sourceId": 12562,
     "title": "Colorful path",
+    "author": "dstroy",
     "difficulty": 3,
     "popularity": 12,
     "about": "",
@@ -26401,6 +27264,7 @@
   {
     "sourceId": 12600,
     "title": "Zero Stack (Version 3)",
+    "author": "drmazhar",
     "difficulty": 2,
     "popularity": 12,
     "about": "Dr Mazhar's advice\" Think Without Stack \"",
@@ -26433,6 +27297,7 @@
   {
     "sourceId": 13329,
     "title": "Iteration",
+    "author": "group1_uic",
     "difficulty": 1,
     "popularity": 36,
     "about": "",
@@ -26457,6 +27322,7 @@
   {
     "sourceId": 13909,
     "title": "Puzzle 4",
+    "author": "engr101_f21_g2",
     "difficulty": 2,
     "popularity": 12,
     "about": "Function calls and iteration.",
@@ -26485,6 +27351,7 @@
   {
     "sourceId": 472,
     "title": "Elevator",
+    "author": "rafaelromao",
     "difficulty": 3,
     "popularity": 429,
     "about": "",
@@ -26517,6 +27384,7 @@
   {
     "sourceId": 27,
     "title": "Stairs",
+    "author": "",
     "difficulty": 1,
     "popularity": 7420,
     "about": "",
@@ -26547,6 +27415,7 @@
   {
     "sourceId": 2309,
     "title": "tubes",
+    "author": "anton_s",
     "difficulty": 2,
     "popularity": 83,
     "about": "",
@@ -26579,6 +27448,7 @@
   {
     "sourceId": 931,
     "title": "Unmarked Turn Spiral 1",
+    "author": "markbyers",
     "difficulty": 2,
     "popularity": 59,
     "about": "",
@@ -26611,6 +27481,7 @@
   {
     "sourceId": 777,
     "title": "Skip The Hole",
+    "author": "markbyers",
     "difficulty": 2,
     "popularity": 47,
     "about": "",
@@ -26633,6 +27504,7 @@
   {
     "sourceId": 1083,
     "title": "Chess Knight",
+    "author": "ngen",
     "difficulty": 2,
     "popularity": 35,
     "about": "",
@@ -26661,6 +27533,7 @@
   {
     "sourceId": 2622,
     "title": "A bit green in the puzzle",
+    "author": "anton_s",
     "difficulty": 2,
     "popularity": 35,
     "about": "",
@@ -26693,6 +27566,7 @@
   {
     "sourceId": 3111,
     "title": "Hypotenuse",
+    "author": "slicertool",
     "difficulty": 2,
     "popularity": 35,
     "about": "",
@@ -26720,6 +27594,7 @@
   {
     "sourceId": 276,
     "title": "Flood fill",
+    "author": "abhishikt",
     "difficulty": 3,
     "popularity": 93,
     "about": "Recolor the whole square :)",
@@ -26750,6 +27625,7 @@
   {
     "sourceId": 355,
     "title": "Three Color Waveform",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 23,
     "about": "",
@@ -26782,6 +27658,7 @@
   {
     "sourceId": 835,
     "title": "Hangman",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 23,
     "about": "applies recursion, function reuse, and shimmying",
@@ -26814,6 +27691,7 @@
   {
     "sourceId": 989,
     "title": "Counting - Last Sequence",
+    "author": "markbyers",
     "difficulty": 3,
     "popularity": 23,
     "about": "The red sequence is the same length as the last green or blue sequence.",
@@ -26845,6 +27723,7 @@
   {
     "sourceId": 1135,
     "title": "One Side",
+    "author": "sticky",
     "difficulty": 3,
     "popularity": 23,
     "about": "Count blues on one half",
@@ -26877,6 +27756,7 @@
   {
     "sourceId": 1180,
     "title": "Emerald Omission II",
+    "author": "axorion",
     "difficulty": 3,
     "popularity": 23,
     "about": "At least one solution will also solve the original Emerald Omission.",
@@ -26909,6 +27789,7 @@
   {
     "sourceId": 1203,
     "title": "One Function Challenge",
+    "author": "wallacoloo",
     "difficulty": 3,
     "popularity": 23,
     "about": "turn left on green, turn around on red.",
@@ -26941,6 +27822,7 @@
   {
     "sourceId": 1283,
     "title": "Green Strayer",
+    "author": "foerno",
     "difficulty": 3,
     "popularity": 23,
     "about": "blue means no go.",
@@ -26969,6 +27851,7 @@
   {
     "sourceId": 2998,
     "title": "Crawler Stacker",
+    "author": "geniussavant",
     "difficulty": 3,
     "popularity": 23,
     "about": "The name says it all!",
@@ -26995,6 +27878,7 @@
   {
     "sourceId": 3118,
     "title": "Domesticated Ant",
+    "author": "kraker",
     "difficulty": 3,
     "popularity": 23,
     "about": "solve the stem and receive the flower as bonus",
@@ -27027,6 +27911,7 @@
   {
     "sourceId": 5120,
     "title": "Happy New Year 2015",
+    "author": "kirua13390",
     "difficulty": 2,
     "popularity": 23,
     "about": "",
@@ -27057,6 +27942,7 @@
   {
     "sourceId": 10437,
     "title": "checkers, but with a twist",
+    "author": "sueno1",
     "difficulty": 2,
     "popularity": 23,
     "about": "what color to turn it...?",
@@ -27089,6 +27975,7 @@
   {
     "sourceId": 11271,
     "title": "Impawssible",
+    "author": "codeKameleon",
     "difficulty": 2,
     "popularity": 23,
     "about": "",
@@ -27111,6 +27998,7 @@
   {
     "sourceId": 1251,
     "title": "Big plus",
+    "author": "beko",
     "difficulty": 2,
     "popularity": 183,
     "about": "",
@@ -27140,6 +28028,7 @@
   {
     "sourceId": 1844,
     "title": "Snake",
+    "author": "flyingdutchman",
     "difficulty": 2,
     "popularity": 80,
     "about": "Go for it",
@@ -27172,6 +28061,7 @@
   {
     "sourceId": 1539,
     "title": "arbitrary counting",
+    "author": "lcurtne",
     "difficulty": 2,
     "popularity": 57,
     "about": "if you can count, is this easy?",
@@ -27202,6 +28092,7 @@
   {
     "sourceId": 2614,
     "title": "Big colourful spiral",
+    "author": "anton_s",
     "difficulty": 2,
     "popularity": 34,
     "about": "",
@@ -27234,6 +28125,7 @@
   {
     "sourceId": 115,
     "title": "Boxes with little corruptions",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 79,
     "about": "",
@@ -27261,6 +28153,7 @@
   {
     "sourceId": 898,
     "title": "Secret Code",
+    "author": "matchu",
     "difficulty": 3,
     "popularity": 45,
     "about": "But what does it _mean_?",
@@ -27293,6 +28186,7 @@
   {
     "sourceId": 2681,
     "title": "Welcome in the easy puzzle",
+    "author": "anton_s",
     "difficulty": 2,
     "popularity": 67,
     "about": "I made the puzzle for clever beginner.",
@@ -27325,6 +28219,7 @@
   {
     "sourceId": 61,
     "title": "Red-Green is the code",
+    "author": "igoro",
     "difficulty": 2,
     "popularity": 413,
     "about": "",
@@ -27347,6 +28242,7 @@
   {
     "sourceId": 562,
     "title": "Recursion Review",
+    "author": "cobaltblue",
     "difficulty": 2,
     "popularity": 167,
     "about": "first do blue; done? do stairs",
@@ -27374,6 +28270,7 @@
   {
     "sourceId": 140,
     "title": "sh",
+    "author": "sam0737",
     "difficulty": 2,
     "popularity": 5364,
     "about": "",
@@ -27395,6 +28292,7 @@
   {
     "sourceId": 150,
     "title": "divide by 2...",
+    "author": "evko",
     "difficulty": 3,
     "popularity": 88,
     "about": "...and trick on red",
@@ -27424,6 +28322,7 @@
   {
     "sourceId": 158,
     "title": "Keep smilin'",
+    "author": "prudnikoff",
     "difficulty": 3,
     "popularity": 99,
     "about": "Nothing special just fun",
@@ -27455,6 +28354,7 @@
   {
     "sourceId": 176,
     "title": "Turn on star :)",
+    "author": "evko",
     "difficulty": 4,
     "popularity": 22,
     "about": "Combine stack memory and color markup",
@@ -27481,6 +28381,7 @@
   {
     "sourceId": 304,
     "title": "Simply Connected Shape",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 11,
     "about": "It's not convex but all is not lost.",
@@ -27513,6 +28414,7 @@
   {
     "sourceId": 338,
     "title": "First Impressions",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 11,
     "about": "First color after red determines which way to turn",
@@ -27544,6 +28446,7 @@
   {
     "sourceId": 393,
     "title": "Square Root",
+    "author": "snydej",
     "difficulty": 3,
     "popularity": 33,
     "about": "Red = sqrt(Blue)",
@@ -27576,6 +28479,7 @@
   {
     "sourceId": 427,
     "title": "Parabola",
+    "author": "snydej",
     "difficulty": 4,
     "popularity": 11,
     "about": "",
@@ -27606,6 +28510,7 @@
   {
     "sourceId": 482,
     "title": "waterfront",
+    "author": "alvarom",
     "difficulty": 4,
     "popularity": 11,
     "about": "",
@@ -27638,6 +28543,7 @@
   {
     "sourceId": 605,
     "title": "Pong 2",
+    "author": "ssancho",
     "difficulty": 3,
     "popularity": 33,
     "about": "bugfixed, hopefully...",
@@ -27670,6 +28576,7 @@
   {
     "sourceId": 782,
     "title": "binary counting - 7bits",
+    "author": "wallacoloo",
     "difficulty": 4,
     "popularity": 11,
     "about": "The longest I've seen is 3bits. This method is only limited by the step limit.",
@@ -27702,6 +28609,7 @@
   {
     "sourceId": 803,
     "title": "Magnetic Repulsion",
+    "author": "beaza",
     "difficulty": 3,
     "popularity": 11,
     "about": "your polarity is red or green when you're on one; turn away from your opposite",

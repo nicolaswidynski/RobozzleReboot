@@ -45,16 +45,18 @@ class InstructionPalette extends StatelessWidget {
   // same amount, so whichever slot the icon visually sits over is the one
   // that actually receives it (Draggable hit-tests the raw pointer unless
   // feedbackOffset compensates for a transformed/anchored feedback).
-  static const double _actionSize = 46;
+  static const double _actionSize = 52;
   static const double _dotSize = 32;
   static const double _dragLift = 56;
   static const Offset _feedbackOffset = Offset(0, -_dragLift);
 
-  static Offset _actionDragAnchor(Draggable<Object> draggable, BuildContext context, Offset position) {
+  static Offset _actionDragAnchor(
+      Draggable<Object> draggable, BuildContext context, Offset position) {
     return const Offset(_actionSize / 2, _dragLift + _actionSize / 2);
   }
 
-  static Offset _dotDragAnchor(Draggable<Object> draggable, BuildContext context, Offset position) {
+  static Offset _dotDragAnchor(
+      Draggable<Object> draggable, BuildContext context, Offset position) {
     return const Offset(_dotSize / 2, _dragLift + _dotSize / 2);
   }
 
@@ -81,7 +83,8 @@ class InstructionPalette extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                for (final action in movementActions) _buildActionButton(action),
+                for (final action in movementActions)
+                  _buildActionButton(action),
                 for (final color in TileColor.values)
                   Padding(
                     padding: const EdgeInsets.only(right: 8),
@@ -92,11 +95,13 @@ class InstructionPalette extends StatelessWidget {
                       feedbackOffset: _feedbackOffset,
                       feedback: Material(
                         type: MaterialType.transparency,
-                        child: _ColorDot(color: color, selected: true, onTap: () {}),
+                        child: _ColorDot(
+                            color: color, selected: true, onTap: () {}),
                       ),
                       childWhenDragging: Opacity(
                         opacity: 0.3,
-                        child: _ColorDot(color: color, selected: false, onTap: () {}),
+                        child: _ColorDot(
+                            color: color, selected: false, onTap: () {}),
                       ),
                       child: _ColorDot(
                         color: color,
@@ -108,11 +113,13 @@ class InstructionPalette extends StatelessWidget {
                 const SizedBox(width: 2),
                 Container(width: 1, height: 30, color: AppColors.panelBorder),
                 const SizedBox(width: 10),
-                for (final action in remainingActions) _buildActionButton(action),
+                for (final action in remainingActions)
+                  _buildActionButton(action),
                 _ActionButton(
                   selected: eraserSelected,
                   onTap: onEraserSelected,
-                  child: const Icon(Icons.backspace_outlined, size: 19, color: Colors.white),
+                  child: const Icon(Icons.backspace_outlined,
+                      size: 23, color: Colors.white),
                 ),
               ],
             ),
@@ -135,7 +142,7 @@ class InstructionPalette extends StatelessWidget {
           child: _ActionButton(
             selected: true,
             onTap: () {},
-            child: actionGlyph(action, size: 22, color: Colors.white),
+            child: actionGlyph(action, size: 27, color: Colors.white),
           ),
         ),
         childWhenDragging: Opacity(
@@ -143,13 +150,13 @@ class InstructionPalette extends StatelessWidget {
           child: _ActionButton(
             selected: false,
             onTap: () {},
-            child: actionGlyph(action, size: 22, color: Colors.white),
+            child: actionGlyph(action, size: 27, color: Colors.white),
           ),
         ),
         child: _ActionButton(
           selected: !eraserSelected && selectedAction == action,
           onTap: () => onActionSelected(action),
-          child: actionGlyph(action, size: 22, color: Colors.white),
+          child: actionGlyph(action, size: 27, color: Colors.white),
         ),
       ),
     );
@@ -161,7 +168,8 @@ class _ActionButton extends StatelessWidget {
   final VoidCallback onTap;
   final Widget child;
 
-  const _ActionButton({required this.selected, required this.onTap, required this.child});
+  const _ActionButton(
+      {required this.selected, required this.onTap, required this.child});
 
   @override
   Widget build(BuildContext context) {
@@ -169,14 +177,18 @@ class _ActionButton extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        width: 46,
-        height: 46,
+        width: 52,
+        height: 52,
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: selected ? AppColors.selectionFill : Colors.white.withValues(alpha: 0.08),
+          color: selected
+              ? AppColors.selectionFill
+              : Colors.white.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: selected ? AppColors.selectionBorder : Colors.white.withValues(alpha: 0.15),
+            color: selected
+                ? AppColors.selectionBorder
+                : Colors.white.withValues(alpha: 0.15),
             width: selected ? 2 : 1,
           ),
         ),
@@ -191,7 +203,8 @@ class _ColorDot extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _ColorDot({required this.color, required this.selected, required this.onTap});
+  const _ColorDot(
+      {required this.color, required this.selected, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -207,12 +220,14 @@ class _ColorDot extends StatelessWidget {
           shape: BoxShape.circle,
           color: isAny ? Colors.white.withValues(alpha: 0.08) : color.uiColor,
           border: Border.all(
-            color: selected ? Colors.white : Colors.white.withValues(alpha: 0.25),
+            color:
+                selected ? Colors.white : Colors.white.withValues(alpha: 0.25),
             width: selected ? 2.5 : 1.5,
           ),
         ),
         child: isAny
-            ? Icon(Icons.clear_rounded, size: 16, color: Colors.white.withValues(alpha: 0.6))
+            ? Icon(Icons.clear_rounded,
+                size: 16, color: Colors.white.withValues(alpha: 0.6))
             : null,
       ),
     );
