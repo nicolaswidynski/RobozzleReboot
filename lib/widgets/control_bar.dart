@@ -86,7 +86,8 @@ class ControlBar extends StatelessWidget {
               const SizedBox(width: 10),
               for (final speed in [1, 2, 8]) ...[
                 _SpeedButton(
-                  label: '${speed}x',
+                  // Plain play button for normal speed — "1x" is redundant.
+                  label: speed == 1 ? null : '${speed}x',
                   active: runSpeed == speed,
                   onTap: status.isTerminal ? null : () => onSetSpeed(speed),
                 ),
@@ -158,7 +159,7 @@ class _RoundIconButton extends StatelessWidget {
 }
 
 class _SpeedButton extends StatelessWidget {
-  final String label;
+  final String? label;
   final bool active;
   final VoidCallback? onTap;
 
@@ -190,14 +191,15 @@ class _SpeedButton extends StatelessWidget {
               size: 15,
               color: disabled ? Colors.white24 : Colors.white,
             ),
-            Text(
-              label,
-              style: TextStyle(
-                color: disabled ? Colors.white24 : Colors.white,
-                fontWeight: FontWeight.bold,
-                fontSize: 11,
+            if (label != null)
+              Text(
+                label!,
+                style: TextStyle(
+                  color: disabled ? Colors.white24 : Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
               ),
-            ),
           ],
         ),
       ),

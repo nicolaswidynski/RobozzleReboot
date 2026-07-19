@@ -8,7 +8,26 @@ import 'game_screen.dart';
 
 enum _SortBy { difficulty, popularity }
 
-enum _DifficultyFilter { top30, all }
+enum _DifficultyFilter {
+  top30,
+  level1,
+  level2,
+  level3,
+  level4,
+  level5,
+  all;
+
+  /// The specific difficulty rating this filter narrows to, or `null` for
+  /// [top30]/[all] which span every difficulty.
+  int? get level => switch (this) {
+        level1 => 1,
+        level2 => 2,
+        level3 => 3,
+        level4 => 4,
+        level5 => 5,
+        top30 || all => null,
+      };
+}
 
 /// The app's default screen: every level, sortable by difficulty or
 /// popularity. Tapping one opens [GameScreen] starting on that level.
@@ -25,6 +44,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Set<String> _completedIds = const {};
   _SortBy _sortBy = _SortBy.difficulty;
   _DifficultyFilter _difficultyFilter = _DifficultyFilter.all;
+  bool _hideCompleted = false;
 
   @override
   void initState() {
@@ -45,19 +65,28 @@ class _HomeScreenState extends State<HomeScreen> {
       for (var i = 0; i < levels.length; i++) MapEntry(i, levels[i])
     ];
 
-    if (_sortBy == _SortBy.difficulty &&
-        _difficultyFilter == _DifficultyFilter.top30) {
-      final byDifficulty = <int, List<MapEntry<int, Level>>>{};
-      for (final entry in indexed) {
-        byDifficulty.putIfAbsent(entry.value.difficulty, () => []).add(entry);
+    if (_hideCompleted) {
+      indexed =
+          indexed.where((e) => !_completedIds.contains(e.value.id)).toList();
+    }
+
+    if (_sortBy == _SortBy.difficulty) {
+      final level = _difficultyFilter.level;
+      if (level != null) {
+        indexed = indexed.where((e) => e.value.difficulty == level).toList();
+      } else if (_difficultyFilter == _DifficultyFilter.top30) {
+        final byDifficulty = <int, List<MapEntry<int, Level>>>{};
+        for (final entry in indexed) {
+          byDifficulty.putIfAbsent(entry.value.difficulty, () => []).add(entry);
+        }
+        indexed = [
+          for (final group in byDifficulty.values)
+            ...(group
+                  ..sort((a, b) =>
+                      b.value.popularity.compareTo(a.value.popularity)))
+                .take(30),
+        ];
       }
-      indexed = [
-        for (final group in byDifficulty.values)
-          ...(group
-                ..sort(
-                    (a, b) => b.value.popularity.compareTo(a.value.popularity)))
-              .take(30),
-      ];
     }
 
     indexed.sort((a, b) {
@@ -156,26 +185,57 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ],
                         ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            _SortChip(
+                              label: 'Hide completed',
+                              selected: _hideCompleted,
+                              onTap: () => setState(
+                                  () => _hideCompleted = !_hideCompleted),
+                            ),
+                          ],
+                        ),
                         if (_sortBy == _SortBy.difficulty) ...[
                           const SizedBox(height: 10),
-                          Row(
-                            children: [
-                              _SortChip(
-                                label: 'Top 30',
-                                selected: _difficultyFilter ==
-                                    _DifficultyFilter.top30,
-                                onTap: () => setState(() => _difficultyFilter =
-                                    _DifficultyFilter.top30),
-                              ),
-                              const SizedBox(width: 8),
-                              _SortChip(
-                                label: 'All',
-                                selected:
-                                    _difficultyFilter == _DifficultyFilter.all,
-                                onTap: () => setState(() =>
-                                    _difficultyFilter = _DifficultyFilter.all),
-                              ),
-                            ],
+                          SingleChildScrollView(
+                            scrollDirection: Axis.horizontal,
+                            child: Row(
+                              children: [
+                                _SortChip(
+                                  label: 'Top 30',
+                                  selected: _difficultyFilter ==
+                                      _DifficultyFilter.top30,
+                                  onTap: () => setState(() =>
+                                      _difficultyFilter =
+                                          _DifficultyFilter.top30),
+                                ),
+                                for (final filter in const [
+                                  _DifficultyFilter.level1,
+                                  _DifficultyFilter.level2,
+                                  _DifficultyFilter.level3,
+                                  _DifficultyFilter.level4,
+                                  _DifficultyFilter.level5,
+                                ]) ...[
+                                  const SizedBox(width: 8),
+                                  _SortChip(
+                                    label: '${filter.level}',
+                                    selected: _difficultyFilter == filter,
+                                    onTap: () => setState(
+                                        () => _difficultyFilter = filter),
+                                  ),
+                                ],
+                                const SizedBox(width: 8),
+                                _SortChip(
+                                  label: 'All',
+                                  selected: _difficultyFilter ==
+                                      _DifficultyFilter.all,
+                                  onTap: () => setState(() =>
+                                      _difficultyFilter =
+                                          _DifficultyFilter.all),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                         const SizedBox(height: 16),
@@ -191,11 +251,17 @@ class _HomeScreenState extends State<HomeScreen> {
                                 completed:
                                     _completedIds.contains(entry.value.id),
                                 onTap: () async {
+                                  // Pass the list in the order currently
+                                  // shown here (not the raw catalog order),
+                                  // so GameScreen's Next button walks
+                                  // through puzzles in this same sort/filter
+                                  // order.
                                   await Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder: (_) => GameScreen(
-                                        levels: levels,
-                                        initialLevelIndex: entry.key,
+                                        levels:
+                                            sorted.map((e) => e.value).toList(),
+                                        initialLevelIndex: i,
                                       ),
                                     ),
                                   );
