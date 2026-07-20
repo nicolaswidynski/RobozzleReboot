@@ -10,7 +10,6 @@ import 'game_screen.dart';
 enum _SortBy { difficulty, popularity }
 
 enum _DifficultyFilter {
-  top30,
   level1,
   level2,
   level3,
@@ -19,14 +18,14 @@ enum _DifficultyFilter {
   all;
 
   /// The specific difficulty rating this filter narrows to, or `null` for
-  /// [top30]/[all] which span every difficulty.
+  /// [all], which spans every difficulty.
   int? get level => switch (this) {
         level1 => 1,
         level2 => 2,
         level3 => 3,
         level4 => 4,
         level5 => 5,
-        top30 || all => null,
+        all => null,
       };
 }
 
@@ -45,10 +44,16 @@ class HomeScreen extends StatefulWidget {
   /// set are shown. `null` means no filtering — the full catalog.
   final Set<String>? authorFilter;
 
+  /// Whether the player can switch between sorting by difficulty and by
+  /// popularity. When `false` (Campaign), sorting is fixed to difficulty
+  /// and the Sort-by chips are hidden entirely.
+  final bool allowSortChoice;
+
   const HomeScreen({
     super.key,
     this.title = 'Community Puzzles',
     this.authorFilter,
+    this.allowSortChoice = true,
   });
 
   @override
@@ -119,18 +124,6 @@ class _HomeScreenState extends State<HomeScreen> {
       final level = _difficultyFilter.level;
       if (level != null) {
         indexed = indexed.where((e) => e.value.difficulty == level).toList();
-      } else if (_difficultyFilter == _DifficultyFilter.top30) {
-        final byDifficulty = <int, List<MapEntry<int, Level>>>{};
-        for (final entry in indexed) {
-          byDifficulty.putIfAbsent(entry.value.difficulty, () => []).add(entry);
-        }
-        indexed = [
-          for (final group in byDifficulty.values)
-            ...(group
-                  ..sort((a, b) =>
-                      b.value.popularity.compareTo(a.value.popularity)))
-                .take(30),
-        ];
       }
     }
 
@@ -261,27 +254,29 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 14),
                         Row(
                           children: [
-                            Text(
-                              'Sort by',
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.6),
-                                fontSize: 12,
+                            if (widget.allowSortChoice) ...[
+                              Text(
+                                'Sort by',
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.6),
+                                  fontSize: 12,
+                                ),
                               ),
-                            ),
-                            const SizedBox(width: 10),
-                            _SortChip(
-                              label: 'Difficulty',
-                              selected: _sortBy == _SortBy.difficulty,
-                              onTap: () =>
-                                  setState(() => _sortBy = _SortBy.difficulty),
-                            ),
-                            const SizedBox(width: 8),
-                            _SortChip(
-                              label: 'Popularity',
-                              selected: _sortBy == _SortBy.popularity,
-                              onTap: () =>
-                                  setState(() => _sortBy = _SortBy.popularity),
-                            ),
+                              const SizedBox(width: 10),
+                              _SortChip(
+                                label: 'Difficulty',
+                                selected: _sortBy == _SortBy.difficulty,
+                                onTap: () => setState(
+                                    () => _sortBy = _SortBy.difficulty),
+                              ),
+                              const SizedBox(width: 8),
+                              _SortChip(
+                                label: 'Popularity',
+                                selected: _sortBy == _SortBy.popularity,
+                                onTap: () => setState(
+                                    () => _sortBy = _SortBy.popularity),
+                              ),
+                            ],
                             const Spacer(),
                             Text(
                               '${sorted.length} puzzles',
@@ -309,14 +304,6 @@ class _HomeScreenState extends State<HomeScreen> {
                             scrollDirection: Axis.horizontal,
                             child: Row(
                               children: [
-                                _SortChip(
-                                  label: 'Top 30',
-                                  selected: _difficultyFilter ==
-                                      _DifficultyFilter.top30,
-                                  onTap: () => setState(() =>
-                                      _difficultyFilter =
-                                          _DifficultyFilter.top30),
-                                ),
                                 for (final filter in const [
                                   _DifficultyFilter.level1,
                                   _DifficultyFilter.level2,
@@ -324,15 +311,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                   _DifficultyFilter.level4,
                                   _DifficultyFilter.level5,
                                 ]) ...[
-                                  const SizedBox(width: 8),
                                   _SortChip(
                                     label: '${filter.level}',
                                     selected: _difficultyFilter == filter,
                                     onTap: () => setState(
                                         () => _difficultyFilter = filter),
                                   ),
+                                  const SizedBox(width: 8),
                                 ],
-                                const SizedBox(width: 8),
                                 _SortChip(
                                   label: 'All',
                                   selected: _difficultyFilter ==
