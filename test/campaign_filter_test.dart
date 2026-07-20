@@ -6,7 +6,8 @@ import 'package:robozzle_reboot/screens/home_screen.dart';
 
 void main() {
   testWidgets(
-      'Campaign narrows the catalog to the 5 chosen authors, titled "Campaign"',
+      'Campaign narrows the catalog to the 5 chosen authors, titled '
+      '"Campaign", with no Sort-by choice and no Top 30 chip',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
 
@@ -15,6 +16,7 @@ void main() {
         home: HomeScreen(
           title: 'Campaign',
           authorFilter: {'igoro', 'blake', 'markbyers', 'snydej', 'stingray'},
+          allowSortChoice: false,
         ),
       ),
     );
@@ -30,5 +32,15 @@ void main() {
     // 33 (igoro) + 86 (snydej) + 65 (markbyers) + 4 (stingray) + 1 (blake)
     // in the bundled catalog, verified directly against the asset.
     expect(find.text('189 puzzles'), findsOneWidget);
+
+    // No Sort-by choice — always sorted by difficulty.
+    expect(find.text('Sort by'), findsNothing);
+    expect(find.text('Difficulty'), findsNothing);
+    expect(find.text('Popularity'), findsNothing);
+    // Top 30 was removed entirely.
+    expect(find.text('Top 30'), findsNothing);
+    // The per-difficulty filter chips are still there.
+    expect(find.text('1'), findsOneWidget);
+    expect(find.text('All'), findsOneWidget);
   });
 }

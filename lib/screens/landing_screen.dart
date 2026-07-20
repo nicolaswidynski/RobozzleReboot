@@ -37,10 +37,15 @@ class _LandingScreenState extends State<LandingScreen> {
     BuildContext context, {
     String title = 'Community Puzzles',
     Set<String>? authorFilter,
+    bool allowSortChoice = true,
   }) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => HomeScreen(title: title, authorFilter: authorFilter),
+        builder: (_) => HomeScreen(
+          title: title,
+          authorFilter: authorFilter,
+          allowSortChoice: allowSortChoice,
+        ),
       ),
     );
     _refreshPoints();
@@ -117,6 +122,8 @@ class _LandingScreenState extends State<LandingScreen> {
                           'snydej',
                           'stingray',
                         },
+                        // Always sorted by difficulty — no Sort-by choice.
+                        allowSortChoice: false,
                       ),
                     ),
                     const SizedBox(height: 12),
