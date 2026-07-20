@@ -10,7 +10,18 @@ import 'tile_color_ui.dart';
 class RobotGrid extends StatelessWidget {
   final RobotInterpreter interpreter;
 
-  const RobotGrid({super.key, required this.interpreter});
+  /// How long the robot's move/turn animation takes. Must not exceed the
+  /// interval between steps — otherwise, at high auto-run speeds, each new
+  /// step retargets the animation before it finishes the previous tile,
+  /// and the robot visually never catches up (looks like it's skipping
+  /// tiles even though every step still executes correctly underneath).
+  final Duration stepDuration;
+
+  const RobotGrid({
+    super.key,
+    required this.interpreter,
+    this.stepDuration = const Duration(milliseconds: 180),
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +85,7 @@ class RobotGrid extends StatelessWidget {
 
   Widget _buildRobot(double size) {
     return AnimatedPositioned(
-      duration: const Duration(milliseconds: 180),
+      duration: stepDuration,
       curve: Curves.easeInOut,
       left: interpreter.col * size,
       top: interpreter.row * size,
@@ -84,6 +95,7 @@ class RobotGrid extends StatelessWidget {
         size: size,
         direction: interpreter.direction,
         crashed: interpreter.status == RunStatus.crashed,
+        duration: stepDuration,
       ),
     );
   }
@@ -99,9 +111,14 @@ class _RobotSprite extends StatefulWidget {
   final double size;
   final Direction direction;
   final bool crashed;
+  final Duration duration;
 
-  const _RobotSprite(
-      {required this.size, required this.direction, required this.crashed});
+  const _RobotSprite({
+    required this.size,
+    required this.direction,
+    required this.crashed,
+    required this.duration,
+  });
 
   @override
   State<_RobotSprite> createState() => _RobotSpriteState();
@@ -128,7 +145,7 @@ class _RobotSpriteState extends State<_RobotSprite> {
   @override
   Widget build(BuildContext context) {
     return AnimatedRotation(
-      duration: const Duration(milliseconds: 180),
+      duration: widget.duration,
       turns: _turns,
       child: Center(
         child: Icon(

@@ -30,10 +30,26 @@ enum _DifficultyFilter {
       };
 }
 
-/// The app's default screen: every level, sortable by difficulty or
-/// popularity. Tapping one opens [GameScreen] starting on that level.
+/// Browses the scraped Robozzle catalog: every level, sortable by
+/// difficulty or popularity. Tapping one opens [GameScreen] starting on
+/// that level.
+///
+/// Reused for both "Community Puzzles" (the full catalog) and "Campaign"
+/// (the same catalog narrowed to [authorFilter]) — a puzzle stays visible
+/// under Community Puzzles either way, since this never removes anything
+/// from the underlying data, just changes which screen shows it.
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({super.key});
+  final String title;
+
+  /// When set, only levels whose author (case-insensitively) is in this
+  /// set are shown. `null` means no filtering — the full catalog.
+  final Set<String>? authorFilter;
+
+  const HomeScreen({
+    super.key,
+    this.title = 'Community Puzzles',
+    this.authorFilter,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -41,6 +57,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   late final Future<List<Level>> _levelsFuture = _loadAllLevels();
+  late final Set<String>? _authorFilter =
+      widget.authorFilter?.map((a) => a.toLowerCase()).toSet();
   final ProgressStore _progressStore = ProgressStore();
   final TextEditingController _searchController = TextEditingController();
   Set<String> _completedIds = const {};
@@ -77,6 +95,13 @@ class _HomeScreenState extends State<HomeScreen> {
     var indexed = [
       for (var i = 0; i < levels.length; i++) MapEntry(i, levels[i])
     ];
+
+    final authorFilter = _authorFilter;
+    if (authorFilter != null) {
+      indexed = indexed
+          .where((e) => authorFilter.contains(e.value.author.toLowerCase()))
+          .toList();
+    }
 
     if (_hideCompleted) {
       indexed =
@@ -134,12 +159,29 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Robozzle',
-                style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 28),
+              Row(
+                children: [
+                  if (Navigator.of(context).canPop())
+                    Padding(
+                      padding: const EdgeInsets.only(right: 4),
+                      child: InkWell(
+                        onTap: () => Navigator.of(context).pop(),
+                        customBorder: const CircleBorder(),
+                        child: const Padding(
+                          padding: EdgeInsets.all(6),
+                          child: Icon(Icons.arrow_back_rounded,
+                              color: Colors.white70, size: 24),
+                        ),
+                      ),
+                    ),
+                  Text(
+                    widget.title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 26),
+                  ),
+                ],
               ),
               const SizedBox(height: 4),
               Text(
