@@ -53,6 +53,22 @@ class _GameScreenState extends State<GameScreen> {
   final ProgramStore _programStore = ProgramStore();
 
   static const Duration _baseStepInterval = Duration(milliseconds: 260);
+  static const Duration _maxStepAnimationDuration = Duration(milliseconds: 180);
+
+  // The robot's move/turn animation must never take longer than the actual
+  // gap between steps — otherwise, at high auto-run speeds, each new step
+  // retargets the animation before it finishes the previous tile and it
+  // visually never catches up (looks like skipped tiles, even though every
+  // step still executes correctly underneath).
+  Duration get _stepAnimationDuration {
+    if (_runSpeed == null) return _maxStepAnimationDuration;
+    final interval = Duration(
+      milliseconds: (_baseStepInterval.inMilliseconds / _runSpeed!).round(),
+    );
+    return interval < _maxStepAnimationDuration
+        ? interval
+        : _maxStepAnimationDuration;
+  }
 
   static const List<ActionType> _baseActions = [
     ActionType.forward,
@@ -92,12 +108,12 @@ class _GameScreenState extends State<GameScreen> {
     _restoreSavedProgram();
   }
 
-  // Loads asynchronously since it's a SharedPreferences ProgramStore.
-  // If the player has already solved this level, drop their saved winning
+  // Loads asynchronously since it's a SharedPreferences ProgramStore. If
+  // the player has already put something into this level, drop their saved
   // program in instead of leaving them with a blank slate.
   Future<void> _restoreSavedProgram() async {
     final level = _level;
-    final saved = await _programStore.loadSolved(level);
+    final saved = await _programStore.load(level);
     if (saved == null) return;
     if (!mounted || _level != level) return; // stale: level changed meanwhile
     setState(() {
@@ -155,6 +171,7 @@ class _GameScreenState extends State<GameScreen> {
       _interpreter = RobotInterpreter(level: _level, program: _program);
       _resetClearOverlay();
     });
+    _programStore.save(_level, _program);
   }
 
   void _onSlotDrop(
@@ -167,6 +184,7 @@ class _GameScreenState extends State<GameScreen> {
       _interpreter = RobotInterpreter(level: _level, program: _program);
       _resetClearOverlay();
     });
+    _programStore.save(_level, _program);
   }
 
   void _onSlotConditionDrop(int functionIndex, int slotIndex, TileColor color) {
@@ -181,6 +199,7 @@ class _GameScreenState extends State<GameScreen> {
       _interpreter = RobotInterpreter(level: _level, program: _program);
       _resetClearOverlay();
     });
+    _programStore.save(_level, _program);
   }
 
   void _onSlotMove(
@@ -194,6 +213,7 @@ class _GameScreenState extends State<GameScreen> {
       _interpreter = RobotInterpreter(level: _level, program: _program);
       _resetClearOverlay();
     });
+    _programStore.save(_level, _program);
   }
 
   void _onSlotRemove(int functionIndex, int slotIndex) {
@@ -205,6 +225,7 @@ class _GameScreenState extends State<GameScreen> {
       _interpreter = RobotInterpreter(level: _level, program: _program);
       _resetClearOverlay();
     });
+    _programStore.save(_level, _program);
   }
 
   void _autoExpandRunning() {
@@ -229,7 +250,9 @@ class _GameScreenState extends State<GameScreen> {
   void _maybeMarkCompleted() {
     if (_interpreter.status == RunStatus.success) {
       _progressStore.markCompleted(_level.id);
-      _programStore.saveSolved(_level, _program);
+      // Redundant with the save already done on every edit, but cheap and
+      // guarantees the exact winning program is what's persisted.
+      _programStore.save(_level, _program);
       if (!_showClearOverlay && _clearOverlayTimer == null) {
         _clearOverlayTimer = Timer(_clearOverlayDelay, () {
           _clearOverlayTimer = null;
@@ -317,7 +340,10 @@ class _GameScreenState extends State<GameScreen> {
                   const SizedBox(height: 10),
                   Expanded(
                     flex: 4,
-                    child: RobotGrid(interpreter: _interpreter),
+                    child: RobotGrid(
+                      interpreter: _interpreter,
+                      stepDuration: _stepAnimationDuration,
+                    ),
                   ),
                   const SizedBox(height: 10),
                   Expanded(

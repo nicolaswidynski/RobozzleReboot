@@ -11,13 +11,14 @@ import 'test_level.dart';
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  test('loadSolved returns null when nothing was ever saved', () async {
+  test('load returns null when nothing was ever saved', () async {
     final level = testLevel();
-    expect(await ProgramStore().loadSolved(level), isNull);
+    expect(await ProgramStore().load(level), isNull);
   });
 
-  test('saveSolved then loadSolved round-trips instructions, conditions, '
-      'and empty slots exactly', () async {
+  test(
+      'save then load round-trips instructions, conditions, and empty '
+      'slots exactly', () async {
     final level = testLevel();
     final program = RobotProgram.empty(level);
     program.setSlot(0, 0, const ProgramInstruction(ActionType.forward));
@@ -30,8 +31,8 @@ void main() {
     program.setSlot(0, 3, const ProgramInstruction(ActionType.callF2));
 
     final store = ProgramStore();
-    await store.saveSolved(level, program);
-    final loaded = await store.loadSolved(level);
+    await store.save(level, program);
+    final loaded = await store.load(level);
 
     expect(loaded, isNotNull);
     expect(loaded!.functions[0].slots[0]?.action, ActionType.forward);
@@ -50,9 +51,9 @@ void main() {
     program.setSlot(0, 0, const ProgramInstruction(ActionType.forward));
 
     final store = ProgramStore();
-    await store.saveSolved(level, program);
+    await store.save(level, program);
 
-    expect(await store.loadSolved(level2), isNull);
-    expect(await store.loadSolved(level), isNotNull);
+    expect(await store.load(level2), isNull);
+    expect(await store.load(level), isNotNull);
   });
 }

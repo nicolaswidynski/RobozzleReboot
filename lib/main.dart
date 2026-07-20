@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'screens/home_screen.dart';
+import 'screens/landing_screen.dart';
 import 'theme/app_colors.dart';
 
 void main() {
@@ -20,7 +20,7 @@ class RobozzleRebootApp extends StatelessWidget {
         scaffoldBackgroundColor: AppColors.background,
         useMaterial3: true,
       ),
-      home: const HomeScreen(),
+      home: const LandingScreen(),
       debugShowCheckedModeBanner: false,
     );
   }

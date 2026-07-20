@@ -7,13 +7,13 @@ import '../models/level.dart';
 import '../models/program.dart';
 import '../models/tile_color.dart';
 
-/// Persists a solved level's winning program, keyed by [Level.id], so
-/// reopening a level you've already solved restores your solution instead
-/// of starting from a blank program.
+/// Persists whatever program the player has built for a level, keyed by
+/// [Level.id] — saved on every edit, not just once solved — so reopening a
+/// level restores whatever was last there instead of starting blank.
 class ProgramStore {
-  static const _keyPrefix = 'solved_program_';
+  static const _keyPrefix = 'program_';
 
-  Future<void> saveSolved(Level level, RobotProgram program) async {
+  Future<void> save(Level level, RobotProgram program) async {
     final prefs = await SharedPreferences.getInstance();
     final encoded = program.functions
         .map((fn) => fn.slots.map(_encodeSlot).toList())
@@ -24,7 +24,7 @@ class ProgramStore {
   /// Returns `null` if nothing was ever saved for this level, or if the
   /// saved data doesn't parse (e.g. it was written by an older/incompatible
   /// version) — the caller should just fall back to a blank program.
-  Future<RobotProgram?> loadSolved(Level level) async {
+  Future<RobotProgram?> load(Level level) async {
     final prefs = await SharedPreferences.getInstance();
     final raw = prefs.getString('$_keyPrefix${level.id}');
     if (raw == null) return null;
