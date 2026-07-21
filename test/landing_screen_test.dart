@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:robozzle_reboot/data/tutorial_levels.dart';
+import 'package:robozzle_reboot/screens/auth/sign_in_screen.dart';
 import 'package:robozzle_reboot/screens/coming_soon_screen.dart';
 import 'package:robozzle_reboot/screens/home_screen.dart';
 import 'package:robozzle_reboot/screens/landing_screen.dart';
+import 'package:robozzle_reboot/screens/tutorial_screen.dart';
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
@@ -45,14 +48,40 @@ void main() {
     expect(find.byType(LandingScreen), findsOneWidget);
   });
 
-  testWidgets('unbuilt entries (e.g. Tutorials) open a Coming soon placeholder',
+  testWidgets('Tutorials opens TutorialScreen, listing all 3 tutorial levels',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LandingScreen()));
 
     await tester.tap(find.text('Tutorials'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(ComingSoonScreen), findsOneWidget);
-    expect(find.text('Tutorials is coming soon'), findsOneWidget);
+    expect(find.byType(TutorialScreen), findsOneWidget);
+    for (final level in tutorialLevels) {
+      expect(find.text(level.name), findsOneWidget);
+    }
+  });
+
+  testWidgets('unbuilt entries (e.g. Editor, once signed in) open a Coming '
+      'soon placeholder', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: LandingScreen()));
+
+    await tester.tap(find.text('Editor'));
+    await tester.pumpAndSettle();
+
+    // Not signed in — gated behind Sign in with Apple, same as Leaderboard.
+    expect(find.byType(SignInScreen), findsOneWidget);
+    expect(find.byType(ComingSoonScreen), findsNothing);
+  });
+
+  testWidgets(
+      'Leaderboard and Editor require Sign in with Apple before opening',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: LandingScreen()));
+
+    await tester.tap(find.text('Leaderboard'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SignInScreen), findsOneWidget);
+    expect(find.byType(ComingSoonScreen), findsNothing);
   });
 }

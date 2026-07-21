@@ -2,8 +2,12 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../data/auth_manager.dart';
 import '../data/program_store.dart';
 import '../data/progress_store.dart';
+import '../data/puzzle_content.dart';
+import '../data/puzzle_rating_store.dart';
+import '../data/robozzle_api_client.dart';
 import '../engine/interpreter.dart';
 import '../models/instruction.dart';
 import '../models/level.dart';
@@ -34,6 +38,14 @@ class _GameScreenState extends State<GameScreen> {
   late RobotProgram _program;
   late RobotInterpreter _interpreter;
 
+  // Puzzles the server only listed (never bundled, and not fetched before)
+  // start with an empty grid — fetched on demand right before they're
+  // opened. These track that fetch so build() can show a loading/error
+  // state instead of touching the not-yet-initialized fields above.
+  bool _loadingLevel = false;
+  String? _levelLoadError;
+  int _pendingLevelIndex = 0;
+
   ActionType? _selectedAction;
   bool _eraserSelected = false;
   TileColor _selectedCondition = TileColor.any;
@@ -48,6 +60,14 @@ class _GameScreenState extends State<GameScreen> {
   Timer? _clearOverlayTimer;
   bool _showClearOverlay = false;
   static const Duration _clearOverlayDelay = Duration(milliseconds: 220);
+
+  // Rate/like prompt shown on the Clear overlay. `_ratingHandled` covers
+  // both "already rated in an earlier session" (loaded from
+  // PuzzleRatingStore) and "just submitted this session" — either way, the
+  // prompt hides and won't submit again for this puzzle.
+  int? _selectedRating;
+  bool _liked = false;
+  bool _ratingHandled = false;
 
   final ProgressStore _progressStore = ProgressStore();
   final ProgramStore _programStore = ProgramStore();
@@ -82,7 +102,7 @@ class _GameScreenState extends State<GameScreen> {
   @override
   void initState() {
     super.initState();
-    _loadLevel(widget.initialLevelIndex);
+    _prepareAndLoadLevel(widget.initialLevelIndex);
   }
 
   @override
@@ -90,6 +110,38 @@ class _GameScreenState extends State<GameScreen> {
     _autoRunTimer?.cancel();
     _clearOverlayTimer?.cancel();
     super.dispose();
+  }
+
+  /// Ensures `_levels[index]` has its playable content (fetching it from
+  /// `robozzle-get-puzzle` if this is a server-only puzzle never opened
+  /// before — see [ensurePuzzleContent]) before actually loading it. A
+  /// no-op fetch for every bundled puzzle, which already has content.
+  Future<void> _prepareAndLoadLevel(int index) async {
+    _pendingLevelIndex = index;
+    var level = _levels[index];
+    if (level.grid.isEmpty) {
+      setState(() {
+        _loadingLevel = true;
+        _levelLoadError = null;
+      });
+      try {
+        level = await ensurePuzzleContent(level);
+        _levels[index] = level;
+      } catch (e) {
+        if (!mounted) return;
+        setState(() {
+          _loadingLevel = false;
+          _levelLoadError = '$e';
+        });
+        return;
+      }
+    }
+    if (!mounted) return;
+    setState(() {
+      _loadingLevel = false;
+      _levelLoadError = null;
+      _loadLevel(index);
+    });
   }
 
   void _loadLevel(int index) {
@@ -105,7 +157,11 @@ class _GameScreenState extends State<GameScreen> {
     _eraserSelected = false;
     _selectedCondition = TileColor.any;
     _functionsVisible = true;
+    _selectedRating = null;
+    _liked = false;
+    _ratingHandled = false;
     _restoreSavedProgram();
+    _loadRatingStatus();
   }
 
   // Loads asynchronously since it's a SharedPreferences ProgramStore. If
@@ -120,6 +176,17 @@ class _GameScreenState extends State<GameScreen> {
       _program = saved;
       _interpreter = RobotInterpreter(level: _level, program: _program);
     });
+  }
+
+  // Loads asynchronously since it's a SharedPreferences PuzzleRatingStore.
+  // If this puzzle was already rated in an earlier session, the rate/like
+  // prompt on the Clear overlay should stay hidden.
+  Future<void> _loadRatingStatus() async {
+    final level = _level;
+    final rated = (await PuzzleRatingStore().loadRated()).contains(level.id);
+    if (!rated) return;
+    if (!mounted || _level != level) return; // stale: level changed meanwhile
+    setState(() => _ratingHandled = true);
   }
 
   void _resetClearOverlay() {
@@ -254,6 +321,9 @@ class _GameScreenState extends State<GameScreen> {
       // guarantees the exact winning program is what's persisted.
       _programStore.save(_level, _program);
       if (!_showClearOverlay && _clearOverlayTimer == null) {
+        // Get isConnected as accurate as possible before the overlay (which
+        // decides whether to show the rate/like prompt off of it) appears.
+        _refreshAuthStatus();
         _clearOverlayTimer = Timer(_clearOverlayDelay, () {
           _clearOverlayTimer = null;
           if (!mounted) return;
@@ -261,6 +331,11 @@ class _GameScreenState extends State<GameScreen> {
         });
       }
     }
+  }
+
+  Future<void> _refreshAuthStatus() async {
+    await AuthManager.instance.restoreSession();
+    if (mounted) setState(() {}); // re-evaluate isConnected in build
   }
 
   void _stepBack() {
@@ -318,11 +393,82 @@ class _GameScreenState extends State<GameScreen> {
   // sort/filter order (difficulty/popularity, Top 30/All) was active there
   // when the player tapped in — so stepping through it follows that order.
   VoidCallback? get _goToNextLevel => _levelIndex < _levels.length - 1
-      ? () => setState(() => _loadLevel(_levelIndex + 1))
+      ? () => _advanceToNextLevel()
       : null;
+
+  Future<void> _advanceToNextLevel() async {
+    _submitRatingIfNeeded();
+    await _prepareAndLoadLevel(_levelIndex + 1);
+  }
+
+  // Submits whatever rate/like the player picked (either can be unset) only
+  // once, right when they click Next — never on every star/like tap, and
+  // never again once a puzzle has been rated. Fires without waiting for the
+  // network so it never delays advancing to the next puzzle; a failure just
+  // means this puzzle isn't marked rated, so it's offered again next time.
+  void _submitRatingIfNeeded() {
+    if (!_showClearOverlay || _ratingHandled) return;
+    if (!AuthManager.instance.isConnected) return;
+    _ratingHandled = true;
+    final level = _level;
+    final puzzleId = level.id.replaceFirst('catalog-', '');
+    final rate = _selectedRating?.toString() ?? '';
+    final like = _liked ? 'yes' : '';
+    RobozzleApiClient.instance
+        .ratePuzzle(puzzleId: puzzleId, rate: rate, like: like)
+        .then((_) => PuzzleRatingStore().markRated(level.id))
+        .catchError((_) {});
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (_loadingLevel) {
+      return const Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: CircularProgressIndicator(color: AppColors.accent),
+        ),
+      );
+    }
+    final error = _levelLoadError;
+    if (error != null) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          iconTheme: const IconThemeData(color: Colors.white),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.error_outline_rounded,
+                  color: Colors.white.withValues(alpha: 0.4),
+                  size: 40,
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Could not load this puzzle.\n$error',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.7)),
+                ),
+                const SizedBox(height: 16),
+                ElevatedButton(
+                  onPressed: () => _prepareAndLoadLevel(_pendingLevelIndex),
+                  style:
+                      ElevatedButton.styleFrom(backgroundColor: AppColors.accent),
+                  child: const Text('Retry', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
     return Scaffold(
       backgroundColor: AppColors.background,
       body: Stack(
@@ -446,7 +592,15 @@ class _GameScreenState extends State<GameScreen> {
           ),
           if (_showClearOverlay)
             Positioned.fill(
-              child: _ClearOverlay(onNext: _goToNextLevel),
+              child: _ClearOverlay(
+                onNext: _goToNextLevel,
+                showRating: !_ratingHandled && AuthManager.instance.isConnected,
+                selectedRating: _selectedRating,
+                onRateSelected: (rating) =>
+                    setState(() => _selectedRating = rating),
+                liked: _liked,
+                onLikeToggle: () => setState(() => _liked = !_liked),
+              ),
             ),
         ],
       ),
@@ -547,10 +701,26 @@ class _FunctionsHandle extends StatelessWidget {
 /// robot at the end). [onNext] advances through [GameScreen.levels] in
 /// whatever order HomeScreen passed them in — i.e. the sort/filter that was
 /// active there when the player tapped in.
+///
+/// When [showRating] is true (signed in, and this puzzle hasn't been rated
+/// before), also offers a one-time difficulty rating + like prompt — picked
+/// here, but only actually submitted when the player taps Next.
 class _ClearOverlay extends StatelessWidget {
   final VoidCallback? onNext;
+  final bool showRating;
+  final int? selectedRating;
+  final ValueChanged<int> onRateSelected;
+  final bool liked;
+  final VoidCallback onLikeToggle;
 
-  const _ClearOverlay({required this.onNext});
+  const _ClearOverlay({
+    required this.onNext,
+    required this.showRating,
+    required this.selectedRating,
+    required this.onRateSelected,
+    required this.liked,
+    required this.onLikeToggle,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -578,6 +748,74 @@ class _ClearOverlay extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   fontSize: 24),
             ),
+            if (showRating) ...[
+              const SizedBox(height: 20),
+              Text(
+                'Rate this puzzle',
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.6),
+                  fontSize: 13,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (var i = 1; i <= 5; i++)
+                    InkWell(
+                      onTap: () => onRateSelected(i),
+                      customBorder: const CircleBorder(),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          (selectedRating ?? 0) >= i
+                              ? Icons.star_rounded
+                              : Icons.star_border_rounded,
+                          color: AppColors.star,
+                          size: 28,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              InkWell(
+                onTap: onLikeToggle,
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: liked ? AppColors.accent : AppColors.panel,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: liked ? AppColors.accent : AppColors.panelBorder,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        liked
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        liked ? 'Liked' : 'Like',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
