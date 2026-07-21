@@ -142,6 +142,39 @@ class _GameScreenState extends State<GameScreen> {
       _levelLoadError = null;
       _loadLevel(index);
     });
+    _maybeShowInstructions();
+  }
+
+  /// Shows [_level.description] (if it has one — only the hand-authored
+  /// tutorial levels do) once the frame with the new level has actually
+  /// built, since showDialog needs an Overlay already in the tree.
+  void _maybeShowInstructions() {
+    if (_level.description.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showInstructionsDialog();
+    });
+  }
+
+  void _showInstructionsDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.panel,
+        title: Text(_level.name, style: const TextStyle(color: Colors.white)),
+        content: SingleChildScrollView(
+          child: Text(
+            _level.description,
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), height: 1.4),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _loadLevel(int index) {
@@ -401,6 +434,14 @@ class _GameScreenState extends State<GameScreen> {
     await _prepareAndLoadLevel(_levelIndex + 1);
   }
 
+  // Reached when the Clear overlay's button has no next puzzle to advance
+  // to — still submits any pending rating, then returns to the list (e.g.
+  // to pick a different difficulty) instead of leaving the button inert.
+  void _backToList() {
+    _submitRatingIfNeeded();
+    Navigator.of(context).pop();
+  }
+
   // Submits whatever rate/like the player picked (either can be unset) only
   // once, right when they click Next — never on every star/like tap, and
   // never again once a puzzle has been rated. Fires without waiting for the
@@ -482,6 +523,9 @@ class _GameScreenState extends State<GameScreen> {
                     title: _level.name,
                     onHome: () => Navigator.of(context).pop(),
                     onNext: _goToNextLevel,
+                    onHelp: _level.description.isEmpty
+                        ? null
+                        : _showInstructionsDialog,
                   ),
                   const SizedBox(height: 10),
                   Expanded(
@@ -594,6 +638,7 @@ class _GameScreenState extends State<GameScreen> {
             Positioned.fill(
               child: _ClearOverlay(
                 onNext: _goToNextLevel,
+                onBackToList: _backToList,
                 showRating: !_ratingHandled && AuthManager.instance.isConnected,
                 selectedRating: _selectedRating,
                 onRateSelected: (rating) =>
@@ -612,9 +657,14 @@ class _Header extends StatelessWidget {
   final String title;
   final VoidCallback onHome;
   final VoidCallback? onNext;
+  final VoidCallback? onHelp;
 
-  const _Header(
-      {required this.title, required this.onHome, required this.onNext});
+  const _Header({
+    required this.title,
+    required this.onHome,
+    required this.onNext,
+    this.onHelp,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -628,6 +678,8 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           _HeaderIconButton(icon: Icons.home_rounded, onTap: onHome),
+          if (onHelp != null)
+            _HeaderIconButton(icon: Icons.info_outline_rounded, onTap: onHelp),
           Expanded(
             child: Text(
               title,
@@ -705,8 +757,14 @@ class _FunctionsHandle extends StatelessWidget {
 /// When [showRating] is true (signed in, and this puzzle hasn't been rated
 /// before), also offers a one-time difficulty rating + like prompt — picked
 /// here, but only actually submitted when the player taps Next.
+///
+/// [onNext] is null once there's no next puzzle left in the list HomeScreen
+/// handed us — the button stays enabled either way, falling back to
+/// [onBackToList] (e.g. to pick a different difficulty) instead of being
+/// disabled.
 class _ClearOverlay extends StatelessWidget {
   final VoidCallback? onNext;
+  final VoidCallback onBackToList;
   final bool showRating;
   final int? selectedRating;
   final ValueChanged<int> onRateSelected;
@@ -715,6 +773,7 @@ class _ClearOverlay extends StatelessWidget {
 
   const _ClearOverlay({
     required this.onNext,
+    required this.onBackToList,
     required this.showRating,
     required this.selectedRating,
     required this.onRateSelected,
@@ -751,7 +810,7 @@ class _ClearOverlay extends StatelessWidget {
             if (showRating) ...[
               const SizedBox(height: 20),
               Text(
-                'Rate this puzzle',
+                'Rate the difficulty of this puzzle',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.6),
                   fontSize: 13,
@@ -820,18 +879,17 @@ class _ClearOverlay extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: onNext,
+                onPressed: onNext ?? onBackToList,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
-                  disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
                 child: Text(
-                  onNext == null ? 'Last puzzle' : 'Next',
-                  style: TextStyle(
-                    color: onNext == null ? Colors.white38 : Colors.white,
+                  onNext == null ? 'Go Back' : 'Next',
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),

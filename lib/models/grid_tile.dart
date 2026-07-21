@@ -43,3 +43,19 @@ GridTile? gridTileFromChar(String ch) {
       throw ArgumentError('Unknown tile char "$ch"');
   }
 }
+
+/// Inverse of [gridTileFromChar] — used by the level editor to serialize an
+/// edited grid back into the same row-string encoding the catalog uses.
+String gridTileToChar(GridTile? tile) {
+  if (tile == null) return ' ';
+  switch (tile.color) {
+    case TileColor.red:
+      return tile.hasStar ? 'R' : 'r';
+    case TileColor.green:
+      return tile.hasStar ? 'G' : 'g';
+    case TileColor.blue:
+      return tile.hasStar ? 'B' : 'b';
+    case TileColor.any:
+      throw ArgumentError('A tile can never be TileColor.any');
+  }
+}

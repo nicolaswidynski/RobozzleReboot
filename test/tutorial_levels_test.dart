@@ -64,4 +64,10 @@ void main() {
           reason: level.id);
     }
   });
+
+  test('every tutorial has a worded description explaining its mechanic', () {
+    for (final level in tutorialLevels) {
+      expect(level.description, isNotEmpty, reason: level.id);
+    }
+  });
 }

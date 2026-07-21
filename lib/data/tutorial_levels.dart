@@ -27,6 +27,17 @@ final List<Level> tutorialLevels = [
     slotsPerFunction: const [8, 0, 0, 0, 0],
     difficulty: 1,
     allowedPaintColors: const {},
+    description:
+        'Robozzle is about programming a robot to collect every star on '
+        'the board.\n\n'
+        'Drag instructions from the palette below into the F1 slots to '
+        'build your program: Forward moves the robot one tile in the '
+        'direction it\'s facing, and Turn Left / Turn Right rotate it in '
+        'place without moving.\n\n'
+        'Once your program is ready, press Play to run it, or Step to run '
+        'one instruction at a time. Walking off the edge of the grid or '
+        'into a gap crashes the robot, so plan your turns before you '
+        'collect that last star.',
   ),
 
   // A 5-star corridor with only 2 slots in F1 — too short to lay the path
@@ -43,6 +54,13 @@ final List<Level> tutorialLevels = [
     slotsPerFunction: const [2, 0, 0, 0, 0],
     difficulty: 2,
     allowedPaintColors: const {},
+    description:
+        'This corridor has 5 stars, but F1 only has 2 slots — not enough '
+        'to write "Forward" five times by hand.\n\n'
+        'A function can call itself: place "Call F1" as an instruction '
+        'inside F1, and it will run itself again as soon as it finishes — '
+        'like a loop that repeats until the puzzle is solved.\n\n'
+        'Try: Forward, then Call F1. That\'s the whole program.',
   ),
 
   // Same self-calling loop as tutorial 2, but the corridor bends at a red
@@ -62,5 +80,18 @@ final List<Level> tutorialLevels = [
     slotsPerFunction: const [4, 0, 0, 0, 0],
     difficulty: 3,
     allowedPaintColors: const {TileColor.green},
+    description:
+        'Every instruction can carry a color condition: after placing it, '
+        'tap a color dot and that instruction will only run when the '
+        'robot is standing on a tile of that color — otherwise it\'s '
+        'skipped.\n\n'
+        'This corridor is green all the way, then bends at a single red '
+        'tile. Loop with Forward + Call F1 like before, but add a Turn '
+        'Right conditioned on red right before the Forward — it\'ll do '
+        'nothing on the green tiles and turn exactly once, right when it '
+        'reaches the bend.\n\n'
+        'You can also paint the tile you\'re standing on with Paint Green '
+        '/ Red / Blue, which is how later puzzles mark tiles for a loop '
+        'to react to.',
   ),
 ];

@@ -6,7 +6,7 @@ import 'package:robozzle_reboot/screens/home_screen.dart';
 
 void main() {
   testWidgets(
-      'Campaign narrows the catalog to the 5 chosen authors, titled '
+      'Campaign narrows the catalog to the chosen authors, titled '
       '"Campaign", with no Sort-by choice and no Top 30 chip',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
@@ -15,7 +15,14 @@ void main() {
       const MaterialApp(
         home: HomeScreen(
           title: 'Campaign',
-          authorFilter: {'igoro', 'blake', 'markbyers', 'snydej', 'stingray'},
+          authorFilter: {
+            'igoro',
+            'blake',
+            'markbyers',
+            'snydej',
+            'stingray',
+            'wido',
+          },
           allowSortChoice: false,
         ),
       ),
@@ -30,7 +37,9 @@ void main() {
 
     expect(find.text('Campaign'), findsOneWidget);
     // 33 (igoro) + 86 (snydej) + 65 (markbyers) + 4 (stingray) + 1 (blake)
-    // in the bundled catalog, verified directly against the asset.
+    // in the bundled catalog, verified directly against the asset. "wido"
+    // contributes 0 here since their puzzles are server-published, not part
+    // of the bundled asset this test loads.
     expect(find.text('189 puzzles'), findsOneWidget);
 
     // No Sort-by choice — always sorted by difficulty.
