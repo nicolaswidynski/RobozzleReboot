@@ -38,6 +38,12 @@ class Level {
   /// levels default to all three.
   final Set<TileColor> allowedPaintColors;
 
+  /// Optional worded explanation shown to the player when the level loads
+  /// (see GameScreen's instructions dialog) — used by the hand-authored
+  /// tutorial levels to spell out the mechanic being taught. Empty for
+  /// every scraped/custom puzzle, which don't show anything.
+  final String description;
+
   const Level({
     required this.id,
     required this.name,
@@ -54,15 +60,20 @@ class Level {
       TileColor.green,
       TileColor.blue
     },
+    this.description = '',
   }) : assert(slotsPerFunction.length == 5);
 
   /// Parses a level from a `levels_catalog.json` entry (see
-  /// lib/data/level_catalog.dart for the scrape that produced it).
-  factory Level.fromJson(Map<String, dynamic> json) {
+  /// lib/data/level_catalog.dart for the scrape that produced it). [idPrefix]
+  /// distinguishes the id namespace — `catalog` for the scraped catalog
+  /// (the default), `custom` for player-made puzzles (see
+  /// lib/data/custom_puzzle_store.dart) — so ids from different sources
+  /// never collide.
+  factory Level.fromJson(Map<String, dynamic> json, {String idPrefix = 'catalog'}) {
     final rows = (json['rows'] as List).cast<String>();
     final allowedCommands = json['allowedCommands'] as int;
     return Level(
-      id: 'catalog-${json['sourceId']}',
+      id: '$idPrefix-${json['sourceId']}',
       name: json['title'] as String,
       author: json['author'] as String? ?? '',
       grid: rows
@@ -100,4 +111,20 @@ class Level {
     }
     return count;
   }
+
+  /// Inverse of the `allowedCommands` bitmask parsed in [Level.fromJson]
+  /// (1 = red, 2 = green, 4 = blue) — used wherever a level's data needs to
+  /// be serialized back to that same catalog/API shape.
+  int get allowedCommandsBitmask {
+    var mask = 0;
+    if (allowedPaintColors.contains(TileColor.red)) mask |= 1;
+    if (allowedPaintColors.contains(TileColor.green)) mask |= 2;
+    if (allowedPaintColors.contains(TileColor.blue)) mask |= 4;
+    return mask;
+  }
+
+  /// Inverse of the row-string grid encoding parsed in [Level.fromJson] —
+  /// same use case as [allowedCommandsBitmask].
+  List<String> get rowStrings =>
+      [for (final row in grid) row.map(gridTileToChar).join()];
 }

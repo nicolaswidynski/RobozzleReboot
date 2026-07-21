@@ -51,6 +51,8 @@ class RobozzleApiClient {
       'https://n8n.nwidynski.com/webhook/robozzle-get-puzzle';
   static const String _ratePuzzleUrl =
       'https://n8n.nwidynski.com/webhook/robozzle-rate-puzzle';
+  static const String _savePuzzleUrl =
+      'https://n8n.nwidynski.com/webhook/robozzle-save-puzzle';
 
   static const Uuid _uuid = Uuid();
 
@@ -246,6 +248,62 @@ class RobozzleApiClient {
         'rate': rate,
         'like': like,
         'request_id': _uuid.v4(),
+      }),
+    );
+
+    final json = _firstJson(response.bodyBytes);
+
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      await _sessionStore.clearSessionToken();
+    }
+
+    return (json, response.statusCode);
+  }
+
+  /// POSTs `{apple_user_id, request_id}` plus the puzzle's [title],
+  /// structural data, and the author's suggested [difficulty] (1-5), to
+  /// `robozzle-save-puzzle`, to publish an editor-made puzzle to the
+  /// server. No `puzzle_id` — this is a brand-new puzzle that doesn't have
+  /// a server-assigned id yet; the server creates one. Field typing
+  /// deliberately mirrors what `robozzle-get-puzzle` sends back on a fetch
+  /// — `startRow`/`startCol`/`allowedCommands`/`difficulty` as strings,
+  /// `slotsPerFunction` as a JSON-encoded string, `rows` as a real string
+  /// array — rather than the natural Dart types. Returns the raw response
+  /// together with the HTTP status code; the caller only needs to check
+  /// for 200.
+  Future<(Map<String, dynamic>? json, int statusCode)> publishPuzzle({
+    required String title,
+    required int startRow,
+    required int startCol,
+    required String startDirection,
+    required int allowedCommands,
+    required List<int> slotsPerFunction,
+    required List<String> rows,
+    required int difficulty,
+  }) async {
+    final sessionToken = await _sessionStore.readSessionToken();
+    if (sessionToken == null) throw MissingSessionTokenError();
+
+    final appleUserId = await _sessionStore.readAppleUserId();
+    if (appleUserId == null) throw MissingIdentityError();
+
+    final response = await http.post(
+      Uri.parse(_savePuzzleUrl),
+      headers: {
+        'Content-Type': 'application/json',
+        'authorization_uuid': 'Bearer $sessionToken',
+      },
+      body: jsonEncode({
+        'apple_user_id': appleUserId,
+        'request_id': _uuid.v4(),
+        'title': title,
+        'startRow': '$startRow',
+        'startCol': '$startCol',
+        'startDirection': startDirection,
+        'allowedCommands': '$allowedCommands',
+        'slotsPerFunction': jsonEncode(slotsPerFunction),
+        'rows': rows,
+        'difficulty': '$difficulty',
       }),
     );
 

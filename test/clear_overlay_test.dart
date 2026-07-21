@@ -44,4 +44,56 @@ void main() {
     expect(find.text('Test Level 2'), findsOneWidget);
     expect(find.text('Clear!'), findsNothing);
   });
+
+  testWidgets(
+      'solving the last puzzle in the list shows "Go Back" instead of '
+      '"Next", and it stays clickable — tapping it returns to the '
+      'previous screen', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => GameScreen(levels: [testLevel()]),
+                  ),
+                ),
+                child: const Text('Open puzzle'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Open puzzle'));
+    await tester.pumpAndSettle();
+    expect(find.byType(GameScreen), findsOneWidget);
+
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byType(DragTarget<ProgramInstruction>).at(i));
+      await tester.pump();
+    }
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
+      await tester.pumpAndSettle();
+    }
+
+    expect(find.text('Clear!'), findsOneWidget);
+    final goBackButton = find.widgetWithText(ElevatedButton, 'Go Back');
+    expect(goBackButton, findsOneWidget);
+
+    // Actually enabled, not disabled/inert.
+    final button = tester.widget<ElevatedButton>(goBackButton);
+    expect(button.onPressed, isNotNull);
+
+    await tester.tap(goBackButton);
+    await tester.pumpAndSettle();
+
+    expect(find.byType(GameScreen), findsNothing);
+    expect(find.text('Open puzzle'), findsOneWidget);
+  });
 }

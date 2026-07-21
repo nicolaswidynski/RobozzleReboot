@@ -4,7 +4,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:robozzle_reboot/data/tutorial_levels.dart';
 import 'package:robozzle_reboot/screens/auth/sign_in_screen.dart';
-import 'package:robozzle_reboot/screens/coming_soon_screen.dart';
 import 'package:robozzle_reboot/screens/home_screen.dart';
 import 'package:robozzle_reboot/screens/landing_screen.dart';
 import 'package:robozzle_reboot/screens/tutorial_screen.dart';
@@ -61,20 +60,7 @@ void main() {
     }
   });
 
-  testWidgets('unbuilt entries (e.g. Editor, once signed in) open a Coming '
-      'soon placeholder', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: LandingScreen()));
-
-    await tester.tap(find.text('Editor'));
-    await tester.pumpAndSettle();
-
-    // Not signed in — gated behind Sign in with Apple, same as Leaderboard.
-    expect(find.byType(SignInScreen), findsOneWidget);
-    expect(find.byType(ComingSoonScreen), findsNothing);
-  });
-
-  testWidgets(
-      'Leaderboard and Editor require Sign in with Apple before opening',
+  testWidgets('Leaderboard requires Sign in with Apple before opening',
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LandingScreen()));
 
@@ -82,6 +68,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byType(SignInScreen), findsOneWidget);
-    expect(find.byType(ComingSoonScreen), findsNothing);
+  });
+
+  testWidgets('Editor requires Sign in with Apple before opening',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: LandingScreen()));
+
+    await tester.tap(find.text('Editor'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SignInScreen), findsOneWidget);
   });
 }

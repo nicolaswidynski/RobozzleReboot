@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../data/auth_manager.dart';
+import '../data/catalog_refresher.dart';
 import '../data/level_catalog.dart';
 import '../data/points.dart';
 import '../data/progress_store.dart';
 import '../theme/app_colors.dart';
 import 'auth/pseudonym_screen.dart';
 import 'auth/sign_in_screen.dart';
-import 'coming_soon_screen.dart';
+import 'editor/editor_home_screen.dart';
 import 'home_screen.dart';
 import 'leaderboard_screen.dart';
 import 'tutorial_screen.dart';
@@ -25,6 +26,22 @@ class LandingScreen extends StatefulWidget {
 
 class _LandingScreenState extends State<LandingScreen> {
   late Future<int> _pointsFuture = _loadPoints();
+
+  @override
+  void initState() {
+    super.initState();
+    // The catalog refreshes in the background (once daily, or on pull to
+    // refresh) while HomeScreen is on top of this route — a puzzle may have
+    // been re-rated or removed since, so the badge needs to recompute
+    // whenever that happens, not just when we're navigated back to.
+    CatalogRefresher.instance.addListener(_refreshPoints);
+  }
+
+  @override
+  void dispose() {
+    CatalogRefresher.instance.removeListener(_refreshPoints);
+    super.dispose();
+  }
 
   Future<int> _loadPoints() async {
     final completedIds = await ProgressStore().loadCompleted();
@@ -56,12 +73,6 @@ class _LandingScreenState extends State<LandingScreen> {
     _refreshPoints();
   }
 
-  void _openComingSoon(BuildContext context, String title) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => ComingSoonScreen(title: title)),
-    );
-  }
-
   /// Leaderboard/Editor require an account: sign in with Apple if needed,
   /// then pick a pseudonym on first-ever sign in, before continuing on.
   /// Returns whether the gate was passed.
@@ -87,10 +98,12 @@ class _LandingScreenState extends State<LandingScreen> {
     return true;
   }
 
-  Future<void> _openGatedComingSoon(BuildContext context, String title) async {
+  Future<void> _openEditor(BuildContext context) async {
     final ok = await _ensureAuthenticated(context);
     if (!ok || !context.mounted) return;
-    _openComingSoon(context, title);
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const EditorHomeScreen()),
+    );
   }
 
   Future<void> _openLeaderboard(BuildContext context) async {
@@ -172,6 +185,7 @@ class _LandingScreenState extends State<LandingScreen> {
                           'markbyers',
                           'snydej',
                           'stingray',
+                          'wido',
                         },
                         // Always sorted by difficulty — no Sort-by choice.
                         allowSortChoice: false,
@@ -187,7 +201,7 @@ class _LandingScreenState extends State<LandingScreen> {
                     _LandingMenuButton(
                       icon: Icons.edit_rounded,
                       label: 'Editor',
-                      onTap: () => _openGatedComingSoon(context, 'Editor'),
+                      onTap: () => _openEditor(context),
                     ),
                     const SizedBox(height: 12),
                     _LandingMenuButton(
