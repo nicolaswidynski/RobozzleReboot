@@ -22,3 +22,6 @@ macos/Flutter/GeneratedPluginRegistrant.swift
 macos/Flutter/ephemeral/
 ios/Flutter/.last_build_id
 macos/Flutter/.last_build_id
+
+# Secret shared with the manage-robozzle-user webhook — never commit this.
+assets/robozzle_token.txt

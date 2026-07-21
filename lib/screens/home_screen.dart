@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/catalog_refresher.dart';
 import '../data/level_catalog.dart';
 import '../data/progress_store.dart';
 import '../models/level.dart';
@@ -61,7 +62,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late final Future<List<Level>> _levelsFuture = _loadAllLevels();
+  late Future<List<Level>> _levelsFuture = _loadAllLevels();
   late final Set<String>? _authorFilter =
       widget.authorFilter?.map((a) => a.toLowerCase()).toSet();
   final ProgressStore _progressStore = ProgressStore();
@@ -79,6 +80,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController.addListener(
       () => setState(() => _searchQuery = _searchController.text.trim()),
     );
+    _refreshCatalogMetadata(CatalogRefresher.instance.refreshDaily());
   }
 
   @override
@@ -92,6 +94,20 @@ class _HomeScreenState extends State<HomeScreen> {
     if (!mounted) return;
     setState(() => _completedIds = ids);
     maybeShowRatingPrompt(context, _completedIds.length);
+  }
+
+  /// Pull-to-refresh from the top of the list — always shows the loading
+  /// spinner for the duration of the request, unlike the silent daily check.
+  Future<void> _onPullToRefresh() =>
+      _refreshCatalogMetadata(CatalogRefresher.instance.refreshNow());
+
+  /// Reloads the level list (bundled catalog + any cached server overrides)
+  /// only if [refreshed] actually fetched new metadata — never blocks or
+  /// errors the UI, since browsing must keep working offline.
+  Future<void> _refreshCatalogMetadata(Future<bool> refreshed) async {
+    if (await refreshed && mounted) {
+      setState(() => _levelsFuture = _loadAllLevels());
+    }
   }
 
   Future<List<Level>> _loadAllLevels() => loadCatalogLevels();
@@ -333,35 +349,41 @@ class _HomeScreenState extends State<HomeScreen> {
                         ],
                         const SizedBox(height: 16),
                         Expanded(
-                          child: ListView.separated(
-                            itemCount: sorted.length,
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: 10),
-                            itemBuilder: (context, i) {
-                              final entry = sorted[i];
-                              return _LevelCard(
-                                level: entry.value,
-                                completed:
-                                    _completedIds.contains(entry.value.id),
-                                onTap: () async {
-                                  // Pass the list in the order currently
-                                  // shown here (not the raw catalog order),
-                                  // so GameScreen's Next button walks
-                                  // through puzzles in this same sort/filter
-                                  // order.
-                                  await Navigator.of(context).push(
-                                    MaterialPageRoute(
-                                      builder: (_) => GameScreen(
-                                        levels:
-                                            sorted.map((e) => e.value).toList(),
-                                        initialLevelIndex: i,
+                          child: RefreshIndicator(
+                            onRefresh: _onPullToRefresh,
+                            color: AppColors.accent,
+                            backgroundColor: AppColors.panel,
+                            child: ListView.separated(
+                              itemCount: sorted.length,
+                              separatorBuilder: (context, index) =>
+                                  const SizedBox(height: 10),
+                              itemBuilder: (context, i) {
+                                final entry = sorted[i];
+                                return _LevelCard(
+                                  level: entry.value,
+                                  completed:
+                                      _completedIds.contains(entry.value.id),
+                                  onTap: () async {
+                                    // Pass the list in the order currently
+                                    // shown here (not the raw catalog order),
+                                    // so GameScreen's Next button walks
+                                    // through puzzles in this same sort/filter
+                                    // order.
+                                    await Navigator.of(context).push(
+                                      MaterialPageRoute(
+                                        builder: (_) => GameScreen(
+                                          levels: sorted
+                                              .map((e) => e.value)
+                                              .toList(),
+                                          initialLevelIndex: i,
+                                        ),
                                       ),
-                                    ),
-                                  );
-                                  _refreshCompleted();
-                                },
-                              );
-                            },
+                                    );
+                                    _refreshCompleted();
+                                  },
+                                );
+                              },
+                            ),
                           ),
                         ),
                       ],

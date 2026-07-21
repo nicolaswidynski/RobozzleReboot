@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
 
+import '../data/auth_manager.dart';
 import '../data/level_catalog.dart';
 import '../data/points.dart';
 import '../data/progress_store.dart';
 import '../theme/app_colors.dart';
+import 'auth/pseudonym_screen.dart';
+import 'auth/sign_in_screen.dart';
 import 'coming_soon_screen.dart';
 import 'home_screen.dart';
+import 'leaderboard_screen.dart';
+import 'tutorial_screen.dart';
 
 /// The app's true entry point: a menu of game modes. "Community Puzzles"
 /// and "Campaign" are wired up so far — both open [HomeScreen], the
@@ -57,6 +62,45 @@ class _LandingScreenState extends State<LandingScreen> {
     );
   }
 
+  /// Leaderboard/Editor require an account: sign in with Apple if needed,
+  /// then pick a pseudonym on first-ever sign in, before continuing on.
+  /// Returns whether the gate was passed.
+  Future<bool> _ensureAuthenticated(BuildContext context) async {
+    final authManager = AuthManager.instance;
+    await authManager.restoreSession();
+
+    if (!context.mounted) return false;
+    if (!authManager.isConnected) {
+      final outcome = await Navigator.of(context).push<ManageUserOutcome>(
+        MaterialPageRoute(builder: (_) => const SignInScreen()),
+      );
+      if (outcome == null || !context.mounted) return false;
+    }
+
+    if (authManager.needsPseudonym) {
+      final saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(builder: (_) => const PseudonymScreen()),
+      );
+      if (saved != true || !context.mounted) return false;
+    }
+
+    return true;
+  }
+
+  Future<void> _openGatedComingSoon(BuildContext context, String title) async {
+    final ok = await _ensureAuthenticated(context);
+    if (!ok || !context.mounted) return;
+    _openComingSoon(context, title);
+  }
+
+  Future<void> _openLeaderboard(BuildContext context) async {
+    final ok = await _ensureAuthenticated(context);
+    if (!ok || !context.mounted) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const LeaderboardScreen()),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -103,7 +147,14 @@ class _LandingScreenState extends State<LandingScreen> {
                     _LandingMenuButton(
                       icon: Icons.school_rounded,
                       label: 'Tutorials',
-                      onTap: () => _openComingSoon(context, 'Tutorials'),
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const TutorialScreen(),
+                          ),
+                        );
+                        _refreshPoints();
+                      },
                     ),
                     const SizedBox(height: 12),
                     _LandingMenuButton(
@@ -136,13 +187,13 @@ class _LandingScreenState extends State<LandingScreen> {
                     _LandingMenuButton(
                       icon: Icons.edit_rounded,
                       label: 'Editor',
-                      onTap: () => _openComingSoon(context, 'Editor'),
+                      onTap: () => _openGatedComingSoon(context, 'Editor'),
                     ),
                     const SizedBox(height: 12),
                     _LandingMenuButton(
                       icon: Icons.leaderboard_rounded,
                       label: 'Leaderboard',
-                      onTap: () => _openComingSoon(context, 'Leaderboard'),
+                      onTap: () => _openLeaderboard(context),
                     ),
                   ],
                 ),
