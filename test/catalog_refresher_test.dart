@@ -57,6 +57,24 @@ void main() {
     expect(overrides['catalog-23']!.difficulty, 2);
   });
 
+  test('a difficulty that rounds below 1 (e.g. an unrated puzzle averaging '
+      'near 0) is floored to 1 — there is no such thing as a 0-star puzzle',
+      () {
+    final raw = [
+      {
+        "sourceId": 999,
+        "title": "Brand New",
+        "author": "someone",
+        "difficulty": 0.2,
+        "popularity": 0,
+      },
+    ];
+
+    final overrides = parseCatalogOverrides(raw);
+
+    expect(overrides['catalog-999']!.difficulty, 1);
+  });
+
   test('a newly published (self-authored) puzzle parses the same as any '
       'other entry', () {
     final raw = [

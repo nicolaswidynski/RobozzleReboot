@@ -5,10 +5,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:robozzle_reboot/models/instruction.dart';
 import 'package:robozzle_reboot/screens/game_screen.dart';
 
+import 'fake_secure_storage.dart';
 import 'test_level.dart';
 
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    installFakeSecureStorage();
+  });
 
   testWidgets(
       'solving a puzzle shows a Clear overlay, and Next advances to the '

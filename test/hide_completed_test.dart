@@ -1,18 +1,28 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:robozzle_reboot/screens/home_screen.dart';
 
+import 'fake_secure_storage.dart';
+
 void main() {
   testWidgets(
       'Hide completed filters out completed puzzles and restores them when toggled off',
       (tester) async {
+    SharedPreferences.setMockInitialValues({});
     // "catalog-195" is a real entry ("Another speed control") in the
     // bundled catalog asset — mark it completed before HomeScreen loads.
-    SharedPreferences.setMockInitialValues({
-      'completed_level_ids': ['catalog-195'],
-    });
+    // Progress is Keychain-backed (ProgressStore), so it goes through the
+    // fake secure storage platform, not SharedPreferences.
+    final fakeStorage = installFakeSecureStorage();
+    await fakeStorage.write(
+      key: 'completed_level_ids',
+      value: jsonEncode(['catalog-195']),
+      options: const {},
+    );
 
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 

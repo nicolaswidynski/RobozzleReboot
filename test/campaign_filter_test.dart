@@ -4,12 +4,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:robozzle_reboot/screens/home_screen.dart';
 
+import 'fake_secure_storage.dart';
+
 void main() {
   testWidgets(
       'Campaign narrows the catalog to the chosen authors, titled '
       '"Campaign", with no Sort-by choice and no Top 30 chip',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
+    installFakeSecureStorage();
 
     await tester.pumpWidget(
       const MaterialApp(
