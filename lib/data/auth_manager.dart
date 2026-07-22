@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:uuid/uuid.dart';
 
+import 'leaderboard.dart';
 import 'level_catalog.dart';
 import 'points.dart';
 import 'progress_store.dart';
@@ -15,6 +16,22 @@ import 'secure_session_store.dart';
 /// deletion / pseudonym), and decides when a fresh Apple Sign In UI is
 /// needed versus a silent reconnect.
 enum ManageUserOutcome { existingUser, newUser, reconnected }
+
+/// `manage-robozzle-user` status codes: 200 = reconnection (pseudonym
+/// already set), 201 = existing user (pseudonym already set), 202 = brand
+/// new user (no pseudonym yet — the only case that needs the prompt).
+ManageUserOutcome outcomeForManageUserStatus(int statusCode) {
+  switch (statusCode) {
+    case 200:
+      return ManageUserOutcome.reconnected;
+    case 201:
+      return ManageUserOutcome.existingUser;
+    case 202:
+      return ManageUserOutcome.newUser;
+    default:
+      return ManageUserOutcome.reconnected;
+  }
+}
 
 class AuthError implements Exception {
   final String message;
@@ -49,6 +66,7 @@ class AuthManager extends ChangeNotifier {
   String? _appleUserId;
   bool _isExplicitlyDisconnected = false;
   bool _pseudonymSet = false;
+  String? _pseudonym;
   bool _identityLoaded = false;
 
   /// The exact fields sent on the most recent creation/reconnection call
@@ -62,10 +80,17 @@ class AuthManager extends ChangeNotifier {
   bool get needsPseudonym => isConnected && !_pseudonymSet;
   String? get appleUserId => _appleUserId;
 
+  /// The player's chosen pseudonym, when we actually have it cached locally
+  /// — e.g. for display on the landing screen. May be `null` even when
+  /// [needsPseudonym] is `false`, if the server already had one set before
+  /// this device ever learned its text (see [_applyPseudonymOutcome]).
+  String? get pseudonym => _pseudonym;
+
   Future<void> _loadIdentity() async {
     if (_identityLoaded) return;
     _appleUserId = await _store.readAppleUserId();
     _pseudonymSet = await _store.readPseudonymSet();
+    _pseudonym = await _store.readPseudonym();
     _identityLoaded = true;
   }
 
@@ -131,10 +156,7 @@ class AuthManager extends ChangeNotifier {
     _isExplicitlyDisconnected = false;
     _identityLoaded = true;
     await _store.saveAppleUserId(appleUserId);
-    if (outcome == ManageUserOutcome.newUser) {
-      _pseudonymSet = false;
-      await _store.savePseudonymSet(false);
-    }
+    await _applyPseudonymOutcome(outcome);
     notifyListeners();
     return outcome;
   }
@@ -150,8 +172,46 @@ class AuthManager extends ChangeNotifier {
 
     final outcome = await _manageUser(appleUserId: appleUserId);
     _isExplicitlyDisconnected = false;
+    await _applyPseudonymOutcome(outcome);
     notifyListeners();
     return outcome;
+  }
+
+  /// Syncs the local "has a pseudonym" flag with what the server just said:
+  /// 202 (new user) is the only outcome that means a pseudonym still needs
+  /// to be chosen. 200 (reconnection) and 201 (existing user) both mean one
+  /// is already set server-side — without this, a fresh install signing
+  /// back into an existing account would default to "no pseudonym" locally
+  /// and wrongly show the pseudonym screen again.
+  Future<void> _applyPseudonymOutcome(ManageUserOutcome outcome) async {
+    _pseudonymSet = outcome != ManageUserOutcome.newUser;
+    await _store.savePseudonymSet(_pseudonymSet);
+    if (_pseudonymSet && _pseudonym == null) {
+      await _backfillPseudonymFromLeaderboard();
+    }
+  }
+
+  /// Installs from before pseudonym *text* caching existed only ever saved
+  /// whether one was set, not what it was — so a returning player can have
+  /// [_pseudonymSet] true with [_pseudonym] still null. The leaderboard
+  /// response includes every player's own pseudonym, so it doubles as a way
+  /// to backfill this device's local cache without a dedicated endpoint.
+  Future<void> _backfillPseudonymFromLeaderboard() async {
+    try {
+      final result = await fetchLeaderboard();
+      String? ownPseudonym;
+      for (final entry in result.entries) {
+        if (entry.rank == result.userRank) {
+          ownPseudonym = entry.pseudonym;
+          break;
+        }
+      }
+      if (ownPseudonym == null || ownPseudonym.isEmpty) return;
+      _pseudonym = ownPseudonym;
+      await _store.savePseudonym(ownPseudonym);
+    } catch (_) {
+      // Best-effort — leave it for the next reconnect or Leaderboard visit.
+    }
   }
 
   Future<ManageUserOutcome> _manageUser({
@@ -187,7 +247,19 @@ class AuthManager extends ChangeNotifier {
       ...fields,
       'request_id': requestId,
     });
+    await _capturePseudonymIfPresent(json);
     return _outcomeFor(statusCode, json);
+  }
+
+  /// Best-effort: if the server happens to echo the pseudonym back on a
+  /// creation/reconnection response, cache it locally so it can be
+  /// displayed — otherwise we'd only learn it the moment this exact device
+  /// sets one via [setPseudonym].
+  Future<void> _capturePseudonymIfPresent(Map<String, dynamic>? json) async {
+    final serverPseudonym = json?['pseudonym'] as String?;
+    if (serverPseudonym == null || serverPseudonym.isEmpty) return;
+    _pseudonym = serverPseudonym;
+    await _store.savePseudonym(serverPseudonym);
   }
 
   /// Resends the same information from the most recent creation/reconnection
@@ -217,7 +289,9 @@ class AuthManager extends ChangeNotifier {
     }
 
     _pseudonymSet = true;
+    _pseudonym = pseudonym;
     await _store.savePseudonymSet(true);
+    await _store.savePseudonym(pseudonym);
     _lastManageUserFields = null;
     notifyListeners();
   }
@@ -257,6 +331,7 @@ class AuthManager extends ChangeNotifier {
     _appleUserId = null;
     _isExplicitlyDisconnected = false;
     _pseudonymSet = false;
+    _pseudonym = null;
     _identityLoaded = true;
     await _store.clearAll();
     notifyListeners();
@@ -266,14 +341,7 @@ class AuthManager extends ChangeNotifier {
     if (statusCode < 200 || statusCode > 299) {
       _throwForStatus(statusCode, json);
     }
-    switch (statusCode) {
-      case 201:
-        return ManageUserOutcome.existingUser;
-      case 202:
-        return ManageUserOutcome.newUser;
-      default:
-        return ManageUserOutcome.reconnected;
-    }
+    return outcomeForManageUserStatus(statusCode);
   }
 
   Never _throwForStatus(int statusCode, Map<String, dynamic>? json) {

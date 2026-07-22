@@ -3,15 +3,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:robozzle_reboot/data/tutorial_levels.dart';
+import 'package:robozzle_reboot/screens/about_screen.dart';
 import 'package:robozzle_reboot/screens/auth/sign_in_screen.dart';
 import 'package:robozzle_reboot/screens/home_screen.dart';
 import 'package:robozzle_reboot/screens/landing_screen.dart';
 import 'package:robozzle_reboot/screens/tutorial_screen.dart';
 
-void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+import 'fake_secure_storage.dart';
 
-  testWidgets('shows all 5 menu entries', (tester) async {
+void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    installFakeSecureStorage();
+  });
+
+  testWidgets('shows all 6 menu entries', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LandingScreen()));
 
     for (final label in [
@@ -20,9 +26,25 @@ void main() {
       'Community Puzzles',
       'Editor',
       'Leaderboard',
+      'About',
     ]) {
       expect(find.text(label), findsOneWidget);
     }
+  });
+
+  testWidgets('About opens AboutScreen with the Robozzle attribution',
+      (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: LandingScreen()));
+
+    await tester.tap(find.text('About'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(AboutScreen), findsOneWidget);
+    expect(
+      find.textContaining('Igor Ostrovsky', findRichText: true),
+      findsOneWidget,
+    );
+    expect(find.textContaining('permanent ban'), findsOneWidget);
   });
 
   testWidgets(

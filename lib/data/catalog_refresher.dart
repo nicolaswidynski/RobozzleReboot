@@ -90,7 +90,10 @@ Map<String, CatalogMetadataOverride> parseCatalogOverrides(dynamic raw) {
     overrides['catalog-$sourceId'] = CatalogMetadataOverride(
       title: e['title'] as String?,
       author: e['author'] as String?,
-      difficulty: _roundedInt(e['difficulty']),
+      // A puzzle's rating is 1-5 stars — there's no such thing as a 0-star
+      // difficulty, so a rounded average just under 1 (e.g. from a puzzle
+      // with no ratings yet) is floored up to the minimum instead.
+      difficulty: _roundedInt(e['difficulty'])?.clamp(1, 5),
       popularity: _roundedInt(e['popularity']),
     );
   }

@@ -1,10 +1,9 @@
 import '../models/level.dart';
 
-/// Points earned for solving a puzzle of the given difficulty: (1 +
-/// difficulty)^2, so harder puzzles are worth quadratically more.
+/// Points earned for solving a puzzle of the given difficulty:
+/// difficulty^2, so harder puzzles are worth quadratically more.
 int pointsForDifficulty(int difficulty) {
-  final weight = 1 + difficulty;
-  return weight * weight;
+  return difficulty * difficulty;
 }
 
 /// Total points across every level in [levels] whose id is in

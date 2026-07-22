@@ -6,6 +6,7 @@ import '../data/level_catalog.dart';
 import '../data/points.dart';
 import '../data/progress_store.dart';
 import '../theme/app_colors.dart';
+import 'about_screen.dart';
 import 'auth/pseudonym_screen.dart';
 import 'auth/sign_in_screen.dart';
 import 'editor/editor_home_screen.dart';
@@ -35,12 +36,25 @@ class _LandingScreenState extends State<LandingScreen> {
     // been re-rated or removed since, so the badge needs to recompute
     // whenever that happens, not just when we're navigated back to.
     CatalogRefresher.instance.addListener(_refreshPoints);
+    // Loads the stored identity/pseudonym (if any) so the badge can show it
+    // without the player first having to open an auth-gated screen.
+    // restoreSession() only calls notifyListeners() when it actually changes
+    // something (e.g. a silent reconnect) — not when the session was already
+    // fine — so this explicit setState is needed to pick up the loaded
+    // pseudonym in the common "already signed in" case too.
+    AuthManager.instance.addListener(_onAuthChanged);
+    AuthManager.instance.restoreSession().then((_) => _onAuthChanged());
   }
 
   @override
   void dispose() {
     CatalogRefresher.instance.removeListener(_refreshPoints);
+    AuthManager.instance.removeListener(_onAuthChanged);
     super.dispose();
+  }
+
+  void _onAuthChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<int> _loadPoints() async {
@@ -127,21 +141,50 @@ class _LandingScreenState extends State<LandingScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
-                    'Robozzle',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 32,
-                    ),
+                  const Row(
+                    children: [
+                      // The same icon used for the robot sprite in-game
+                      // (see RobotGrid), so the title reads as "this app's
+                      // robot" rather than a generic logo.
+                      Icon(
+                        Icons.navigation_rounded,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'Robozzle',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 32,
+                        ),
+                      ),
+                    ],
                   ),
-                  FutureBuilder<int>(
-                    future: _pointsFuture,
-                    builder: (context, snapshot) {
-                      final points = snapshot.data;
-                      if (points == null) return const SizedBox.shrink();
-                      return _PointsBadge(points: points);
-                    },
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (AuthManager.instance.pseudonym case final pseudonym?) ...[
+                        Text(
+                          pseudonym,
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                      ],
+                      FutureBuilder<int>(
+                        future: _pointsFuture,
+                        builder: (context, snapshot) {
+                          final points = snapshot.data;
+                          if (points == null) return const SizedBox.shrink();
+                          return _PointsBadge(points: points);
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -208,6 +251,16 @@ class _LandingScreenState extends State<LandingScreen> {
                       icon: Icons.leaderboard_rounded,
                       label: 'Leaderboard',
                       onTap: () => _openLeaderboard(context),
+                    ),
+                    const SizedBox(height: 12),
+                    _LandingMenuButton(
+                      icon: Icons.info_outline_rounded,
+                      label: 'About',
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const AboutScreen(),
+                        ),
+                      ),
                     ),
                   ],
                 ),
