@@ -78,7 +78,7 @@ class _AboutScreenState extends State<AboutScreen> {
               const SizedBox(height: 16),
               Text(
                 'Robozzle Reboot is a fresh implementation developed with '
-                'the agreement of the original developer.',
+                'the agreement of the original author.',
                 style: bodyStyle,
               ),
               const SizedBox(height: 24),
