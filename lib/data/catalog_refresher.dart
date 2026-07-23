@@ -1,15 +1,23 @@
+import 'package:flutter/foundation.dart';
+
 import 'auth_manager.dart';
 import 'catalog_metadata_store.dart';
 import 'robozzle_api_client.dart';
 
 /// Refreshes title/author/difficulty/popularity for the bundled catalog from
-/// the `robozzle-leaderboard` webhook's listing operation, and caches the
-/// result locally so [loadCatalogLevels] can merge it in.
+/// the `robozzle-list-puzzles` webhook, and caches the result locally so
+/// [loadCatalogLevels] can merge it in.
 ///
 /// Browsing stays fully open and offline-capable: refreshing is silently
 /// skipped (never blocks, never errors the UI) when the player isn't signed
 /// in or there's no network — the bundled/cached listing is always shown.
-class CatalogRefresher {
+///
+/// A [ChangeNotifier] so anything showing a score derived from the catalog
+/// (e.g. the landing screen's points badge) can recompute it whenever
+/// metadata actually changes — a puzzle's difficulty may have been
+/// re-rated, or it may have disappeared from the listing entirely, either
+/// of which changes the player's total.
+class CatalogRefresher extends ChangeNotifier {
   CatalogRefresher._();
   static final CatalogRefresher instance = CatalogRefresher._();
 
@@ -54,6 +62,7 @@ class CatalogRefresher {
 
       await _store.saveOverrides(overrides);
       await _store.saveLastRefreshedAt(DateTime.now());
+      notifyListeners();
       return true;
     } catch (_) {
       // Offline or server error — keep using whatever's cached/bundled.
@@ -65,29 +74,37 @@ class CatalogRefresher {
 
 }
 
-/// Parses the `puzzles_list` field of a `robozzle-leaderboard` listing
-/// response into overrides keyed by [Level.id]. n8n wraps the actual list as
-/// `puzzles_list: [{"json": {"list": [...]}}]`, the same quirk as the
-/// leaderboard's `sorted` field.
+/// Parses the `puzzles_list` field of a `robozzle-list-puzzles` response — a
+/// flat array of `{sourceId, title, author, difficulty, popularity}`
+/// objects — into overrides keyed by [Level.id]. `sourceId`/`difficulty`/
+/// `popularity` come back as numbers (sometimes decimal, e.g. `3.0536...`),
+/// not the string-typed fields other endpoints use.
 Map<String, CatalogMetadataOverride> parseCatalogOverrides(dynamic raw) {
   if (raw is! List || raw.isEmpty) return {};
 
-  final first = raw.first;
-  final wrapped = first is Map ? first['json'] : null;
-  final list = wrapped is Map ? wrapped['list'] : null;
-  if (list is! List) return {};
-
   final overrides = <String, CatalogMetadataOverride>{};
-  for (final e in list) {
+  for (final e in raw) {
     if (e is! Map) continue;
     final sourceId = e['sourceId'];
     if (sourceId == null) continue;
     overrides['catalog-$sourceId'] = CatalogMetadataOverride(
       title: e['title'] as String?,
       author: e['author'] as String?,
-      difficulty: int.tryParse('${e['difficulty']}'),
-      popularity: int.tryParse('${e['popularity']}'),
+      // A puzzle's rating is 1-5 stars — there's no such thing as a 0-star
+      // difficulty, so a rounded average just under 1 (e.g. from a puzzle
+      // with no ratings yet) is floored up to the minimum instead.
+      difficulty: _roundedInt(e['difficulty'])?.clamp(1, 5),
+      popularity: _roundedInt(e['popularity']),
     );
   }
   return overrides;
+}
+
+/// Parses a possibly-decimal numeric value (e.g. `"3.7"` — the server's
+/// `difficulty` field isn't always a whole number) into a rounded int.
+/// `int.tryParse` would silently return null on a decimal string, dropping
+/// the field entirely.
+int? _roundedInt(dynamic value) {
+  if (value == null) return null;
+  return double.tryParse('$value')?.round();
 }

@@ -1,16 +1,24 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:robozzle_reboot/screens/home_screen.dart';
 
+import 'fake_secure_storage.dart';
+
 void main() {
   testWidgets(
       'shows the rating prompt once 5 puzzles are completed, and "Not now" dismisses it',
       (tester) async {
-    SharedPreferences.setMockInitialValues({
-      'completed_level_ids': ['a', 'b', 'c', 'd', 'e'],
-    });
+    SharedPreferences.setMockInitialValues({});
+    final fakeStorage = installFakeSecureStorage();
+    await fakeStorage.write(
+      key: 'completed_level_ids',
+      value: jsonEncode(['a', 'b', 'c', 'd', 'e']),
+      options: const {},
+    );
 
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 

@@ -5,10 +5,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:robozzle_reboot/models/instruction.dart';
 import 'package:robozzle_reboot/screens/game_screen.dart';
 
+import 'drag_helpers.dart';
+import 'fake_secure_storage.dart';
 import 'test_level.dart';
 
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    installFakeSecureStorage();
+  });
 
   testWidgets(
       'reopening a solved level restores the winning program instead of a blank one',
@@ -18,10 +23,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // "forward" is selected by default; 3 forwards solves the 4-tile strip.
+    // 3 forwards solves the 4-tile strip.
     for (var i = 0; i < 3; i++) {
-      await tester.tap(find.byType(DragTarget<ProgramInstruction>).at(i));
-      await tester.pump();
+      await placeInstruction(tester, ActionType.forward,
+          find.byType(DragTarget<ProgramInstruction>).at(i));
     }
     for (var i = 0; i < 3; i++) {
       await tester.tap(find.byIcon(Icons.skip_next_rounded));

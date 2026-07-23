@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:robozzle_reboot/models/instruction.dart';
 import 'package:robozzle_reboot/screens/game_screen.dart';
 
+import 'drag_helpers.dart';
 import 'test_level.dart';
 
 void main() {
@@ -15,13 +16,12 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: GameScreen(levels: [testLevel()])));
     await tester.pumpAndSettle();
 
-    // "forward" is selected by default; place it in F1's first two slots so
-    // stepping/running actually moves the robot instead of immediately
-    // hitting end-of-program.
-    await tester.tap(find.byType(DragTarget<ProgramInstruction>).first);
-    await tester.pump();
-    await tester.tap(find.byType(DragTarget<ProgramInstruction>).at(1));
-    await tester.pump();
+    // Place "forward" in F1's first two slots so stepping/running actually
+    // moves the robot instead of immediately hitting end-of-program.
+    await placeInstruction(tester, ActionType.forward,
+        find.byType(DragTarget<ProgramInstruction>).first);
+    await placeInstruction(tester, ActionType.forward,
+        find.byType(DragTarget<ProgramInstruction>).at(1));
 
     final robotIcon = find.byIcon(Icons.navigation_rounded);
     final startX = tester.getTopLeft(robotIcon).dx;
@@ -48,15 +48,14 @@ void main() {
     // Starting 2x auto-run should advance the robot without further taps.
     // Can't use pumpAndSettle here — the periodic timer never stops on its
     // own — so advance the fake clock in small increments instead.
-    await tester.tap(find.text('2x'));
+    await tester.tap(find.byKey(const ValueKey('speed_2x')));
     await tester.pump(); // process the tap itself, before any ticks fire
 
-    // The command list is frozen while actively auto-running: tapping an
-    // empty slot at this point should not place anything. The tap is
-    // expected to miss (IgnorePointer swallows it), hence warnIfMissed: false.
+    // The command list is frozen while actively auto-running: dragging an
+    // instruction onto an empty slot at this point should not place
+    // anything, since IgnorePointer blocks the palette's drag sources too.
     final emptySlot = find.byType(DragTarget<ProgramInstruction>).at(2);
-    await tester.tap(emptySlot, warnIfMissed: false);
-    await tester.pump();
+    await dragOnto(tester, paletteAction(ActionType.forward), emptySlot);
     expect(
       find.descendant(of: emptySlot, matching: find.byIcon(Icons.arrow_upward_rounded)),
       findsNothing,
@@ -68,7 +67,7 @@ void main() {
     expect(tester.getTopLeft(robotIcon).dx, isNot(startX));
 
     // Tapping the active speed again pauses it.
-    await tester.tap(find.text('2x'));
+    await tester.tap(find.byKey(const ValueKey('speed_2x')));
     await tester.pump();
     final pausedX = tester.getTopLeft(robotIcon).dx;
     for (var i = 0; i < 10; i++) {

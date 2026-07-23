@@ -4,10 +4,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:robozzle_reboot/screens/home_screen.dart';
 
+import 'fake_secure_storage.dart';
+
 void main() {
   testWidgets('searching filters puzzles by name, case-insensitively, and clears',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
+    installFakeSecureStorage();
 
     await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
 

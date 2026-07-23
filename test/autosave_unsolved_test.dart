@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:robozzle_reboot/models/instruction.dart';
 import 'package:robozzle_reboot/screens/game_screen.dart';
 
+import 'drag_helpers.dart';
 import 'test_level.dart';
 
 void main() {
@@ -20,8 +21,8 @@ void main() {
 
     // Place just one instruction — nowhere near solving the level (3
     // forwards are needed) — then leave it as-is.
-    await tester.tap(find.byType(DragTarget<ProgramInstruction>).at(0));
-    await tester.pump();
+    await placeInstruction(tester, ActionType.forward,
+        find.byType(DragTarget<ProgramInstruction>).at(0));
     expect(
       find.descendant(
         of: find.byType(DragTarget<ProgramInstruction>).at(0),

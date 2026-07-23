@@ -5,8 +5,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:robozzle_reboot/screens/game_screen.dart';
 import 'package:robozzle_reboot/screens/home_screen.dart';
 
+import 'fake_secure_storage.dart';
+
 void main() {
-  setUp(() => SharedPreferences.setMockInitialValues({}));
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+    installFakeSecureStorage();
+  });
 
   testWidgets('HomeScreen loads the full catalog and opens a level on tap',
       (tester) async {
