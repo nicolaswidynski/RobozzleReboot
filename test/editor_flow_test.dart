@@ -13,6 +13,8 @@ import 'package:robozzle_reboot/screens/editor/editor_home_screen.dart';
 import 'package:robozzle_reboot/screens/editor/editor_screen.dart';
 import 'package:robozzle_reboot/screens/editor/editor_test_screen.dart';
 
+import 'drag_helpers.dart';
+
 // EditorScreen's body is a plain ListView, which (like ListView.builder)
 // only builds children within its viewport/cache extent — the "Test
 // Solution" button starts off-screen. The built-in tester.scrollUntilVisible
@@ -123,9 +125,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(EditorTestScreen), findsOneWidget);
 
-    // "forward" is selected by default; one forward crosses the 2-tile strip.
-    await tester.tap(find.byType(DragTarget<ProgramInstruction>).first);
-    await tester.pump();
+    // One forward crosses the 2-tile strip.
+    await placeInstruction(tester, ActionType.forward,
+        find.byType(DragTarget<ProgramInstruction>).first);
     await tester.tap(find.byIcon(Icons.skip_next_rounded));
     await tester.pumpAndSettle();
 
