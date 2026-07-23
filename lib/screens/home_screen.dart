@@ -486,16 +486,6 @@ class _LevelCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      const Icon(Icons.star_rounded,
-                          color: AppColors.star, size: 14),
-                      const SizedBox(width: 3),
-                      Text(
-                        '${level.totalStars}',
-                        style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.6),
-                            fontSize: 12),
-                      ),
-                      const SizedBox(width: 14),
                       _DifficultyDots(difficulty: level.difficulty),
                       const SizedBox(width: 14),
                       Icon(
@@ -524,6 +514,8 @@ class _LevelCard extends StatelessWidget {
   }
 }
 
+/// Same star language as the post-solve difficulty rating and the editor's
+/// "suggested difficulty" picker, for visual consistency across the app.
 class _DifficultyDots extends StatelessWidget {
   static const int _maxDifficulty = 5;
 
@@ -535,19 +527,11 @@ class _DifficultyDots extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        for (var i = 0; i < _maxDifficulty; i++)
-          Padding(
-            padding: const EdgeInsets.only(right: 2),
-            child: Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: i < difficulty
-                    ? AppColors.accent
-                    : Colors.white.withValues(alpha: 0.15),
-              ),
-            ),
+        for (var i = 1; i <= _maxDifficulty; i++)
+          Icon(
+            i <= difficulty ? Icons.star_rounded : Icons.star_border_rounded,
+            color: AppColors.star,
+            size: 13,
           ),
       ],
     );

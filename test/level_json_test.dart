@@ -90,4 +90,39 @@ void main() {
       {TileColor.red, TileColor.green, TileColor.blue},
     );
   });
+
+  test('allowedCommandsBitmask and rowStrings are the exact inverse of '
+      'Level.fromJson — used when publishing an editor-made puzzle', () {
+    final original = {
+      'sourceId': 392,
+      'title': 'Some Puzzle',
+      'difficulty': 4,
+      'popularity': 99,
+      'startRow': 6,
+      'startCol': 7,
+      'startDirection': 'right',
+      'slotsPerFunction': [4, 3, 5, 0, 0],
+      'allowedCommands': 5, // red + blue
+      'rows': [
+        'rgbbbbbbbbbbbr',
+        'b            g',
+        'b         g  b',
+      ],
+    };
+
+    final level = Level.fromJson(original);
+
+    expect(level.allowedCommandsBitmask, 5);
+    expect(level.rowStrings, original['rows']);
+
+    // Round-tripping through fromJson again with these derived values
+    // reproduces the same level.
+    final roundTripped = Level.fromJson({
+      ...original,
+      'allowedCommands': level.allowedCommandsBitmask,
+      'rows': level.rowStrings,
+    });
+    expect(roundTripped.allowedPaintColors, level.allowedPaintColors);
+    expect(roundTripped.rowStrings, level.rowStrings);
+  });
 }

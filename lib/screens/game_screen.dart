@@ -46,9 +46,6 @@ class _GameScreenState extends State<GameScreen> {
   String? _levelLoadError;
   int _pendingLevelIndex = 0;
 
-  ActionType? _selectedAction;
-  bool _eraserSelected = false;
-  TileColor _selectedCondition = TileColor.any;
   bool _functionsVisible = true;
 
   Timer? _autoRunTimer;
@@ -142,6 +139,39 @@ class _GameScreenState extends State<GameScreen> {
       _levelLoadError = null;
       _loadLevel(index);
     });
+    _maybeShowInstructions();
+  }
+
+  /// Shows [_level.description] (if it has one — only the hand-authored
+  /// tutorial levels do) once the frame with the new level has actually
+  /// built, since showDialog needs an Overlay already in the tree.
+  void _maybeShowInstructions() {
+    if (_level.description.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showInstructionsDialog();
+    });
+  }
+
+  void _showInstructionsDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.panel,
+        title: Text(_level.name, style: const TextStyle(color: Colors.white)),
+        content: SingleChildScrollView(
+          child: Text(
+            _level.description,
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.8), height: 1.4),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
   }
 
   void _loadLevel(int index) {
@@ -153,9 +183,6 @@ class _GameScreenState extends State<GameScreen> {
     _levelIndex = index;
     _program = RobotProgram.empty(_level);
     _interpreter = RobotInterpreter(level: _level, program: _program);
-    _selectedAction = ActionType.forward;
-    _eraserSelected = false;
-    _selectedCondition = TileColor.any;
     _functionsVisible = true;
     _selectedRating = null;
     _liked = false;
@@ -219,28 +246,6 @@ class _GameScreenState extends State<GameScreen> {
     ];
   }
 
-  void _onSlotTap(int functionIndex, int slotIndex) {
-    if (_interpreter.status == RunStatus.running && _autoRunTimer != null) {
-      return; // don't allow edits mid auto-run
-    }
-    setState(() {
-      if (_eraserSelected) {
-        _program.setSlot(functionIndex, slotIndex, null);
-      } else if (_selectedAction != null) {
-        _program.setSlot(
-          functionIndex,
-          slotIndex,
-          ProgramInstruction(_selectedAction!, condition: _selectedCondition),
-        );
-      }
-      // Editing the program after a run has started invalidates progress —
-      // rebuild a fresh interpreter against the edited program.
-      _interpreter = RobotInterpreter(level: _level, program: _program);
-      _resetClearOverlay();
-    });
-    _programStore.save(_level, _program);
-  }
-
   void _onSlotDrop(
       int functionIndex, int slotIndex, ProgramInstruction instruction) {
     if (_interpreter.status == RunStatus.running && _autoRunTimer != null) {
@@ -274,8 +279,16 @@ class _GameScreenState extends State<GameScreen> {
     if (_interpreter.status == RunStatus.running && _autoRunTimer != null) {
       return; // don't allow edits mid auto-run
     }
+    if (toFunctionIndex == move.functionIndex &&
+        toSlotIndex == move.slotIndex) {
+      return; // dropped back onto itself
+    }
     setState(() {
-      _program.setSlot(move.functionIndex, move.slotIndex, null);
+      // Dropping onto an already-filled slot swaps the two instructions
+      // instead of the destination's one silently disappearing.
+      final displaced =
+          _program.functions[toFunctionIndex].slots[toSlotIndex];
+      _program.setSlot(move.functionIndex, move.slotIndex, displaced);
       _program.setSlot(toFunctionIndex, toSlotIndex, move.instruction);
       _interpreter = RobotInterpreter(level: _level, program: _program);
       _resetClearOverlay();
@@ -401,6 +414,14 @@ class _GameScreenState extends State<GameScreen> {
     await _prepareAndLoadLevel(_levelIndex + 1);
   }
 
+  // Reached when the Clear overlay's button has no next puzzle to advance
+  // to — still submits any pending rating, then returns to the list (e.g.
+  // to pick a different difficulty) instead of leaving the button inert.
+  void _backToList() {
+    _submitRatingIfNeeded();
+    Navigator.of(context).pop();
+  }
+
   // Submits whatever rate/like the player picked (either can be unset) only
   // once, right when they click Next — never on every star/like tap, and
   // never again once a puzzle has been rated. Fires without waiting for the
@@ -482,6 +503,9 @@ class _GameScreenState extends State<GameScreen> {
                     title: _level.name,
                     onHome: () => Navigator.of(context).pop(),
                     onNext: _goToNextLevel,
+                    onHelp: _level.description.isEmpty
+                        ? null
+                        : _showInstructionsDialog,
                   ),
                   const SizedBox(height: 10),
                   Expanded(
@@ -507,13 +531,13 @@ class _GameScreenState extends State<GameScreen> {
                           onSetSpeed: _setRunSpeed,
                           onReset: _reset,
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 4),
                         _FunctionsHandle(
                           visible: _functionsVisible,
                           onToggle: () => setState(
                               () => _functionsVisible = !_functionsVisible),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         // Only the function panels scroll — ControlBar above
                         // and InstructionPalette below stay fully visible,
                         // since some puzzles use all 5 functions and won't
@@ -546,8 +570,6 @@ class _GameScreenState extends State<GameScreen> {
                                                     i
                                                 ? _interpreter.highlightSlot
                                                 : null,
-                                            onSlotTap: (slot) =>
-                                                _onSlotTap(i, slot),
                                             onSlotDrop: (slot, instr) =>
                                                 _onSlotDrop(i, slot, instr),
                                             onConditionDrop: (slot, color) =>
@@ -567,21 +589,13 @@ class _GameScreenState extends State<GameScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        // No extra gap here — each FunctionPanel (including
+                        // the last one) already carries its own 8px bottom
+                        // margin, so adding another one on top of that
+                        // doubled the visual gap before the palette.
                         InstructionPalette(
                           availableActions: _availableActions,
-                          selectedAction: _selectedAction,
-                          eraserSelected: _eraserSelected,
-                          selectedCondition: _selectedCondition,
                           enabled: _autoRunTimer == null,
-                          onActionSelected: (a) => setState(() {
-                            _selectedAction = a;
-                            _eraserSelected = false;
-                          }),
-                          onEraserSelected: () =>
-                              setState(() => _eraserSelected = true),
-                          onConditionSelected: (c) =>
-                              setState(() => _selectedCondition = c),
                         ),
                       ],
                     ),
@@ -594,6 +608,7 @@ class _GameScreenState extends State<GameScreen> {
             Positioned.fill(
               child: _ClearOverlay(
                 onNext: _goToNextLevel,
+                onBackToList: _backToList,
                 showRating: !_ratingHandled && AuthManager.instance.isConnected,
                 selectedRating: _selectedRating,
                 onRateSelected: (rating) =>
@@ -612,9 +627,14 @@ class _Header extends StatelessWidget {
   final String title;
   final VoidCallback onHome;
   final VoidCallback? onNext;
+  final VoidCallback? onHelp;
 
-  const _Header(
-      {required this.title, required this.onHome, required this.onNext});
+  const _Header({
+    required this.title,
+    required this.onHome,
+    required this.onNext,
+    this.onHelp,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -628,6 +648,8 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           _HeaderIconButton(icon: Icons.home_rounded, onTap: onHome),
+          if (onHelp != null)
+            _HeaderIconButton(icon: Icons.info_outline_rounded, onTap: onHelp),
           Expanded(
             child: Text(
               title,
@@ -692,7 +714,7 @@ class _FunctionsHandle extends StatelessWidget {
           onToggle(); // swiped down: hide
         }
       },
-      child: const SizedBox(width: double.infinity, height: 24),
+      child: const SizedBox(width: double.infinity, height: 16),
     );
   }
 }
@@ -705,8 +727,14 @@ class _FunctionsHandle extends StatelessWidget {
 /// When [showRating] is true (signed in, and this puzzle hasn't been rated
 /// before), also offers a one-time difficulty rating + like prompt — picked
 /// here, but only actually submitted when the player taps Next.
+///
+/// [onNext] is null once there's no next puzzle left in the list HomeScreen
+/// handed us — the button stays enabled either way, falling back to
+/// [onBackToList] (e.g. to pick a different difficulty) instead of being
+/// disabled.
 class _ClearOverlay extends StatelessWidget {
   final VoidCallback? onNext;
+  final VoidCallback onBackToList;
   final bool showRating;
   final int? selectedRating;
   final ValueChanged<int> onRateSelected;
@@ -715,6 +743,7 @@ class _ClearOverlay extends StatelessWidget {
 
   const _ClearOverlay({
     required this.onNext,
+    required this.onBackToList,
     required this.showRating,
     required this.selectedRating,
     required this.onRateSelected,
@@ -751,7 +780,7 @@ class _ClearOverlay extends StatelessWidget {
             if (showRating) ...[
               const SizedBox(height: 20),
               Text(
-                'Rate this puzzle',
+                'Rate the difficulty of this puzzle',
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.6),
                   fontSize: 13,
@@ -820,18 +849,17 @@ class _ClearOverlay extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: onNext,
+                onPressed: onNext ?? onBackToList,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.accent,
-                  disabledBackgroundColor: Colors.white.withValues(alpha: 0.08),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),
                 child: Text(
-                  onNext == null ? 'Last puzzle' : 'Next',
-                  style: TextStyle(
-                    color: onNext == null ? Colors.white38 : Colors.white,
+                  onNext == null ? 'Go Back' : 'Next',
+                  style: const TextStyle(
+                    color: Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
                   ),

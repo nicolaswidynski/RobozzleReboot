@@ -6,6 +6,7 @@ import '../models/tile_color.dart';
 import '../theme/app_colors.dart';
 import 'action_glyph.dart';
 import 'dashed_border.dart';
+import 'group_selection.dart';
 import 'tile_color_ui.dart';
 
 /// Carries a filled slot's instruction plus its origin (function + slot
@@ -26,12 +27,11 @@ class SlotInstructionMove {
 
 /// One function's (F1..F5) instruction slots: an "F1"-style label to the
 /// left, and its slots laid out in fixed rows of [_slotsPerRow] — all slots
-/// always visible at once, no horizontal scrolling. Tapping a slot places
-/// whatever the palette currently has selected (handled by the parent via
-/// [onSlotTap]); a slot also accepts an instruction long-press-dragged in
-/// from the palette (handled via [onSlotDrop]), a color dragged in to set
-/// just its condition ([onConditionDrop]), or an instruction dragged in from
-/// another slot to move it there ([onSlotMove]).
+/// always visible at once, no horizontal scrolling. Every slot is a drop
+/// target only — an instruction long-press-dragged in from the palette
+/// ([onSlotDrop]), a color dragged in to set just its condition
+/// ([onConditionDrop]), or an instruction dragged in from another slot to
+/// move it there ([onSlotMove]). There's no tap-to-place.
 ///
 /// Whether this panel is visible at all is controlled by the parent (all
 /// functions show/hide together via a single swipe gesture, not per-panel).
@@ -42,7 +42,6 @@ class FunctionPanel extends StatelessWidget {
   final int functionIndex;
   final ProgramFunction function;
   final int? highlightSlot;
-  final void Function(int slotIndex) onSlotTap;
   final void Function(int slotIndex, ProgramInstruction instruction) onSlotDrop;
   final void Function(int slotIndex, TileColor color) onConditionDrop;
   final void Function(int slotIndex, SlotInstructionMove move) onSlotMove;
@@ -54,7 +53,6 @@ class FunctionPanel extends StatelessWidget {
     required this.functionIndex,
     required this.function,
     required this.highlightSlot,
-    required this.onSlotTap,
     required this.onSlotDrop,
     required this.onConditionDrop,
     required this.onSlotMove,
@@ -64,8 +62,8 @@ class FunctionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
       decoration: BoxDecoration(
         color: AppColors.panel,
         borderRadius: BorderRadius.circular(14),
@@ -111,7 +109,6 @@ class FunctionPanel extends StatelessWidget {
                             slotIndex: i,
                             instruction: function.slots[i],
                             highlighted: highlightSlot == i,
-                            onTap: () => onSlotTap(i),
                             onDrop: (instr) => onSlotDrop(i, instr),
                             onConditionDrop: (color) =>
                                 onConditionDrop(i, color),
@@ -132,7 +129,7 @@ class FunctionPanel extends StatelessWidget {
 }
 
 class _SlotBox extends StatelessWidget {
-  static const Duration _dragHoldDelay = Duration(milliseconds: 200);
+  static const Duration _dragHoldDelay = Duration.zero;
   static const double _slotSize = 42;
   static const double _dragLift = 56;
   static const Offset _feedbackOffset = Offset(0, -_dragLift);
@@ -146,7 +143,6 @@ class _SlotBox extends StatelessWidget {
   final int slotIndex;
   final ProgramInstruction? instruction;
   final bool highlighted;
-  final VoidCallback onTap;
   final ValueChanged<ProgramInstruction> onDrop;
   final ValueChanged<TileColor> onConditionDrop;
   final ValueChanged<SlotInstructionMove> onMove;
@@ -157,7 +153,6 @@ class _SlotBox extends StatelessWidget {
     required this.slotIndex,
     required this.instruction,
     required this.highlighted,
-    required this.onTap,
     required this.onDrop,
     required this.onConditionDrop,
     required this.onMove,
@@ -177,96 +172,133 @@ class _SlotBox extends StatelessWidget {
     // Dropping a color dot (from the palette) onto a slot that already holds
     // an instruction sets/replaces just its condition, leaving the action
     // alone; an empty slot rejects it since there's nothing to attach to.
-    return DragTarget<TileColor>(
-      onWillAcceptWithDetails: (details) => instruction != null,
-      onAcceptWithDetails: (details) => onConditionDrop(details.data),
-      builder: (context, colorCandidates, colorRejected) {
-        final isColorHovering = colorCandidates.isNotEmpty;
-        // An instruction dragged in from another slot moves it here.
-        // Dropping on itself is accepted too — it's a same-slot move
-        // (source cleared, then immediately re-set), a harmless no-op —
-        // rather than rejected, so that only a *true* drop outside any
-        // slot (nothing accepts it) reads as "cancelled" and removes it.
-        return DragTarget<SlotInstructionMove>(
-          onAcceptWithDetails: (details) => onMove(details.data),
-          builder: (context, moveCandidates, moveRejected) {
-            final isMoveHovering = moveCandidates.isNotEmpty;
-            return DragTarget<ProgramInstruction>(
-              onAcceptWithDetails: (details) => onDrop(details.data),
-              builder: (context, candidateData, rejectedData) {
-                final isHovering = candidateData.isNotEmpty ||
-                    isColorHovering ||
-                    isMoveHovering;
-                final box = Container(
-                  width: _slotSize,
-                  height: _slotSize,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                    color: isHovering ? AppColors.selectionFill : fillColor,
-                    borderRadius: BorderRadius.circular(8),
-                    border: isHovering
-                        ? Border.all(
-                            color: AppColors.selectionBorder, width: 2.5)
-                        : (highlighted
-                            ? Border.all(color: Colors.amberAccent, width: 2.5)
-                            : (hasCondition
+    // The GroupSelection<...> layers mirror the plain TileColor/
+    // ProgramInstruction ones below, for a grouped palette button's drag —
+    // its data isn't known until the drop, once the player's finger has
+    // swept past the button's fan-out menu and settled on one option.
+    return DragTarget<GroupSelection<TileColor>>(
+      onWillAcceptWithDetails: (details) =>
+          instruction != null && details.data.value != null,
+      onAcceptWithDetails: (details) {
+        final color = details.data.value;
+        if (color != null) onConditionDrop(color);
+      },
+      builder: (context, groupColorCandidates, _) {
+        final isGroupColorHovering = groupColorCandidates.isNotEmpty;
+        return DragTarget<GroupSelection<ProgramInstruction>>(
+          onWillAcceptWithDetails: (details) => details.data.value != null,
+          onAcceptWithDetails: (details) {
+            final instr = details.data.value;
+            if (instr != null) onDrop(instr);
+          },
+          builder: (context, groupInstrCandidates, _) {
+            final isGroupInstrHovering = groupInstrCandidates.isNotEmpty;
+            return DragTarget<TileColor>(
+              onWillAcceptWithDetails: (details) => instruction != null,
+              onAcceptWithDetails: (details) =>
+                  onConditionDrop(details.data),
+              builder: (context, colorCandidates, colorRejected) {
+                final isColorHovering = colorCandidates.isNotEmpty;
+                // An instruction dragged in from another slot moves it
+                // here. Dropping on itself is accepted too — it's a
+                // same-slot move (source cleared, then immediately
+                // re-set), a harmless no-op — rather than rejected, so
+                // that only a *true* drop outside any slot (nothing
+                // accepts it) reads as "cancelled" and removes it.
+                return DragTarget<SlotInstructionMove>(
+                  onAcceptWithDetails: (details) => onMove(details.data),
+                  builder: (context, moveCandidates, moveRejected) {
+                    final isMoveHovering = moveCandidates.isNotEmpty;
+                    return DragTarget<ProgramInstruction>(
+                      onAcceptWithDetails: (details) =>
+                          onDrop(details.data),
+                      builder: (context, candidateData, rejectedData) {
+                        final isHovering = candidateData.isNotEmpty ||
+                            isColorHovering ||
+                            isMoveHovering ||
+                            isGroupColorHovering ||
+                            isGroupInstrHovering;
+                        final box = Container(
+                          width: _slotSize,
+                          height: _slotSize,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: isHovering
+                                ? AppColors.selectionFill
+                                : fillColor,
+                            borderRadius: BorderRadius.circular(8),
+                            border: isHovering
                                 ? Border.all(
-                                    color: instruction!.condition.uiColor,
-                                    width: 1.5)
-                                : null)),
-                  ),
-                  child: instruction == null
-                      ? null
-                      : actionGlyph(instruction!.action, size: 20),
-                );
+                                    color: AppColors.selectionBorder,
+                                    width: 2.5)
+                                : (highlighted
+                                    ? Border.all(
+                                        color: Colors.amberAccent,
+                                        width: 2.5)
+                                    : (hasCondition
+                                        ? Border.all(
+                                            color: instruction!
+                                                .condition.uiColor,
+                                            width: 1.5)
+                                        : null)),
+                          ),
+                          child: instruction == null
+                              ? null
+                              : actionGlyph(instruction!.action, size: 20),
+                        );
 
-                final content = InkWell(
-                  onTap: onTap,
-                  borderRadius: BorderRadius.circular(8),
-                  child: instruction == null
-                      ? DashedRoundedBorder(
-                          radius: 8,
-                          color: isHovering
-                              ? AppColors.selectionBorder
-                              : AppColors.dashedSlot,
-                          child: box,
-                        )
-                      : box,
-                );
+                        final content = instruction == null
+                            ? DashedRoundedBorder(
+                                radius: 8,
+                                color: isHovering
+                                    ? AppColors.selectionBorder
+                                    : AppColors.dashedSlot,
+                                child: box,
+                              )
+                            : box;
 
-                if (instruction == null) {
-                  return content;
-                }
+                        if (instruction == null) {
+                          return content;
+                        }
 
-                return LongPressDraggable<SlotInstructionMove>(
-                  data: SlotInstructionMove(
-                    functionIndex: functionIndex,
-                    slotIndex: slotIndex,
-                    instruction: instruction!,
-                  ),
-                  delay: _dragHoldDelay,
-                  dragAnchorStrategy: _dragAnchor,
-                  feedbackOffset: _feedbackOffset,
-                  // Dropped somewhere that didn't accept it (nothing but a
-                  // slot does) — treat it as "drag it away to delete it".
-                  onDraggableCanceled: (velocity, offset) => onRemove(),
-                  feedback: Material(
-                    type: MaterialType.transparency,
-                    child: Container(
-                      width: _slotSize,
-                      height: _slotSize,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: AppColors.selectionFill,
-                        border: Border.all(
-                            color: AppColors.selectionBorder, width: 2),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: actionGlyph(instruction!.action, size: 20),
-                    ),
-                  ),
-                  childWhenDragging: Opacity(opacity: 0.3, child: content),
-                  child: content,
+                        return LongPressDraggable<SlotInstructionMove>(
+                          data: SlotInstructionMove(
+                            functionIndex: functionIndex,
+                            slotIndex: slotIndex,
+                            instruction: instruction!,
+                          ),
+                          delay: _dragHoldDelay,
+                          dragAnchorStrategy: _dragAnchor,
+                          feedbackOffset: _feedbackOffset,
+                          // Dropped somewhere that didn't accept it
+                          // (nothing but a slot does) — treat it as "drag
+                          // it away to delete it".
+                          onDraggableCanceled: (velocity, offset) =>
+                              onRemove(),
+                          feedback: Material(
+                            type: MaterialType.transparency,
+                            child: Container(
+                              width: _slotSize,
+                              height: _slotSize,
+                              alignment: Alignment.center,
+                              decoration: BoxDecoration(
+                                color: AppColors.selectionFill,
+                                border: Border.all(
+                                    color: AppColors.selectionBorder,
+                                    width: 2),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child:
+                                  actionGlyph(instruction!.action, size: 20),
+                            ),
+                          ),
+                          childWhenDragging:
+                              Opacity(opacity: 0.3, child: content),
+                          child: content,
+                        );
+                      },
+                    );
+                  },
                 );
               },
             );

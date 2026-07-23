@@ -11,6 +11,7 @@ class SecureSessionStore {
   static const _appleUserIdKey = 'apple_user_id';
   static const _sessionTokenKey = 'robozzle_user_session_token';
   static const _pseudonymSetKey = 'robozzle_pseudonym_set';
+  static const _pseudonymKey = 'robozzle_pseudonym';
 
   final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
@@ -46,11 +47,25 @@ class SecureSessionStore {
     await prefs.setBool(_pseudonymSetKey, value);
   }
 
+  /// The chosen pseudonym text itself, cached locally purely for display
+  /// (e.g. the landing screen badge) — the server remains the source of
+  /// truth for whether a pseudonym exists at all ([readPseudonymSet]).
+  Future<String?> readPseudonym() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(_pseudonymKey);
+  }
+
+  Future<void> savePseudonym(String value) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_pseudonymKey, value);
+  }
+
   /// Wipes both identity and session — used on account deletion.
   Future<void> clearAll() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_appleUserIdKey);
     await prefs.remove(_pseudonymSetKey);
+    await prefs.remove(_pseudonymKey);
     await _secureStorage.delete(key: _sessionTokenKey);
   }
 }

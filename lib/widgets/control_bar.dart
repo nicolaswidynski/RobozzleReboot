@@ -87,8 +87,13 @@ class ControlBar extends StatelessWidget {
               const SizedBox(width: 10),
               for (final speed in [1, 2, 8]) ...[
                 _SpeedButton(
-                  // Plain play button for normal speed — "1x" is redundant.
-                  label: speed == 1 ? null : '${speed}x',
+                  key: ValueKey('speed_${speed}x'),
+                  // >, >>, >>> for 1x/2x/8x instead of a numeric label.
+                  arrowCount: speed == 1
+                      ? 1
+                      : speed == 2
+                          ? 2
+                          : 3,
                   active: runSpeed == speed,
                   onTap: status.isTerminal ? null : () => onSetSpeed(speed),
                 ),
@@ -162,12 +167,20 @@ class _RoundIconButton extends StatelessWidget {
 }
 
 class _SpeedButton extends StatelessWidget {
-  final String? label;
+  // Overlapping ">" glyphs (step < size) read as a single ">>"/">>>" glyph
+  // train rather than separate, evenly-spaced arrows.
+  static const double _arrowSize = 20;
+  static const double _arrowStep = 10;
+
+  final int arrowCount;
   final bool active;
   final VoidCallback? onTap;
 
   const _SpeedButton(
-      {required this.label, required this.active, required this.onTap});
+      {super.key,
+      required this.arrowCount,
+      required this.active,
+      required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -188,28 +201,26 @@ class _SpeedButton extends StatelessWidget {
           border: Border.all(
               color: active ? AppColors.accent : AppColors.panelBorder),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              active ? Icons.pause_rounded : Icons.play_arrow_rounded,
-              size: 20,
-              color: disabled ? Colors.white24 : Colors.white,
-            ),
-            if (label != null) ...[
-              const SizedBox(width: 3),
-              Text(
-                label!,
-                style: TextStyle(
-                  color: disabled ? Colors.white24 : Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
+        child: active
+            ? Icon(Icons.pause_rounded,
+                size: 20, color: disabled ? Colors.white24 : Colors.white)
+            : SizedBox(
+                width: _arrowSize + (arrowCount - 1) * _arrowStep,
+                height: _arrowSize,
+                child: Stack(
+                  children: [
+                    for (var i = 0; i < arrowCount; i++)
+                      Positioned(
+                        left: i * _arrowStep,
+                        child: Icon(
+                          Icons.play_arrow_rounded,
+                          size: _arrowSize,
+                          color: disabled ? Colors.white24 : Colors.white,
+                        ),
+                      ),
+                  ],
                 ),
               ),
-            ],
-          ],
-        ),
       ),
     );
   }
