@@ -46,9 +46,6 @@ class _GameScreenState extends State<GameScreen> {
   String? _levelLoadError;
   int _pendingLevelIndex = 0;
 
-  ActionType? _selectedAction;
-  bool _eraserSelected = false;
-  TileColor _selectedCondition = TileColor.any;
   bool _functionsVisible = true;
 
   Timer? _autoRunTimer;
@@ -186,9 +183,6 @@ class _GameScreenState extends State<GameScreen> {
     _levelIndex = index;
     _program = RobotProgram.empty(_level);
     _interpreter = RobotInterpreter(level: _level, program: _program);
-    _selectedAction = ActionType.forward;
-    _eraserSelected = false;
-    _selectedCondition = TileColor.any;
     _functionsVisible = true;
     _selectedRating = null;
     _liked = false;
@@ -252,28 +246,6 @@ class _GameScreenState extends State<GameScreen> {
     ];
   }
 
-  void _onSlotTap(int functionIndex, int slotIndex) {
-    if (_interpreter.status == RunStatus.running && _autoRunTimer != null) {
-      return; // don't allow edits mid auto-run
-    }
-    setState(() {
-      if (_eraserSelected) {
-        _program.setSlot(functionIndex, slotIndex, null);
-      } else if (_selectedAction != null) {
-        _program.setSlot(
-          functionIndex,
-          slotIndex,
-          ProgramInstruction(_selectedAction!, condition: _selectedCondition),
-        );
-      }
-      // Editing the program after a run has started invalidates progress —
-      // rebuild a fresh interpreter against the edited program.
-      _interpreter = RobotInterpreter(level: _level, program: _program);
-      _resetClearOverlay();
-    });
-    _programStore.save(_level, _program);
-  }
-
   void _onSlotDrop(
       int functionIndex, int slotIndex, ProgramInstruction instruction) {
     if (_interpreter.status == RunStatus.running && _autoRunTimer != null) {
@@ -307,8 +279,16 @@ class _GameScreenState extends State<GameScreen> {
     if (_interpreter.status == RunStatus.running && _autoRunTimer != null) {
       return; // don't allow edits mid auto-run
     }
+    if (toFunctionIndex == move.functionIndex &&
+        toSlotIndex == move.slotIndex) {
+      return; // dropped back onto itself
+    }
     setState(() {
-      _program.setSlot(move.functionIndex, move.slotIndex, null);
+      // Dropping onto an already-filled slot swaps the two instructions
+      // instead of the destination's one silently disappearing.
+      final displaced =
+          _program.functions[toFunctionIndex].slots[toSlotIndex];
+      _program.setSlot(move.functionIndex, move.slotIndex, displaced);
       _program.setSlot(toFunctionIndex, toSlotIndex, move.instruction);
       _interpreter = RobotInterpreter(level: _level, program: _program);
       _resetClearOverlay();
@@ -551,13 +531,13 @@ class _GameScreenState extends State<GameScreen> {
                           onSetSpeed: _setRunSpeed,
                           onReset: _reset,
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: 4),
                         _FunctionsHandle(
                           visible: _functionsVisible,
                           onToggle: () => setState(
                               () => _functionsVisible = !_functionsVisible),
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 2),
                         // Only the function panels scroll — ControlBar above
                         // and InstructionPalette below stay fully visible,
                         // since some puzzles use all 5 functions and won't
@@ -590,8 +570,6 @@ class _GameScreenState extends State<GameScreen> {
                                                     i
                                                 ? _interpreter.highlightSlot
                                                 : null,
-                                            onSlotTap: (slot) =>
-                                                _onSlotTap(i, slot),
                                             onSlotDrop: (slot, instr) =>
                                                 _onSlotDrop(i, slot, instr),
                                             onConditionDrop: (slot, color) =>
@@ -611,21 +589,13 @@ class _GameScreenState extends State<GameScreen> {
                             ),
                           ),
                         ),
-                        const SizedBox(height: 8),
+                        // No extra gap here — each FunctionPanel (including
+                        // the last one) already carries its own 8px bottom
+                        // margin, so adding another one on top of that
+                        // doubled the visual gap before the palette.
                         InstructionPalette(
                           availableActions: _availableActions,
-                          selectedAction: _selectedAction,
-                          eraserSelected: _eraserSelected,
-                          selectedCondition: _selectedCondition,
                           enabled: _autoRunTimer == null,
-                          onActionSelected: (a) => setState(() {
-                            _selectedAction = a;
-                            _eraserSelected = false;
-                          }),
-                          onEraserSelected: () =>
-                              setState(() => _eraserSelected = true),
-                          onConditionSelected: (c) =>
-                              setState(() => _selectedCondition = c),
                         ),
                       ],
                     ),
@@ -744,7 +714,7 @@ class _FunctionsHandle extends StatelessWidget {
           onToggle(); // swiped down: hide
         }
       },
-      child: const SizedBox(width: double.infinity, height: 24),
+      child: const SizedBox(width: double.infinity, height: 16),
     );
   }
 }

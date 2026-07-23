@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:robozzle_reboot/models/instruction.dart';
 import 'package:robozzle_reboot/screens/game_screen.dart';
 
+import 'drag_helpers.dart';
 import 'test_level.dart';
 
 void main() {
@@ -16,10 +17,9 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: GameScreen(levels: [testLevel()])));
     await tester.pumpAndSettle();
 
-    // "forward" is selected by default; place it in the first slot.
+    // Place "forward" in the first slot.
     final slot0 = find.byType(DragTarget<ProgramInstruction>).at(0);
-    await tester.tap(slot0);
-    await tester.pump();
+    await placeInstruction(tester, ActionType.forward, slot0);
     expect(
       find.descendant(of: slot0, matching: find.byIcon(Icons.arrow_upward_rounded)),
       findsOneWidget,

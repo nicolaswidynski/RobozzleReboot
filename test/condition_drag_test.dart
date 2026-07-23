@@ -7,6 +7,7 @@ import 'package:robozzle_reboot/models/tile_color.dart';
 import 'package:robozzle_reboot/screens/game_screen.dart';
 import 'package:robozzle_reboot/widgets/tile_color_ui.dart';
 
+import 'drag_helpers.dart';
 import 'test_level.dart';
 
 void main() {
@@ -18,10 +19,9 @@ void main() {
     await tester.pumpWidget(MaterialApp(home: GameScreen(levels: [testLevel()])));
     await tester.pumpAndSettle();
 
-    // "forward" is selected by default; place it in the first slot.
+    // Place "forward" in the first slot.
     final slotTarget = find.byType(DragTarget<ProgramInstruction>).first;
-    await tester.tap(slotTarget);
-    await tester.pump();
+    await placeInstruction(tester, ActionType.forward, slotTarget);
     expect(
       find.descendant(of: slotTarget, matching: find.byIcon(Icons.arrow_upward_rounded)),
       findsOneWidget,

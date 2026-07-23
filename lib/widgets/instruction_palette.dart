@@ -6,38 +6,47 @@ import '../theme/app_colors.dart';
 import 'action_glyph.dart';
 import 'tile_color_ui.dart';
 
-/// The bottom toolbox: pick an action (or the eraser), pick a color
-/// condition, then either tap a slot in a [FunctionPanel] to place it, or
-/// long-press an instruction here and drag it onto a slot directly.
+/// The bottom toolbox: movement, condition colors, paint colors, and
+/// F1..F5 subroutine calls, all on one line. Every action and color is a
+/// drag source — long-press one and drag it onto a slot in a
+/// [FunctionPanel] to place it (a color dot only accepts onto an
+/// already-filled slot, to set its condition). There's no tap-to-select
+/// step; dragging a placed instruction out to empty space removes it, so
+/// there's no separate eraser either.
 ///
-/// `null` for the selected action means "eraser" — tapping a slot clears it
-/// instead of placing an instruction.
+/// The line paginates with `<`/`>` buttons ([_PaginatedRow]) rather than
+/// scrolling — with the drag hold delay at 0ms, any sideways swipe to
+/// scroll the line is immediately read as the start of a drag instead, so
+/// free-scrolling doesn't work here.
 ///
 /// Frozen (dimmed and unresponsive) via [enabled] while the program is
 /// auto-running, since edits mid-run don't apply until you stop anyway.
 class InstructionPalette extends StatelessWidget {
   final List<ActionType> availableActions;
-  final ActionType? selectedAction;
-  final bool eraserSelected;
-  final TileColor selectedCondition;
   final bool enabled;
-  final ValueChanged<ActionType> onActionSelected;
-  final VoidCallback onEraserSelected;
-  final ValueChanged<TileColor> onConditionSelected;
 
   const InstructionPalette({
     super.key,
     required this.availableActions,
-    required this.selectedAction,
-    required this.eraserSelected,
-    required this.selectedCondition,
     this.enabled = true,
-    required this.onActionSelected,
-    required this.onEraserSelected,
-    required this.onConditionSelected,
   });
 
-  static const Duration _dragHoldDelay = Duration(milliseconds: 200);
+  static const Duration _dragHoldDelay = Duration.zero;
+
+  // [TileColor.any] is the "no condition" marker, not a real color to paint
+  // a condition with — dragging an instruction out and a fresh one back in
+  // is how a condition gets removed, so there's no "remove color" dot.
+  static const List<TileColor> _conditionColors = [
+    TileColor.red,
+    TileColor.green,
+    TileColor.blue,
+  ];
+
+  static const List<ActionType> _paintActions = [
+    ActionType.paintRed,
+    ActionType.paintGreen,
+    ActionType.paintBlue,
+  ];
 
   // The feedback icon is lifted above the finger so it isn't hidden by it.
   // dragStartPoint anchors the *rendered* feedback that far above/centered
@@ -45,8 +54,8 @@ class InstructionPalette extends StatelessWidget {
   // same amount, so whichever slot the icon visually sits over is the one
   // that actually receives it (Draggable hit-tests the raw pointer unless
   // feedbackOffset compensates for a transformed/anchored feedback).
-  static const double _actionSize = 52;
-  static const double _dotSize = 32;
+  static const double _actionSize = 48;
+  static const double _dotSize = 30;
   static const double _dragLift = 56;
   static const Offset _feedbackOffset = Offset(0, -_dragLift);
 
@@ -63,9 +72,12 @@ class InstructionPalette extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // forward, turnLeft, turnRight always come first (see _baseActions in
-    // game_screen.dart) — the condition dots slot in right after those.
+    // game_screen.dart) — the paint colors, when allowed, and F1..F5 calls
+    // follow, in that order.
     final movementActions = availableActions.take(3);
-    final remainingActions = availableActions.skip(3);
+    final paintActions =
+        availableActions.where((a) => _paintActions.contains(a));
+    final callActions = availableActions.where((a) => a.isCall);
 
     return IgnorePointer(
       ignoring: !enabled,
@@ -73,56 +85,29 @@ class InstructionPalette extends StatelessWidget {
         opacity: enabled ? 1 : 0.4,
         duration: const Duration(milliseconds: 180),
         child: Container(
-          padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
           decoration: BoxDecoration(
             color: AppColors.panel,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: AppColors.panelBorder),
           ),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final action in movementActions)
-                  _buildActionButton(action),
-                for (final color in TileColor.values)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: LongPressDraggable<TileColor>(
-                      data: color,
-                      delay: _dragHoldDelay,
-                      dragAnchorStrategy: _dotDragAnchor,
-                      feedbackOffset: _feedbackOffset,
-                      feedback: Material(
-                        type: MaterialType.transparency,
-                        child: _ColorDot(
-                            color: color, selected: true, onTap: () {}),
-                      ),
-                      childWhenDragging: Opacity(
-                        opacity: 0.3,
-                        child: _ColorDot(
-                            color: color, selected: false, onTap: () {}),
-                      ),
-                      child: _ColorDot(
-                        color: color,
-                        selected: selectedCondition == color,
-                        onTap: () => onConditionSelected(color),
-                      ),
-                    ),
-                  ),
+          child: _PaginatedRow(
+            children: [
+              for (final action in movementActions) _buildActionButton(action),
+              for (final color in _conditionColors) _buildColorDot(color),
+              if (paintActions.isNotEmpty) ...[
                 const SizedBox(width: 2),
-                Container(width: 1, height: 30, color: AppColors.panelBorder),
+                Container(width: 1, height: 24, color: AppColors.panelBorder),
                 const SizedBox(width: 10),
-                for (final action in remainingActions)
-                  _buildActionButton(action),
-                _ActionButton(
-                  selected: eraserSelected,
-                  onTap: onEraserSelected,
-                  child: const Icon(Icons.backspace_outlined,
-                      size: 23, color: Colors.white),
-                ),
+                for (final action in paintActions) _buildActionButton(action),
               ],
-            ),
+              if (callActions.isNotEmpty) ...[
+                const SizedBox(width: 2),
+                Container(width: 1, height: 24, color: AppColors.panelBorder),
+                const SizedBox(width: 10),
+                for (final action in callActions) _buildActionButton(action),
+              ],
+            ],
           ),
         ),
       ),
@@ -133,102 +118,192 @@ class InstructionPalette extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 8),
       child: LongPressDraggable<ProgramInstruction>(
-        data: ProgramInstruction(action, condition: selectedCondition),
+        data: ProgramInstruction(action),
         delay: _dragHoldDelay,
         dragAnchorStrategy: _actionDragAnchor,
         feedbackOffset: _feedbackOffset,
         feedback: Material(
           type: MaterialType.transparency,
           child: _ActionButton(
-            selected: true,
-            onTap: () {},
-            child: actionGlyph(action, size: 27, color: Colors.white),
+            child: actionGlyph(action, size: 20, color: Colors.white),
           ),
         ),
         childWhenDragging: Opacity(
           opacity: 0.3,
           child: _ActionButton(
-            selected: false,
-            onTap: () {},
-            child: actionGlyph(action, size: 27, color: Colors.white),
+            child: actionGlyph(action, size: 20, color: Colors.white),
           ),
         ),
         child: _ActionButton(
-          selected: !eraserSelected && selectedAction == action,
-          onTap: () => onActionSelected(action),
-          child: actionGlyph(action, size: 27, color: Colors.white),
+          child: actionGlyph(action, size: 20, color: Colors.white),
         ),
+      ),
+    );
+  }
+
+  Widget _buildColorDot(TileColor color) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: LongPressDraggable<TileColor>(
+        data: color,
+        delay: _dragHoldDelay,
+        dragAnchorStrategy: _dotDragAnchor,
+        feedbackOffset: _feedbackOffset,
+        feedback: Material(
+          type: MaterialType.transparency,
+          child: _ColorDot(color: color),
+        ),
+        childWhenDragging:
+            Opacity(opacity: 0.3, child: _ColorDot(color: color)),
+        child: _ColorDot(color: color),
       ),
     );
   }
 }
 
 class _ActionButton extends StatelessWidget {
-  final bool selected;
-  final VoidCallback onTap;
   final Widget child;
 
-  const _ActionButton(
-      {required this.selected, required this.onTap, required this.child});
+  const _ActionButton({required this.child});
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        width: 52,
-        height: 52,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected
-              ? AppColors.selectionFill
-              : Colors.white.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: selected
-                ? AppColors.selectionBorder
-                : Colors.white.withValues(alpha: 0.15),
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: child,
+    return Container(
+      width: InstructionPalette._actionSize,
+      height: InstructionPalette._actionSize,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(9),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
       ),
+      child: child,
     );
   }
 }
 
 class _ColorDot extends StatelessWidget {
   final TileColor color;
-  final bool selected;
-  final VoidCallback onTap;
 
-  const _ColorDot(
-      {required this.color, required this.selected, required this.onTap});
+  const _ColorDot({required this.color});
 
   @override
   Widget build(BuildContext context) {
-    final isAny = color == TileColor.any;
-    return InkWell(
-      onTap: onTap,
-      customBorder: const CircleBorder(),
-      child: Container(
-        width: 32,
-        height: 32,
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: isAny ? Colors.white.withValues(alpha: 0.08) : color.uiColor,
-          border: Border.all(
-            color:
-                selected ? Colors.white : Colors.white.withValues(alpha: 0.25),
-            width: selected ? 2.5 : 1.5,
+    return Container(
+      width: InstructionPalette._dotSize,
+      height: InstructionPalette._dotSize,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.uiColor,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
+      ),
+    );
+  }
+}
+
+/// One line of the palette: [children] laid out in a row that never
+/// responds to a drag/swipe itself (`NeverScrollableScrollPhysics` — a
+/// sideways swipe here would otherwise be indistinguishable from starting
+/// to drag one of the 0ms-delay draggables inside it), paginated instead by
+/// the `<`/`>` buttons, which animate exactly one viewport's worth at a
+/// time. Both buttons stay visible but go inert (and dim) at either end,
+/// same as ControlBar's step-back button.
+class _PaginatedRow extends StatefulWidget {
+  final List<Widget> children;
+
+  const _PaginatedRow({required this.children});
+
+  @override
+  State<_PaginatedRow> createState() => _PaginatedRowState();
+}
+
+class _PaginatedRowState extends State<_PaginatedRow> {
+  static const Duration _pageDuration = Duration(milliseconds: 220);
+
+  final ScrollController _controller = ScrollController();
+  bool _canPageBack = false;
+  bool _canPageForward = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.addListener(_updateArrows);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _updateArrows());
+  }
+
+  @override
+  void dispose() {
+    _controller.removeListener(_updateArrows);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _updateArrows() {
+    if (!_controller.hasClients) return;
+    final position = _controller.position;
+    final canBack = position.pixels > position.minScrollExtent + 0.5;
+    final canForward = position.pixels < position.maxScrollExtent - 0.5;
+    if (canBack != _canPageBack || canForward != _canPageForward) {
+      setState(() {
+        _canPageBack = canBack;
+        _canPageForward = canForward;
+      });
+    }
+  }
+
+  void _page(double direction) {
+    final position = _controller.position;
+    final target = (_controller.offset + direction * position.viewportDimension)
+        .clamp(position.minScrollExtent, position.maxScrollExtent);
+    _controller.animateTo(target, duration: _pageDuration, curve: Curves.easeOut);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _PageButton(
+          icon: Icons.keyboard_arrow_left_rounded,
+          onTap: _canPageBack ? () => _page(-1) : null,
+        ),
+        Flexible(
+          child: SingleChildScrollView(
+            controller: _controller,
+            scrollDirection: Axis.horizontal,
+            physics: const NeverScrollableScrollPhysics(),
+            child: Row(children: widget.children),
           ),
         ),
-        child: isAny
-            ? Icon(Icons.clear_rounded,
-                size: 16, color: Colors.white.withValues(alpha: 0.6))
-            : null,
+        _PageButton(
+          icon: Icons.keyboard_arrow_right_rounded,
+          onTap: _canPageForward ? () => _page(1) : null,
+        ),
+      ],
+    );
+  }
+}
+
+class _PageButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  const _PageButton({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 14),
+        child: Icon(
+          icon,
+          size: 22,
+          color: onTap == null
+              ? Colors.white.withValues(alpha: 0.2)
+              : Colors.white.withValues(alpha: 0.7),
+        ),
       ),
     );
   }

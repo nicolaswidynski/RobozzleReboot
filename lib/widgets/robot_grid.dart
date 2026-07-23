@@ -52,6 +52,11 @@ class RobotGrid extends StatelessWidget {
 
   Widget _buildCell(int row, int col, double size) {
     final tile = interpreter.grid[row][col];
+    // A fixed 6px radius reads fine on normal-sized cells, but on a puzzle
+    // with enough rows/columns that cellSize shrinks well below that, it
+    // rounds away most of the tile — scale it down with the cell instead,
+    // capped at the original 6px so typical-sized grids look unchanged.
+    final radius = (size * 0.18).clamp(1.5, 6.0);
     return Positioned(
       left: col * size,
       top: row * size,
@@ -63,7 +68,7 @@ class RobotGrid extends StatelessWidget {
               margin: const EdgeInsets.all(1.5),
               decoration: BoxDecoration(
                 color: tile.color.uiColor,
-                borderRadius: BorderRadius.circular(6),
+                borderRadius: BorderRadius.circular(radius),
                 border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
                 boxShadow: [
                   BoxShadow(

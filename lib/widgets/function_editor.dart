@@ -26,12 +26,11 @@ class SlotInstructionMove {
 
 /// One function's (F1..F5) instruction slots: an "F1"-style label to the
 /// left, and its slots laid out in fixed rows of [_slotsPerRow] — all slots
-/// always visible at once, no horizontal scrolling. Tapping a slot places
-/// whatever the palette currently has selected (handled by the parent via
-/// [onSlotTap]); a slot also accepts an instruction long-press-dragged in
-/// from the palette (handled via [onSlotDrop]), a color dragged in to set
-/// just its condition ([onConditionDrop]), or an instruction dragged in from
-/// another slot to move it there ([onSlotMove]).
+/// always visible at once, no horizontal scrolling. Every slot is a drop
+/// target only — an instruction long-press-dragged in from the palette
+/// ([onSlotDrop]), a color dragged in to set just its condition
+/// ([onConditionDrop]), or an instruction dragged in from another slot to
+/// move it there ([onSlotMove]). There's no tap-to-place.
 ///
 /// Whether this panel is visible at all is controlled by the parent (all
 /// functions show/hide together via a single swipe gesture, not per-panel).
@@ -42,7 +41,6 @@ class FunctionPanel extends StatelessWidget {
   final int functionIndex;
   final ProgramFunction function;
   final int? highlightSlot;
-  final void Function(int slotIndex) onSlotTap;
   final void Function(int slotIndex, ProgramInstruction instruction) onSlotDrop;
   final void Function(int slotIndex, TileColor color) onConditionDrop;
   final void Function(int slotIndex, SlotInstructionMove move) onSlotMove;
@@ -54,7 +52,6 @@ class FunctionPanel extends StatelessWidget {
     required this.functionIndex,
     required this.function,
     required this.highlightSlot,
-    required this.onSlotTap,
     required this.onSlotDrop,
     required this.onConditionDrop,
     required this.onSlotMove,
@@ -64,8 +61,8 @@ class FunctionPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(10),
+      margin: const EdgeInsets.only(bottom: 4),
+      padding: const EdgeInsets.fromLTRB(10, 10, 10, 10),
       decoration: BoxDecoration(
         color: AppColors.panel,
         borderRadius: BorderRadius.circular(14),
@@ -111,7 +108,6 @@ class FunctionPanel extends StatelessWidget {
                             slotIndex: i,
                             instruction: function.slots[i],
                             highlighted: highlightSlot == i,
-                            onTap: () => onSlotTap(i),
                             onDrop: (instr) => onSlotDrop(i, instr),
                             onConditionDrop: (color) =>
                                 onConditionDrop(i, color),
@@ -132,7 +128,7 @@ class FunctionPanel extends StatelessWidget {
 }
 
 class _SlotBox extends StatelessWidget {
-  static const Duration _dragHoldDelay = Duration(milliseconds: 200);
+  static const Duration _dragHoldDelay = Duration.zero;
   static const double _slotSize = 42;
   static const double _dragLift = 56;
   static const Offset _feedbackOffset = Offset(0, -_dragLift);
@@ -146,7 +142,6 @@ class _SlotBox extends StatelessWidget {
   final int slotIndex;
   final ProgramInstruction? instruction;
   final bool highlighted;
-  final VoidCallback onTap;
   final ValueChanged<ProgramInstruction> onDrop;
   final ValueChanged<TileColor> onConditionDrop;
   final ValueChanged<SlotInstructionMove> onMove;
@@ -157,7 +152,6 @@ class _SlotBox extends StatelessWidget {
     required this.slotIndex,
     required this.instruction,
     required this.highlighted,
-    required this.onTap,
     required this.onDrop,
     required this.onConditionDrop,
     required this.onMove,
@@ -220,19 +214,15 @@ class _SlotBox extends StatelessWidget {
                       : actionGlyph(instruction!.action, size: 20),
                 );
 
-                final content = InkWell(
-                  onTap: onTap,
-                  borderRadius: BorderRadius.circular(8),
-                  child: instruction == null
-                      ? DashedRoundedBorder(
-                          radius: 8,
-                          color: isHovering
-                              ? AppColors.selectionBorder
-                              : AppColors.dashedSlot,
-                          child: box,
-                        )
-                      : box,
-                );
+                final content = instruction == null
+                    ? DashedRoundedBorder(
+                        radius: 8,
+                        color: isHovering
+                            ? AppColors.selectionBorder
+                            : AppColors.dashedSlot,
+                        child: box,
+                      )
+                    : box;
 
                 if (instruction == null) {
                   return content;
