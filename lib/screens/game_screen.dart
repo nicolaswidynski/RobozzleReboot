@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../data/auth_manager.dart';
 import '../data/program_store.dart';
@@ -14,6 +15,7 @@ import '../models/level.dart';
 import '../models/program.dart';
 import '../models/tile_color.dart';
 import '../theme/app_colors.dart';
+import '../utils/shake_detector.dart';
 import '../widgets/control_bar.dart';
 import '../widgets/function_editor.dart';
 import '../widgets/instruction_palette.dart';
@@ -69,6 +71,14 @@ class _GameScreenState extends State<GameScreen> {
   final ProgressStore _progressStore = ProgressStore();
   final ProgramStore _programStore = ProgramStore();
 
+  // Shaking the device while a level is loaded prompts to clear the whole
+  // program — a fast way to start a puzzle over without hunting down every
+  // placed instruction individually. `_shakeConfirmOpen` guards against a
+  // second shake mid-gesture reopening the confirm dialog on top of itself.
+  late final ShakeDetector _shakeDetector =
+      ShakeDetector(onShake: _onShakeDetected);
+  bool _shakeConfirmOpen = false;
+
   static const Duration _baseStepInterval = Duration(milliseconds: 260);
   static const Duration _maxStepAnimationDuration = Duration(milliseconds: 180);
 
@@ -100,13 +110,63 @@ class _GameScreenState extends State<GameScreen> {
   void initState() {
     super.initState();
     _prepareAndLoadLevel(widget.initialLevelIndex);
+    _shakeDetector.start();
   }
 
   @override
   void dispose() {
     _autoRunTimer?.cancel();
     _clearOverlayTimer?.cancel();
+    _shakeDetector.stop();
     super.dispose();
+  }
+
+  // Ignored while a level is still loading, mid auto-run (same guard as
+  // every other edit), a confirm dialog is already up, or the program is
+  // already empty (nothing to clear).
+  void _onShakeDetected() {
+    if (_loadingLevel || _levelLoadError != null) return;
+    if (_autoRunTimer != null) return;
+    if (_shakeConfirmOpen) return;
+    if (!_program.functions.any((fn) => fn.slots.any((s) => s != null))) {
+      return;
+    }
+    _shakeConfirmOpen = true;
+    HapticFeedback.mediumImpact();
+    showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColors.panel,
+        title: const Text('Clear all instructions?',
+            style: TextStyle(color: Colors.white)),
+        content: Text(
+          'This removes every instruction from every function. It can\'t be undone.',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('Clear'),
+          ),
+        ],
+      ),
+    ).then((confirmed) {
+      _shakeConfirmOpen = false;
+      if (confirmed == true) _clearProgram();
+    });
+  }
+
+  void _clearProgram() {
+    setState(() {
+      _program.clearAll();
+      _interpreter = RobotInterpreter(level: _level, program: _program);
+      _resetClearOverlay();
+    });
+    _programStore.save(_level, _program);
   }
 
   /// Ensures `_levels[index]` has its playable content (fetching it from
