@@ -11,8 +11,10 @@ void main() {
       'shows the pseudonym next to the points badge, top right, when known',
       (tester) async {
     SharedPreferences.setMockInitialValues({
-      'robozzle_pseudonym_set': true,
-      'robozzle_pseudonym': 'RoboFan',
+      'auth_provider': 'apple',
+      'apple_user_id': 'apple-test-user',
+      'apple_pseudonym_set': true,
+      'apple_pseudonym': 'RoboFan',
     });
     installFakeSecureStorage();
 
