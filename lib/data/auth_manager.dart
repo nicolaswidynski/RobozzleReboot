@@ -1,9 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:uuid/uuid.dart';
 
+import 'auth_provider_type.dart';
+import 'google_auth_config.dart';
 import 'leaderboard.dart';
 import 'level_catalog.dart';
 import 'points.dart';
@@ -11,10 +15,17 @@ import 'progress_store.dart';
 import 'robozzle_api_client.dart';
 import 'secure_session_store.dart';
 
-/// Mirrors SecondStream's `AuthManager`: owns Apple identity + session state,
-/// drives the `manage-robozzle-user` webhook (creation / reconnection /
-/// deletion / pseudonym), and decides when a fresh Apple Sign In UI is
-/// needed versus a silent reconnect.
+/// Mirrors SecondStream's `AuthManager`: owns the signed-in identity +
+/// session state, drives the `manage-robozzle-user` webhook (creation /
+/// reconnection / deletion / pseudonym), and decides when a fresh sign-in
+/// UI is needed versus a silent reconnect.
+///
+/// Two identity providers are supported — Sign in with Apple (iOS/macOS
+/// only, no Android equivalent) and Google Sign-In (all platforms). Which
+/// one signed in is tracked as an [AuthProviderType] alongside that
+/// provider's own stable user id; both are sent to the backend on every
+/// request (see RobozzleApiClient) so it can look up the right account
+/// regardless of which provider the player used.
 enum ManageUserOutcome { existingUser, newUser, reconnected }
 
 /// `manage-robozzle-user` status codes: 200 = reconnection (pseudonym
@@ -42,8 +53,7 @@ class AuthError implements Exception {
 }
 
 class UserNotFoundError extends AuthError {
-  UserNotFoundError()
-      : super('No account found on the server for this Apple ID.');
+  UserNotFoundError() : super('No account found on the server for this identity.');
 }
 
 class PseudonymTakenError extends AuthError {
@@ -63,22 +73,25 @@ class AuthManager extends ChangeNotifier {
   final RobozzleApiClient _api = RobozzleApiClient.instance;
   static const Uuid _uuid = Uuid();
 
-  String? _appleUserId;
+  AuthProviderType? _authProvider;
+  String? _providerUserId;
   bool _isExplicitlyDisconnected = false;
   bool _pseudonymSet = false;
   String? _pseudonym;
   bool _identityLoaded = false;
+  bool _googleInitialized = false;
 
   /// The exact fields sent on the most recent creation/reconnection call
-  /// (apple_user_id, operation, and — when present — email/name info).
-  /// Kept so [setPseudonym] can resend the same information plus a
-  /// `pseudonym` field, rather than sending a bare minimal request.
+  /// (auth_provider, provider_user_id, operation, and — when present —
+  /// email/name info). Kept so [setPseudonym] can resend the same
+  /// information plus a `pseudonym` field, rather than sending a bare
+  /// minimal request.
   Map<String, dynamic>? _lastManageUserFields;
 
-  bool get isRegistered => _appleUserId != null;
+  bool get isRegistered => _providerUserId != null;
   bool get isConnected => isRegistered && !_isExplicitlyDisconnected;
   bool get needsPseudonym => isConnected && !_pseudonymSet;
-  String? get appleUserId => _appleUserId;
+  AuthProviderType? get authProvider => _authProvider;
 
   /// The player's chosen pseudonym, when we actually have it cached locally
   /// — e.g. for display on the landing screen. May be `null` even when
@@ -88,30 +101,43 @@ class AuthManager extends ChangeNotifier {
 
   Future<void> _loadIdentity() async {
     if (_identityLoaded) return;
-    _appleUserId = await _store.readAppleUserId();
-    _pseudonymSet = await _store.readPseudonymSet();
-    _pseudonym = await _store.readPseudonym();
+    final identity = await _store.readIdentity();
+    _authProvider = identity?.$1;
+    _providerUserId = identity?.$2;
+    final provider = _authProvider;
+    if (provider != null) {
+      _pseudonymSet = await _store.readPseudonymSet(provider);
+      _pseudonym = await _store.readPseudonym(provider);
+    } else {
+      _pseudonymSet = false;
+      _pseudonym = null;
+    }
     _identityLoaded = true;
   }
 
   /// Call before gating a feature behind auth. Mirrors
-  /// `LaunchLoadingViewController`: checks Apple's credential state for a
-  /// stored identity, clears it if revoked/not found, and silently
-  /// reconnects if there's no live session token yet.
+  /// `LaunchLoadingViewController`: for an Apple identity, checks Apple's
+  /// credential state and clears it if revoked/not found (there's no
+  /// equivalent lightweight check for Google — an invalid Google identity
+  /// is instead caught the same way any other stale identity is, via a
+  /// 401/403 from the backend); either way, silently reconnects if there's
+  /// no live session token yet.
   Future<void> restoreSession() async {
     await _loadIdentity();
-    if (_appleUserId == null) return;
+    if (_providerUserId == null) return;
 
-    try {
-      final state = await SignInWithApple.getCredentialState(_appleUserId!);
-      if (state == CredentialState.revoked ||
-          state == CredentialState.notFound) {
-        await clearStoredIdentity();
-        return;
+    if (_authProvider == AuthProviderType.apple) {
+      try {
+        final state = await SignInWithApple.getCredentialState(_providerUserId!);
+        if (state == CredentialState.revoked ||
+            state == CredentialState.notFound) {
+          await clearStoredIdentity();
+          return;
+        }
+      } catch (_) {
+        // Non-fatal — leave identity untouched and fall through, matching
+        // SecondStream's launch-time behavior when the check itself fails.
       }
-    } catch (_) {
-      // Non-fatal — leave identity untouched and fall through, matching
-      // SecondStream's launch-time behavior when the check itself fails.
     }
 
     if (isConnected) {
@@ -121,7 +147,7 @@ class AuthManager extends ChangeNotifier {
           await reconnect();
         } catch (_) {
           // Reconnect failed silently — the caller's flow will fall back to
-          // showing the Sign in with Apple screen.
+          // showing the sign-in screen.
         }
       }
     }
@@ -144,35 +170,107 @@ class AuthManager extends ChangeNotifier {
       throw AuthError('Apple did not return a user identifier.');
     }
 
-    final outcome = await _manageUser(
-      appleUserId: appleUserId,
+    return _completeSignIn(
+      provider: AuthProviderType.apple,
+      providerUserId: appleUserId,
       email: credential.email,
       firstName: credential.givenName,
       lastName: credential.familyName,
       isPrivateEmail: _isPrivateEmailClaim(credential.identityToken),
     );
+  }
 
-    _appleUserId = appleUserId;
+  /// Runs the Google Sign-In flow, then registers/reconnects with the
+  /// backend. Throws a [GoogleSignInException] (code `canceled`) if the
+  /// user dismisses the flow, or an [AuthError] on a backend failure.
+  ///
+  /// Configured for iOS/macOS via [GoogleAuthConfig]; Android still needs
+  /// its own OAuth client registered (see that file) before this works
+  /// there.
+  Future<ManageUserOutcome> signInWithGoogle() async {
+    if (!_googleInitialized) {
+      await GoogleSignIn.instance.initialize(
+        clientId: _isApplePlatform ? GoogleAuthConfig.iosClientId : null,
+        serverClientId: GoogleAuthConfig.serverClientId,
+      );
+      _googleInitialized = true;
+    }
+
+    final account = await GoogleSignIn.instance.authenticate();
+    final nameParts = (account.displayName ?? '')
+        .trim()
+        .split(RegExp(r'\s+'))
+        .where((part) => part.isNotEmpty)
+        .toList();
+
+    return _completeSignIn(
+      provider: AuthProviderType.google,
+      providerUserId: account.id,
+      email: account.email,
+      firstName: nameParts.isNotEmpty ? nameParts.first : null,
+      lastName: nameParts.length > 1 ? nameParts.sublist(1).join(' ') : null,
+    );
+  }
+
+  bool get _isApplePlatform =>
+      !kIsWeb && (Platform.isIOS || Platform.isMacOS);
+
+  /// Shared tail of both sign-in flows: registers/reconnects with the
+  /// backend under the given identity, then persists it locally.
+  Future<ManageUserOutcome> _completeSignIn({
+    required AuthProviderType provider,
+    required String providerUserId,
+    String? email,
+    String? firstName,
+    String? lastName,
+    bool? isPrivateEmail,
+  }) async {
+    await _loadIdentity();
+    // Switching providers (Apple -> Google or vice versa) must not carry
+    // the previous provider's session token into this request — that
+    // token identifies a *different* account server-side, and attaching
+    // it here (via RobozzleApiClient's authorization_uuid header) makes
+    // the server treat this sign-in as an update to that other account
+    // instead of a fresh identity, corrupting both. Starting the switch
+    // with no session token forces the server to key off auth_provider +
+    // provider_user_id alone, same as a first-ever sign-in would.
+    if (_authProvider != null && _authProvider != provider) {
+      await _store.clearSessionToken();
+    }
+
+    final outcome = await _manageUser(
+      provider: provider,
+      providerUserId: providerUserId,
+      email: email,
+      firstName: firstName,
+      lastName: lastName,
+      isPrivateEmail: isPrivateEmail,
+    );
+
+    _authProvider = provider;
+    _providerUserId = providerUserId;
     _isExplicitlyDisconnected = false;
     _identityLoaded = true;
-    await _store.saveAppleUserId(appleUserId);
-    await _applyPseudonymOutcome(outcome);
+    await _store.saveIdentity(provider, providerUserId);
+    await _applyPseudonymOutcome(provider, outcome);
     notifyListeners();
     return outcome;
   }
 
-  /// Silent reconnect using the stored Apple user id — no Apple UI shown.
+  /// Silent reconnect using the stored identity — no sign-in UI shown.
   /// Mirrors the Face ID fast path in SecondStream.
   Future<ManageUserOutcome> reconnect() async {
     await _loadIdentity();
-    final appleUserId = _appleUserId;
-    if (appleUserId == null) {
+    final provider = _authProvider;
+    final providerUserId = _providerUserId;
+    if (provider == null || providerUserId == null) {
       throw AuthError('No stored identity to reconnect with.');
     }
 
-    final outcome = await _manageUser(appleUserId: appleUserId);
+    final outcome =
+        await _manageUser(provider: provider, providerUserId: providerUserId);
     _isExplicitlyDisconnected = false;
-    await _applyPseudonymOutcome(outcome);
+    await _applyPseudonymOutcome(provider, outcome);
     notifyListeners();
     return outcome;
   }
@@ -182,12 +280,16 @@ class AuthManager extends ChangeNotifier {
   /// to be chosen. 200 (reconnection) and 201 (existing user) both mean one
   /// is already set server-side — without this, a fresh install signing
   /// back into an existing account would default to "no pseudonym" locally
-  /// and wrongly show the pseudonym screen again.
-  Future<void> _applyPseudonymOutcome(ManageUserOutcome outcome) async {
+  /// and wrongly show the pseudonym screen again. Keyed by [provider] —
+  /// passed explicitly rather than read from [_authProvider], since this
+  /// runs mid sign-in/reconnect for that specific provider's account, not
+  /// necessarily whichever one was last active.
+  Future<void> _applyPseudonymOutcome(
+      AuthProviderType provider, ManageUserOutcome outcome) async {
     _pseudonymSet = outcome != ManageUserOutcome.newUser;
-    await _store.savePseudonymSet(_pseudonymSet);
+    await _store.savePseudonymSet(provider, _pseudonymSet);
     if (_pseudonymSet && _pseudonym == null) {
-      await _backfillPseudonymFromLeaderboard();
+      await _backfillPseudonymFromLeaderboard(provider);
     }
   }
 
@@ -196,7 +298,8 @@ class AuthManager extends ChangeNotifier {
   /// [_pseudonymSet] true with [_pseudonym] still null. The leaderboard
   /// response includes every player's own pseudonym, so it doubles as a way
   /// to backfill this device's local cache without a dedicated endpoint.
-  Future<void> _backfillPseudonymFromLeaderboard() async {
+  Future<void> _backfillPseudonymFromLeaderboard(
+      AuthProviderType provider) async {
     try {
       final result = await fetchLeaderboard();
       String? ownPseudonym;
@@ -208,14 +311,15 @@ class AuthManager extends ChangeNotifier {
       }
       if (ownPseudonym == null || ownPseudonym.isEmpty) return;
       _pseudonym = ownPseudonym;
-      await _store.savePseudonym(ownPseudonym);
+      await _store.savePseudonym(provider, ownPseudonym);
     } catch (_) {
       // Best-effort — leave it for the next reconnect or Leaderboard visit.
     }
   }
 
   Future<ManageUserOutcome> _manageUser({
-    required String appleUserId,
+    required AuthProviderType provider,
+    required String providerUserId,
     String? email,
     String? firstName,
     String? lastName,
@@ -223,16 +327,17 @@ class AuthManager extends ChangeNotifier {
   }) async {
     final sessionToken = await _store.readSessionToken();
     final hasEmail = email != null && email.isNotEmpty;
-    // Send "creation" if Apple provided an email (first authorization) or we
-    // have no stored session token (e.g. app was reinstalled and the server
-    // doesn't know us yet); "reconnection" only once we're sure the server
-    // already has the account.
+    // Send "creation" if the provider gave us an email (first authorization)
+    // or we have no stored session token (e.g. app was reinstalled and the
+    // server doesn't know us yet); "reconnection" only once we're sure the
+    // server already has the account.
     final operation =
         (hasEmail || sessionToken == null) ? 'creation' : 'reconnection';
     final requestId = _uuid.v4();
 
     final fields = <String, dynamic>{
-      'apple_user_id': appleUserId,
+      'auth_provider': provider.wireValue,
+      'provider_user_id': providerUserId,
       'operation': operation,
     };
     if (hasEmail) {
@@ -247,32 +352,37 @@ class AuthManager extends ChangeNotifier {
       ...fields,
       'request_id': requestId,
     });
-    await _capturePseudonymIfPresent(json);
+    await _capturePseudonymIfPresent(provider, json);
     return _outcomeFor(statusCode, json);
   }
 
-  /// Best-effort: if the server happens to echo the pseudonym back on a
-  /// creation/reconnection response, cache it locally so it can be
-  /// displayed — otherwise we'd only learn it the moment this exact device
-  /// sets one via [setPseudonym].
-  Future<void> _capturePseudonymIfPresent(Map<String, dynamic>? json) async {
-    final serverPseudonym = json?['pseudonym'] as String?;
+  /// Best-effort: on a 200/201 (reconnection/existing user) response, the
+  /// server echoes the account's pseudonym back as `pseudo` — cache it
+  /// locally under [provider] so it can be displayed, otherwise we'd only
+  /// learn it the moment this exact device sets one via [setPseudonym].
+  Future<void> _capturePseudonymIfPresent(
+      AuthProviderType provider, Map<String, dynamic>? json) async {
+    final serverPseudonym = json?['pseudo'] as String?;
     if (serverPseudonym == null || serverPseudonym.isEmpty) return;
     _pseudonym = serverPseudonym;
-    await _store.savePseudonym(serverPseudonym);
+    await _store.savePseudonym(provider, serverPseudonym);
   }
 
   /// Resends the same information from the most recent creation/reconnection
-  /// call (apple_user_id, operation, email/name if present), plus the chosen
+  /// call (identity, operation, email/name if present), plus the chosen
   /// [pseudonym] and the player's current score, to `manage-robozzle-user`.
   Future<void> setPseudonym(String pseudonym) async {
     await _loadIdentity();
-    final appleUserId = _appleUserId;
-    if (appleUserId == null) throw AuthError('Not signed in.');
+    final provider = _authProvider;
+    final providerUserId = _providerUserId;
+    if (provider == null || providerUserId == null) {
+      throw AuthError('Not signed in.');
+    }
 
     final baseFields = _lastManageUserFields ??
         <String, dynamic>{
-          'apple_user_id': appleUserId,
+          'auth_provider': provider.wireValue,
+          'provider_user_id': providerUserId,
           'operation': 'reconnection',
         };
 
@@ -290,8 +400,8 @@ class AuthManager extends ChangeNotifier {
 
     _pseudonymSet = true;
     _pseudonym = pseudonym;
-    await _store.savePseudonymSet(true);
-    await _store.savePseudonym(pseudonym);
+    await _store.savePseudonymSet(provider, true);
+    await _store.savePseudonym(provider, pseudonym);
     _lastManageUserFields = null;
     notifyListeners();
   }
@@ -304,11 +414,13 @@ class AuthManager extends ChangeNotifier {
 
   Future<void> deleteAccount() async {
     await _loadIdentity();
-    final appleUserId = _appleUserId;
-    if (appleUserId == null) return;
+    final provider = _authProvider;
+    final providerUserId = _providerUserId;
+    if (provider == null || providerUserId == null) return;
 
     final body = <String, dynamic>{
-      'apple_user_id': appleUserId,
+      'auth_provider': provider.wireValue,
+      'provider_user_id': providerUserId,
       'operation': 'deletion',
       'request_id': _uuid.v4(),
     };
@@ -321,14 +433,15 @@ class AuthManager extends ChangeNotifier {
 
   /// Non-destructive local sign-out: identity and session token stay in
   /// storage so a later [reconnect] can restore access without a fresh
-  /// Apple Sign In prompt.
+  /// sign-in prompt.
   void disconnect() {
     _isExplicitlyDisconnected = true;
     notifyListeners();
   }
 
   Future<void> clearStoredIdentity() async {
-    _appleUserId = null;
+    _authProvider = null;
+    _providerUserId = null;
     _isExplicitlyDisconnected = false;
     _pseudonymSet = false;
     _pseudonym = null;
@@ -348,7 +461,7 @@ class AuthManager extends ChangeNotifier {
     if (statusCode == 553) throw UserNotFoundError();
     if (statusCode == 560) throw PseudonymTakenError();
     // Session token is no longer valid — clear local auth state so the UI
-    // re-routes through Sign in with Apple.
+    // re-routes through the sign-in screen.
     if (statusCode == 401 || statusCode == 403) {
       notifyListeners();
     }

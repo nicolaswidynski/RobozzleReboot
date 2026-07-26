@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../data/auth_manager.dart';
 import '../data/program_store.dart';
 import '../data/progress_store.dart';
 import '../data/puzzle_content.dart';
@@ -394,9 +393,6 @@ class _GameScreenState extends State<GameScreen> {
       // guarantees the exact winning program is what's persisted.
       _programStore.save(_level, _program);
       if (!_showClearOverlay && _clearOverlayTimer == null) {
-        // Get isConnected as accurate as possible before the overlay (which
-        // decides whether to show the rate/like prompt off of it) appears.
-        _refreshAuthStatus();
         _clearOverlayTimer = Timer(_clearOverlayDelay, () {
           _clearOverlayTimer = null;
           if (!mounted) return;
@@ -404,11 +400,6 @@ class _GameScreenState extends State<GameScreen> {
         });
       }
     }
-  }
-
-  Future<void> _refreshAuthStatus() async {
-    await AuthManager.instance.restoreSession();
-    if (mounted) setState(() {}); // re-evaluate isConnected in build
   }
 
   void _stepBack() {
@@ -487,9 +478,11 @@ class _GameScreenState extends State<GameScreen> {
   // never again once a puzzle has been rated. Fires without waiting for the
   // network so it never delays advancing to the next puzzle; a failure just
   // means this puzzle isn't marked rated, so it's offered again next time.
+  // Doesn't require being signed in — RobozzleApiClient.ratePuzzle sends
+  // the signed-in identity when there is one, and rates anonymously
+  // otherwise.
   void _submitRatingIfNeeded() {
     if (!_showClearOverlay || _ratingHandled) return;
-    if (!AuthManager.instance.isConnected) return;
     _ratingHandled = true;
     final level = _level;
     final puzzleId = level.id.replaceFirst('catalog-', '');
@@ -669,7 +662,7 @@ class _GameScreenState extends State<GameScreen> {
               child: _ClearOverlay(
                 onNext: _goToNextLevel,
                 onBackToList: _backToList,
-                showRating: !_ratingHandled && AuthManager.instance.isConnected,
+                showRating: !_ratingHandled,
                 selectedRating: _selectedRating,
                 onRateSelected: (rating) =>
                     setState(() => _selectedRating = rating),
@@ -784,9 +777,10 @@ class _FunctionsHandle extends StatelessWidget {
 /// whatever order HomeScreen passed them in — i.e. the sort/filter that was
 /// active there when the player tapped in.
 ///
-/// When [showRating] is true (signed in, and this puzzle hasn't been rated
-/// before), also offers a one-time difficulty rating + like prompt — picked
-/// here, but only actually submitted when the player taps Next.
+/// When [showRating] is true (this puzzle hasn't been rated before — no
+/// sign-in required), also offers a one-time difficulty rating + like
+/// prompt — picked here, but only actually submitted when the player taps
+/// Next.
 ///
 /// [onNext] is null once there's no next puzzle left in the list HomeScreen
 /// handed us — the button stays enabled either way, falling back to

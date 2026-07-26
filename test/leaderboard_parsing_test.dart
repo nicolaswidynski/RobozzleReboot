@@ -34,6 +34,31 @@ void main() {
     expect(result.entries.last.score, 0);
   });
 
+  test('entries tied on score share the same rank, even when the server '
+      'gave them sequential ranks instead', () {
+    final json = {
+      "user_rank": "1",
+      "leaderboard": [
+        {
+          "json": {
+            "sorted": [
+              {"Score": 100, "Pseudo": "alice", "rank": 1},
+              {"Score": 100, "Pseudo": "bob", "rank": 2},
+              {"Score": 100, "Pseudo": "carol", "rank": 3},
+              {"Score": 40, "Pseudo": "dave", "rank": 4},
+              {"Score": 40, "Pseudo": "erin", "rank": 5},
+              {"Score": 10, "Pseudo": "frank", "rank": 6},
+            ],
+          },
+        },
+      ],
+    };
+
+    final result = parseLeaderboardResult(json);
+
+    expect(result.entries.map((e) => e.rank), [1, 1, 1, 4, 4, 6]);
+  });
+
   test('returns an empty entry list when the leaderboard field is missing '
       'or malformed', () {
     expect(parseLeaderboardResult({'user_rank': '1'}).entries, isEmpty);
