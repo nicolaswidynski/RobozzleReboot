@@ -1,4 +1,9 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- The debug-flavor manifest also declares this (for the Flutter tool's
+         own dev-time use — hot reload, breakpoints), but the app needs real
+         network access in every build type: the n8n backend and Google
+         Sign-In both require it. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="Robozzle Reboot"
         android:name="${applicationName}"
