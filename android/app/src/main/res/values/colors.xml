@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Matches the app icon's own background (see the 1024 source in
+         ios/Runner/Assets.xcassets/AppIcon.appiconset/) so the adaptive
+         icon's background layer reads as one flat color, same as iOS. -->
+    <color name="ic_launcher_background">#ECECEC</color>
+</resources>

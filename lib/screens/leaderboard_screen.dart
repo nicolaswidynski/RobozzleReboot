@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../data/auth_manager.dart';
 import '../data/leaderboard.dart';
 import '../theme/app_colors.dart';
 
@@ -70,12 +71,28 @@ class _LeaderboardList extends StatelessWidget {
 
   const _LeaderboardList({required this.result, required this.rowHeight});
 
+  /// Finds which entry is the signed-in player's own row. Pseudonyms are
+  /// unique per account, so matching on it (when it's cached locally) is
+  /// reliable even when scores tie — matching on rank alone isn't, once
+  /// tied entries deliberately share a rank number (see
+  /// RobozzleApiClient/leaderboard.dart), since that just picks whichever
+  /// tied entry happens to come first. Falls back to rank matching only
+  /// when the pseudonym hasn't been cached locally yet.
+  int _findUserIndex(LeaderboardResult result) {
+    final myPseudonym = AuthManager.instance.pseudonym;
+    if (myPseudonym != null) {
+      final index =
+          result.entries.indexWhere((e) => e.pseudonym == myPseudonym);
+      if (index != -1) return index;
+    }
+    return result.entries.indexWhere((e) => e.rank == result.userRank);
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final userIndex =
-            result.entries.indexWhere((e) => e.rank == result.userRank);
+        final userIndex = _findUserIndex(result);
         final userEntry = userIndex == -1 ? null : result.entries[userIndex];
         final contentHeight = result.entries.length * rowHeight;
         final userRowOffset = userIndex * rowHeight;
@@ -98,7 +115,7 @@ class _LeaderboardList extends StatelessWidget {
                   final entry = result.entries[index];
                   return _LeaderboardRow(
                     entry: entry,
-                    isCurrentUser: entry.rank == result.userRank,
+                    isCurrentUser: index == userIndex,
                   );
                 },
               ),
