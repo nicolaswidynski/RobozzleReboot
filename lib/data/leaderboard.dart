@@ -70,13 +70,26 @@ List<LeaderboardEntry> _parseEntries(dynamic leaderboardRaw) {
   if (sorted is! List) return const [];
 
   final entries = <LeaderboardEntry>[];
+  // The server assigns each entry its own sequential rank rather than
+  // giving tied scores the same one — when an entry's score matches the
+  // one right before it (the list is already sorted descending by score),
+  // reuse that entry's rank instead of trusting the server's for this one,
+  // so a tie always displays the same rank.
+  int? previousScore;
+  int? previousRank;
   for (final e in sorted) {
     if (e is! Map) continue;
+    final score = int.tryParse('${e['Score']}') ?? 0;
+    final rank = (previousScore != null && score == previousScore)
+        ? previousRank!
+        : (int.tryParse('${e['rank']}') ?? 0);
     entries.add(LeaderboardEntry(
-      rank: int.tryParse('${e['rank']}') ?? 0,
+      rank: rank,
       pseudonym: '${e['Pseudo'] ?? ''}',
-      score: int.tryParse('${e['Score']}') ?? 0,
+      score: score,
     ));
+    previousScore = score;
+    previousRank = rank;
   }
   return entries;
 }

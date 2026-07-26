@@ -34,7 +34,7 @@ class MissingSessionTokenError implements Exception {
 
 class MissingIdentityError implements Exception {
   @override
-  String toString() => 'Not signed in: no Apple user id stored.';
+  String toString() => 'Not signed in: no account identity stored.';
 }
 
 class RobozzleApiClient {
@@ -112,20 +112,19 @@ class RobozzleApiClient {
   }
 
   /// POSTs the player's [score] to `robozzle-leaderboard`, identifying the
-  /// player via `apple_user_id` (so the server can verify the account) and a
-  /// freshly generated `request_id` (echoed back so responses can be matched
-  /// to requests), same as every `manageUser` call. The session token is
-  /// still attached as `authorization_uuid`. Returns the decoded JSON
-  /// response (rank + full sorted leaderboard) together with the HTTP
-  /// status code.
+  /// player via `auth_provider` + `provider_user_id` (so the server can
+  /// verify the account) and a freshly generated `request_id` (echoed back
+  /// so responses can be matched to requests), same as every `manageUser`
+  /// call. The session token is still attached as `authorization_uuid`.
+  /// Returns the decoded JSON response (rank + full sorted leaderboard)
+  /// together with the HTTP status code.
   Future<(Map<String, dynamic>? json, int statusCode)> postScore(
     int score,
   ) async {
     final sessionToken = await _sessionStore.readSessionToken();
     if (sessionToken == null) throw MissingSessionTokenError();
 
-    final appleUserId = await _sessionStore.readAppleUserId();
-    if (appleUserId == null) throw MissingIdentityError();
+    final identityFields = await _identityFields();
 
     final response = await http.post(
       Uri.parse(_leaderboardUrl),
@@ -134,7 +133,7 @@ class RobozzleApiClient {
         'authorization_uuid': 'Bearer $sessionToken',
       },
       body: jsonEncode({
-        'apple_user_id': appleUserId,
+        ...identityFields,
         'request_id': _uuid.v4(),
         'score': score,
       }),
@@ -149,29 +148,25 @@ class RobozzleApiClient {
     return (json, response.statusCode);
   }
 
-  /// POSTs `{apple_user_id, request_id}` to `robozzle-list-puzzles`.
-  /// Returns the current server-side puzzle listing
-  /// (title/author/difficulty/popularity per puzzle) together with the HTTP
-  /// status code. Throws if the player isn't signed in; callers should only
-  /// invoke this when there's a stored identity, since anonymous browsing
-  /// should just keep using the last cached/bundled listing instead of
-  /// calling this at all.
+  /// POSTs `{request_id}` to `robozzle-list-puzzles` — no identity, signed
+  /// in or not; the server doesn't need one to list puzzles. Returns the
+  /// current server-side puzzle listing (title/author/difficulty/popularity
+  /// per puzzle) together with the HTTP status code. The session token is
+  /// still attached as `authorization_uuid` when there is one, but it's
+  /// never required.
   Future<(Map<String, dynamic>? json, int statusCode)>
       fetchPuzzleListing() async {
     final sessionToken = await _sessionStore.readSessionToken();
-    if (sessionToken == null) throw MissingSessionTokenError();
 
-    final appleUserId = await _sessionStore.readAppleUserId();
-    if (appleUserId == null) throw MissingIdentityError();
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    if (sessionToken != null) {
+      headers['authorization_uuid'] = 'Bearer $sessionToken';
+    }
 
     final response = await http.post(
       Uri.parse(_listPuzzlesUrl),
-      headers: {
-        'Content-Type': 'application/json',
-        'authorization_uuid': 'Bearer $sessionToken',
-      },
+      headers: headers,
       body: jsonEncode({
-        'apple_user_id': appleUserId,
         'request_id': _uuid.v4(),
       }),
     );
@@ -185,27 +180,25 @@ class RobozzleApiClient {
     return (json, response.statusCode);
   }
 
-  /// POSTs `{apple_user_id, puzzle_id, request_id}` to `robozzle-get-puzzle`
-  /// — used when a puzzle's playable content isn't already known locally
-  /// (see `ensurePuzzleContent` in puzzle_content.dart). Returns the raw
-  /// response (start state + grid rows) together with the HTTP status code.
+  /// POSTs `{puzzle_id, request_id}` to `robozzle-get-puzzle` — no identity
+  /// either, same as [fetchPuzzleListing] — used when a puzzle's playable
+  /// content isn't already known locally (see `ensurePuzzleContent` in
+  /// puzzle_content.dart). Returns the raw response (start state + grid
+  /// rows) together with the HTTP status code.
   Future<(Map<String, dynamic>? json, int statusCode)> fetchPuzzle(
     String puzzleId,
   ) async {
     final sessionToken = await _sessionStore.readSessionToken();
-    if (sessionToken == null) throw MissingSessionTokenError();
 
-    final appleUserId = await _sessionStore.readAppleUserId();
-    if (appleUserId == null) throw MissingIdentityError();
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    if (sessionToken != null) {
+      headers['authorization_uuid'] = 'Bearer $sessionToken';
+    }
 
     final response = await http.post(
       Uri.parse(_getPuzzleUrl),
-      headers: {
-        'Content-Type': 'application/json',
-        'authorization_uuid': 'Bearer $sessionToken',
-      },
+      headers: headers,
       body: jsonEncode({
-        'apple_user_id': appleUserId,
         'puzzle_id': puzzleId,
         'request_id': _uuid.v4(),
       }),
@@ -220,30 +213,27 @@ class RobozzleApiClient {
     return (json, response.statusCode);
   }
 
-  /// POSTs `{apple_user_id, puzzle_id, rate, like, request_id}` to
-  /// `robozzle-rate-puzzle`. [rate] is `""` or `"1"`-`"5"`; [like] is `""`
-  /// or `"yes"` (there's deliberately no "no" — see `_submitRatingIfNeeded`
-  /// in game_screen.dart). Returns the raw response together with the HTTP
-  /// status code.
+  /// POSTs `{puzzle_id, rate, like, request_id}` to `robozzle-rate-puzzle`
+  /// — no identity, same as [fetchPuzzleListing]/[fetchPuzzle]. [rate] is
+  /// `""` or `"1"`-`"5"`; [like] is `""` or `"yes"` (there's deliberately
+  /// no "no" — see `_submitRatingIfNeeded` in game_screen.dart). Returns
+  /// the raw response together with the HTTP status code.
   Future<(Map<String, dynamic>? json, int statusCode)> ratePuzzle({
     required String puzzleId,
     required String rate,
     required String like,
   }) async {
     final sessionToken = await _sessionStore.readSessionToken();
-    if (sessionToken == null) throw MissingSessionTokenError();
 
-    final appleUserId = await _sessionStore.readAppleUserId();
-    if (appleUserId == null) throw MissingIdentityError();
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    if (sessionToken != null) {
+      headers['authorization_uuid'] = 'Bearer $sessionToken';
+    }
 
     final response = await http.post(
       Uri.parse(_ratePuzzleUrl),
-      headers: {
-        'Content-Type': 'application/json',
-        'authorization_uuid': 'Bearer $sessionToken',
-      },
+      headers: headers,
       body: jsonEncode({
-        'apple_user_id': appleUserId,
         'puzzle_id': puzzleId,
         'rate': rate,
         'like': like,
@@ -260,13 +250,14 @@ class RobozzleApiClient {
     return (json, response.statusCode);
   }
 
-  /// POSTs `{apple_user_id, request_id}` plus the puzzle's [title],
-  /// structural data, and the author's suggested [difficulty] (1-5), to
-  /// `robozzle-save-puzzle`, to publish an editor-made puzzle to the
-  /// server. No `puzzle_id` — this is a brand-new puzzle that doesn't have
-  /// a server-assigned id yet; the server creates one. Field typing
-  /// deliberately mirrors what `robozzle-get-puzzle` sends back on a fetch
-  /// — `startRow`/`startCol`/`allowedCommands`/`difficulty` as strings,
+  /// POSTs `{auth_provider, provider_user_id, request_id}` plus the
+  /// puzzle's [title], structural data, and the author's suggested
+  /// [difficulty] (1-5), to `robozzle-save-puzzle`, to publish an
+  /// editor-made puzzle to the server. No `puzzle_id` — this is a
+  /// brand-new puzzle that doesn't have a server-assigned id yet; the
+  /// server creates one. Field typing deliberately mirrors what
+  /// `robozzle-get-puzzle` sends back on a fetch —
+  /// `startRow`/`startCol`/`allowedCommands`/`difficulty` as strings,
   /// `slotsPerFunction` as a JSON-encoded string, `rows` as a real string
   /// array — rather than the natural Dart types. Returns the raw response
   /// together with the HTTP status code; the caller only needs to check
@@ -284,8 +275,7 @@ class RobozzleApiClient {
     final sessionToken = await _sessionStore.readSessionToken();
     if (sessionToken == null) throw MissingSessionTokenError();
 
-    final appleUserId = await _sessionStore.readAppleUserId();
-    if (appleUserId == null) throw MissingIdentityError();
+    final identityFields = await _identityFields();
 
     final response = await http.post(
       Uri.parse(_savePuzzleUrl),
@@ -294,7 +284,7 @@ class RobozzleApiClient {
         'authorization_uuid': 'Bearer $sessionToken',
       },
       body: jsonEncode({
-        'apple_user_id': appleUserId,
+        ...identityFields,
         'request_id': _uuid.v4(),
         'title': title,
         'startRow': '$startRow',
@@ -314,6 +304,22 @@ class RobozzleApiClient {
     }
 
     return (json, response.statusCode);
+  }
+
+  /// The signed-in identity as the two wire fields the endpoints that need
+  /// one send (`auth_provider` + `provider_user_id`), replacing the old
+  /// Apple-only `apple_user_id` field. Throws [MissingIdentityError] if
+  /// there's no stored identity — only [postScore] and [publishPuzzle]
+  /// call this; every other endpoint here works whether signed in or not
+  /// and never sends identity at all.
+  Future<Map<String, dynamic>> _identityFields() async {
+    final identity = await _sessionStore.readIdentity();
+    if (identity == null) throw MissingIdentityError();
+    final (provider, providerUserId) = identity;
+    return {
+      'auth_provider': provider.wireValue,
+      'provider_user_id': providerUserId,
+    };
   }
 
   Map<String, dynamic>? _firstJson(List<int> bodyBytes) {

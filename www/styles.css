@@ -299,6 +299,77 @@ a {
   color: var(--star);
 }
 
+/* Forms */
+
+.form-group {
+  margin-bottom: 16px;
+  text-align: left;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.form-group input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--text);
+  font-size: 15px;
+  font-family: inherit;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.danger-btn {
+  width: 100%;
+  padding: 14px 28px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 16px;
+  border: none;
+  background: #d9534f;
+  color: #fff;
+  cursor: pointer;
+}
+
+.danger-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.form-status {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 10px;
+  font-size: 14px;
+  display: none;
+}
+
+.form-status.show {
+  display: block;
+}
+
+.form-status.success {
+  background: rgba(76, 175, 80, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.4);
+  color: #8fdb92;
+}
+
+.form-status.error {
+  background: rgba(217, 83, 79, 0.15);
+  border: 1px solid rgba(217, 83, 79, 0.4);
+  color: #f29490;
+}
+
 @media (max-width: 640px) {
   .hero h1 {
     font-size: 32px;

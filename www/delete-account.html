@@ -1,0 +1,129 @@
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Delete Your Account — Robozzle Reboot</title>
+<link rel="icon" href="images/icon.png" />
+<link rel="stylesheet" href="styles.css" />
+
+<header class="site-header">
+  <div class="container">
+    <a class="back-link" href="index.html">← Robozzle Reboot</a>
+  </div>
+</header>
+
+<section class="legal">
+  <div class="container">
+    <h1>Delete Your Account</h1>
+    <p class="updated">No app install required — this works from any browser.</p>
+
+    <p>
+      Enter the pseudonym and email associated with your Robozzle Reboot
+      account. If they match an existing account, it will be
+      <strong>permanently deleted</strong> — including your pseudonym and
+      leaderboard entry. This can't be undone. Puzzles you've already
+      published stay part of the community catalog; deleting your account
+      doesn't pull them down.
+    </p>
+    <p>
+      Signed in with Google or Apple but never set an email, or not sure
+      which email is on file? Contact
+      <a href="mailto:robozzle@nwidynski.com">robozzle@nwidynski.com</a>
+      instead and we'll take care of it.
+    </p>
+
+    <form id="delete-form" style="max-width: 420px; margin-top: 32px">
+      <div class="form-group">
+        <label for="pseudonym">Pseudonym</label>
+        <input type="text" id="pseudonym" name="pseudonym" autocomplete="username" required />
+      </div>
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" autocomplete="email" required />
+      </div>
+      <button type="submit" class="danger-btn" id="submit-btn">Delete My Account</button>
+      <div class="form-status" id="form-status" role="status"></div>
+    </form>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="links">
+      <a href="index.html">Home</a>
+      <a href="mailto:robozzle@nwidynski.com">Contact</a>
+      <a href="privacy.html">Privacy Policy</a>
+      <a href="terms.html">Terms of Service</a>
+    </div>
+    <p class="copyright">© 2026 Nicolas Widynski.</p>
+  </div>
+</footer>
+
+<script>
+  const form = document.getElementById('delete-form');
+  const statusEl = document.getElementById('form-status');
+  const submitBtn = document.getElementById('submit-btn');
+  const deleteUrl = 'https://n8n.nwidynski.com/webhook/manage-robozzle-user';
+
+  function showStatus(kind, message) {
+    statusEl.className = 'form-status show ' + kind;
+    statusEl.textContent = message;
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const pseudonym = document.getElementById('pseudonym').value.trim();
+    const email = document.getElementById('email').value.trim();
+    if (!pseudonym || !email) return;
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Deleting…';
+    statusEl.className = 'form-status';
+
+    try {
+      const response = await fetch(deleteUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          pseudonym,
+          operation: 'deletion-web',
+          request_id: crypto.randomUUID(),
+        }),
+      });
+
+      let data = null;
+      try {
+        data = await response.json();
+      } catch (_) {
+        // No JSON body — fine, fall back to the generic messages below.
+      }
+
+      if (response.status === 205) {
+        showStatus('success', 'Your account has been deleted.');
+        form.reset();
+      } else if (response.status === 553) {
+        showStatus(
+          'error',
+          (data && data.message) ||
+            "We couldn't find an account matching that email and pseudonym. Double-check both and try again."
+        );
+      } else {
+        showStatus(
+          'error',
+          (data && data.message) ||
+            'Something went wrong (status ' +
+              response.status +
+              '). Please try again, or contact robozzle@nwidynski.com.'
+        );
+      }
+    } catch (err) {
+      showStatus(
+        'error',
+        'Could not reach the server. Check your connection and try again.'
+      );
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Delete My Account';
+    }
+  });
+</script>

@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 
-import 'auth_manager.dart';
 import 'catalog_metadata_store.dart';
 import 'robozzle_api_client.dart';
 
@@ -9,8 +8,9 @@ import 'robozzle_api_client.dart';
 /// [loadCatalogLevels] can merge it in.
 ///
 /// Browsing stays fully open and offline-capable: refreshing is silently
-/// skipped (never blocks, never errors the UI) when the player isn't signed
-/// in or there's no network — the bundled/cached listing is always shown.
+/// skipped (never blocks, never errors the UI) when there's no network —
+/// the bundled/cached listing is always shown. Signed in or not, the same
+/// `robozzle-list-puzzles` request goes out; no identity is sent either way.
 ///
 /// A [ChangeNotifier] so anything showing a score derived from the catalog
 /// (e.g. the landing screen's points badge) can recompute it whenever
@@ -38,10 +38,6 @@ class CatalogRefresher extends ChangeNotifier {
   /// so callers know whether to reload the levels they're showing.
   Future<bool> _maybeRefresh({required Duration minInterval}) async {
     if (_refreshing) return false;
-
-    final authManager = AuthManager.instance;
-    await authManager.restoreSession();
-    if (!authManager.isConnected) return false;
 
     if (minInterval > Duration.zero) {
       final lastRefreshed = await _store.loadLastRefreshedAt();
