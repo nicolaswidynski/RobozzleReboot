@@ -412,6 +412,11 @@ class AuthManager extends ChangeNotifier {
     return totalPoints(completedIds, levels);
   }
 
+  /// Permanently deletes the signed-in account server-side (the `deletion`
+  /// operation returns 205 on success — already covered by the general
+  /// 2xx check below, no special-casing needed), then wipes everything
+  /// stored locally for it. Irreversible; callers should confirm with the
+  /// player before calling this.
   Future<void> deleteAccount() async {
     await _loadIdentity();
     final provider = _authProvider;
