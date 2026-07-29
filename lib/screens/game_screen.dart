@@ -70,6 +70,13 @@ class _GameScreenState extends State<GameScreen> {
   final ProgressStore _progressStore = ProgressStore();
   final ProgramStore _programStore = ProgramStore();
 
+  // Loaded once on open (from a previous session, or synced in via the
+  // account-wide completed-puzzles list) and kept up to date as puzzles
+  // are solved this session — lets _goToNextLevel skip levels there's
+  // nothing left to do on, rather than making the player click through
+  // them one by one.
+  Set<String> _completedIds = {};
+
   // Shaking the device while a level is loaded prompts to clear the whole
   // program — a fast way to start a puzzle over without hunting down every
   // placed instruction individually. `_shakeConfirmOpen` guards against a
@@ -110,6 +117,13 @@ class _GameScreenState extends State<GameScreen> {
     super.initState();
     _prepareAndLoadLevel(widget.initialLevelIndex);
     _shakeDetector.start();
+    _loadCompletedIds();
+  }
+
+  Future<void> _loadCompletedIds() async {
+    final ids = await _progressStore.loadCompleted();
+    if (!mounted) return;
+    setState(() => _completedIds = ids);
   }
 
   @override
@@ -389,6 +403,11 @@ class _GameScreenState extends State<GameScreen> {
   void _maybeMarkCompleted() {
     if (_interpreter.status == RunStatus.success) {
       _progressStore.markCompleted(_level.id);
+      // So _goToNextLevel already knows to skip this one — no need to wait
+      // on the store round-trip, and no setState needed here either: the
+      // Clear overlay (which is what actually reads _goToNextLevel) only
+      // appears after the setState below fires.
+      _completedIds.add(_level.id);
       // Redundant with the save already done on every edit, but cheap and
       // guarantees the exact winning program is what's persisted.
       _programStore.save(_level, _program);
@@ -455,14 +474,25 @@ class _GameScreenState extends State<GameScreen> {
 
   // _levels is exactly the list HomeScreen handed us — already in whatever
   // sort/filter order (difficulty/popularity, Top 30/All) was active there
-  // when the player tapped in — so stepping through it follows that order.
-  VoidCallback? get _goToNextLevel => _levelIndex < _levels.length - 1
-      ? () => _advanceToNextLevel()
-      : null;
+  // when the player tapped in — so stepping through it follows that order,
+  // skipping past any level already solved (this session, a previous one,
+  // or synced in from another device) rather than making the player click
+  // through puzzles there's nothing left to do on.
+  int? get _nextIncompleteLevelIndex {
+    for (var i = _levelIndex + 1; i < _levels.length; i++) {
+      if (!_completedIds.contains(_levels[i].id)) return i;
+    }
+    return null;
+  }
+
+  VoidCallback? get _goToNextLevel =>
+      _nextIncompleteLevelIndex != null ? () => _advanceToNextLevel() : null;
 
   Future<void> _advanceToNextLevel() async {
     _submitRatingIfNeeded();
-    await _prepareAndLoadLevel(_levelIndex + 1);
+    final nextIndex = _nextIncompleteLevelIndex;
+    if (nextIndex == null) return;
+    await _prepareAndLoadLevel(nextIndex);
   }
 
   // Reached when the Clear overlay's button has no next puzzle to advance
