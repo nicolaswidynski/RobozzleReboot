@@ -55,14 +55,23 @@ class ControlBar extends StatelessWidget {
               ),
               const SizedBox(width: 10),
               Expanded(
-                child: Text(
-                  _statusText(),
-                  key: const ValueKey('controlBarStatusText'),
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: _statusColor(),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12.5,
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  // reverse: true means a fresh scroll position (there's no
+                  // controller to preserve one) starts at the *end* of the
+                  // content instead of the start, so a long call stack keeps
+                  // its most recent (currently executing) frame in view
+                  // instead of being cut off, without needing to manage a
+                  // ScrollController just to jump to it on every rebuild.
+                  reverse: true,
+                  child: Text(
+                    _statusText(),
+                    key: const ValueKey('controlBarStatusText'),
+                    style: TextStyle(
+                      color: _statusColor(),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 12.5,
+                    ),
                   ),
                 ),
               ),
@@ -70,40 +79,41 @@ class ControlBar extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 8),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              _RoundIconButton(icon: Icons.refresh_rounded, onTap: onReset),
-              const SizedBox(width: 8),
-              _RoundIconButton(
-                icon: Icons.skip_previous_rounded,
-                onTap: (canStepBack && !isAutoRunning) ? onStepBack : null,
+        // Wrap, not a horizontally-scrolling Row: these buttons should
+        // always fit on one line, but a scrollable here would plant a
+        // horizontal-drag recognizer flush against the left edge of the
+        // screen, which iOS's edge-swipe-to-go-back gesture also wants —
+        // the two would randomly compete for the same touch. Wrap only
+        // grabs a gesture per-button (each is its own tap target), so
+        // there's nothing to steal the swipe.
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            _RoundIconButton(icon: Icons.refresh_rounded, onTap: onReset),
+            _RoundIconButton(
+              icon: Icons.skip_previous_rounded,
+              onTap: (canStepBack && !isAutoRunning) ? onStepBack : null,
+            ),
+            _RoundIconButton(
+              icon: Icons.skip_next_rounded,
+              onTap: (!status.isTerminal && !isAutoRunning) ? onStep : null,
+            ),
+            Container(width: 1, height: 30, color: AppColors.panelBorder),
+            for (final speed in [1, 2, 8])
+              _SpeedButton(
+                key: ValueKey('speed_${speed}x'),
+                // >, >>, >>> for 1x/2x/8x instead of a numeric label.
+                arrowCount: speed == 1
+                    ? 1
+                    : speed == 2
+                        ? 2
+                        : 3,
+                active: runSpeed == speed,
+                onTap: status.isTerminal ? null : () => onSetSpeed(speed),
               ),
-              const SizedBox(width: 8),
-              _RoundIconButton(
-                icon: Icons.skip_next_rounded,
-                onTap: (!status.isTerminal && !isAutoRunning) ? onStep : null,
-              ),
-              const SizedBox(width: 10),
-              Container(width: 1, height: 30, color: AppColors.panelBorder),
-              const SizedBox(width: 10),
-              for (final speed in [1, 2, 8]) ...[
-                _SpeedButton(
-                  key: ValueKey('speed_${speed}x'),
-                  // >, >>, >>> for 1x/2x/8x instead of a numeric label.
-                  arrowCount: speed == 1
-                      ? 1
-                      : speed == 2
-                          ? 2
-                          : 3,
-                  active: runSpeed == speed,
-                  onTap: status.isTerminal ? null : () => onSetSpeed(speed),
-                ),
-                if (speed != 8) const SizedBox(width: 8),
-              ],
-            ],
-          ),
+          ],
         ),
       ],
     );
@@ -188,13 +198,20 @@ class _SpeedButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disabled = onTap == null;
+    // An explicit width, not just a minWidth + Alignment.center to shrink-
+    // wrap the content: that shrink-wrap only happens to work under a Row,
+    // which hands non-flex children an unbounded max width; under a Wrap
+    // (bounded-but-generous max width per child) Alignment.center's
+    // "expand to fill" default would stretch this to the *entire* Wrap
+    // width instead of hugging its content.
+    final contentWidth = active ? _arrowSize : _arrowSize + (arrowCount - 1) * _arrowStep;
+    final width = contentWidth + 20 > 44 ? contentWidth + 20 : 44.0;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(10),
       child: Container(
-        constraints: const BoxConstraints(minWidth: 44),
+        width: width,
         height: 44,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: disabled

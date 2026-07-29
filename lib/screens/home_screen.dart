@@ -316,35 +316,35 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         if (_sortBy == _SortBy.difficulty) ...[
                           const SizedBox(height: 10),
-                          SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child: Row(
-                              children: [
-                                for (final filter in const [
-                                  _DifficultyFilter.level1,
-                                  _DifficultyFilter.level2,
-                                  _DifficultyFilter.level3,
-                                  _DifficultyFilter.level4,
-                                  _DifficultyFilter.level5,
-                                ]) ...[
-                                  _SortChip(
-                                    label: '${filter.level}',
-                                    selected: _difficultyFilter == filter,
-                                    onTap: () => setState(
-                                        () => _difficultyFilter = filter),
-                                  ),
-                                  const SizedBox(width: 8),
-                                ],
+                          // Wrap, not a horizontally-scrolling Row — see
+                          // the same choice in ControlBar for why a
+                          // scrollable flush against the left edge fights
+                          // iOS's edge-swipe-back gesture.
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: [
+                              for (final filter in const [
+                                _DifficultyFilter.level1,
+                                _DifficultyFilter.level2,
+                                _DifficultyFilter.level3,
+                                _DifficultyFilter.level4,
+                                _DifficultyFilter.level5,
+                              ])
                                 _SortChip(
-                                  label: 'All',
-                                  selected: _difficultyFilter ==
-                                      _DifficultyFilter.all,
-                                  onTap: () => setState(() =>
-                                      _difficultyFilter =
-                                          _DifficultyFilter.all),
+                                  label: '${filter.level}',
+                                  selected: _difficultyFilter == filter,
+                                  onTap: () => setState(
+                                      () => _difficultyFilter = filter),
                                 ),
-                              ],
-                            ),
+                              _SortChip(
+                                label: 'All',
+                                selected: _difficultyFilter ==
+                                    _DifficultyFilter.all,
+                                onTap: () => setState(() =>
+                                    _difficultyFilter = _DifficultyFilter.all),
+                              ),
+                            ],
                           ),
                         ],
                         const SizedBox(height: 16),

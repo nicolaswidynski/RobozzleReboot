@@ -77,13 +77,14 @@ void main() {
   });
 
   testWidgets(
-      'status line shows the call stack (not a static "Running…") while running',
-      (tester) async {
+      'status line shows "F1" (not a static "Running…") while running, and '
+      'stays flat through a self-recursive tail call', (tester) async {
     await tester.pumpWidget(MaterialApp(home: GameScreen(levels: [testLevel()])));
     await tester.pumpAndSettle();
 
-    // F1: forward, then call F1 — a self-recursive loop, so the stack grows
-    // past one frame as soon as the call executes.
+    // F1: forward, then call F1 as the very last slot — the classic
+    // "loop forever" pattern. Nothing follows the call, so it has no
+    // caller state left to return to.
     await placeInstruction(tester, ActionType.forward,
         find.byType(DragTarget<ProgramInstruction>).first);
     await placeInstruction(tester, ActionType.callF1,
@@ -94,14 +95,16 @@ void main() {
 
     expect(currentStatus().data, isNot('Running…'));
 
-    // First step just runs "forward" — the stack is still one frame deep.
+    // First step just runs "forward".
     await tester.tap(find.byIcon(Icons.skip_next_rounded));
     await tester.pumpAndSettle();
     expect(currentStatus().data, 'F1');
 
-    // Second step executes "call F1", pushing a second frame onto the stack.
+    // Second step executes "call F1". Since that call was the last thing
+    // in F1, it replaces the frame instead of stacking a second one on
+    // top — the display should still just say "F1", not "F1 → F1".
     await tester.tap(find.byIcon(Icons.skip_next_rounded));
     await tester.pumpAndSettle();
-    expect(currentStatus().data, 'F1 → F1');
+    expect(currentStatus().data, 'F1');
   });
 }

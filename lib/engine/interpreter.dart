@@ -213,6 +213,16 @@ class RobotInterpreter {
         if (program.functions[target].slots.isEmpty) {
           continue; // calling a disabled/empty function is a no-op
         }
+        // A call with nothing left after it in the caller (the common
+        // "call F1 as the last slot" loop) has nothing to return to —
+        // replace the caller's frame instead of stacking on top of it, or
+        // a self-recursive loop would grow the stack forever even though
+        // there's no real nesting to show for it.
+        final isTailCall =
+            fn.slots.skip(frame.slotIndex).every((slot) => slot == null);
+        if (isTailCall) {
+          _stack.removeLast();
+        }
         _stack.add(_Frame(target, 0));
         return status;
       }

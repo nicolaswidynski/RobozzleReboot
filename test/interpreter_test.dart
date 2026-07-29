@@ -311,4 +311,56 @@ void main() {
     expect(interpreter.row, 3);
     expect(interpreter.col, 3);
   });
+
+  group('callStack (drives the control bar\'s live status display)', () {
+    test(
+        'a self-recursive tail call replaces the frame instead of growing '
+        'the stack', () {
+      final level = _straightLine();
+      final program = RobotProgram.empty(level);
+      // F1: forward, then call F1 as the very last slot — the classic
+      // "loop forever" pattern. Nothing follows the call, so there's no
+      // caller state left to return to.
+      program.setSlot(0, 0, const ProgramInstruction(ActionType.forward));
+      program.setSlot(0, 1, const ProgramInstruction(ActionType.callF1));
+
+      final interpreter = RobotInterpreter(level: level, program: program);
+      expect(interpreter.callStack, [0]);
+
+      interpreter.step(); // forward
+      expect(interpreter.callStack, [0]);
+
+      interpreter.step(); // call F1 — tail call: frame replaced, not pushed
+      expect(interpreter.callStack, [0]);
+
+      interpreter.step(); // forward again, inside the "new" F1 frame
+      expect(interpreter.callStack, [0]);
+
+      interpreter.step(); // call F1 again — still just the one frame
+      expect(interpreter.callStack, [0]);
+    });
+
+    test('a genuine nested call shows both frames until the callee returns',
+        () {
+      final level = _lShapedLevel();
+      final program = RobotProgram.empty(level);
+      // F1: call F2, then forward — the call is *not* the last slot, so F1
+      // still has work left to resume once F2 returns.
+      program.setSlot(0, 0, const ProgramInstruction(ActionType.callF2));
+      program.setSlot(0, 1, const ProgramInstruction(ActionType.forward));
+      // F2: forward.
+      program.setSlot(1, 0, const ProgramInstruction(ActionType.forward));
+
+      final interpreter = RobotInterpreter(level: level, program: program);
+
+      interpreter.step(); // call F2 — F1 has more to do, so it stays stacked
+      expect(interpreter.callStack, [0, 1]);
+
+      interpreter.step(); // F2's forward — F2 still hasn't returned
+      expect(interpreter.callStack, [0, 1]);
+
+      interpreter.step(); // F2 runs out and returns; F1's forward then runs
+      expect(interpreter.callStack, [0]);
+    });
+  });
 }
