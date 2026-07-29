@@ -616,7 +616,7 @@ class _GameScreenState extends State<GameScreen> {
                           canStepBack: _interpreter.canStepBack,
                           starsRemaining: _interpreter.starsRemaining,
                           totalStars: _level.totalStars,
-                          callStack: _interpreter.callStack,
+                          pendingByFrame: _interpreter.pendingByFrame,
                           onStep: _step,
                           onStepBack: _stepBack,
                           onSetSpeed: _setRunSpeed,

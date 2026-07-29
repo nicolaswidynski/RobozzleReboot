@@ -117,10 +117,22 @@ class RobotInterpreter {
 
   GridTile? get currentTile => grid[row][col];
 
-  /// The active call stack, outermost first (e.g. `[0, 2]` means F1 called
-  /// F3 and execution is currently inside F3) — for UI display while running.
-  List<int> get callStack =>
-      List.unmodifiable(_stack.map((f) => f.functionIndex));
+  /// The still-pending (not yet executed) instructions in each active stack
+  /// frame, outermost first — what each paused caller still has left to run
+  /// once control returns to it. A frame that has genuinely nothing left
+  /// (about to be popped on the next [step]) is omitted. For UI display
+  /// while running: naming which function is active (e.g. "F2") tells you
+  /// nothing new once several nested/recursive frames all share the same
+  /// function, but the pending instructions do — e.g. five frames each
+  /// still holding "turn right, forward" makes it obvious what happens as
+  /// the recursion unwinds.
+  List<List<ProgramInstruction>> get pendingByFrame => _stack
+      .map((f) => program.functions[f.functionIndex].slots
+          .sublist(f.slotIndex)
+          .whereType<ProgramInstruction>()
+          .toList())
+      .where((pending) => pending.isNotEmpty)
+      .toList();
 
   /// Whether [stepBack] has anything to rewind to.
   bool get canStepBack => _history.isNotEmpty;

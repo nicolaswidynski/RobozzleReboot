@@ -25,6 +25,26 @@ Level _straightLine() {
   );
 }
 
+/// Same idea as [_straightLine], but long enough that a few "forward" steps
+/// don't accidentally collect the star and end the run — for tests that
+/// care about interpreter/stack state mid-loop, not about solving anything.
+Level _longStraightLine() {
+  return Level(
+    id: 'test-long-straight',
+    name: 'test-long-straight',
+    grid: [
+      [
+        for (var i = 0; i < 7; i++) GridTile(color: TileColor.blue),
+        GridTile(color: TileColor.blue, hasStar: true),
+      ],
+    ],
+    startRow: 0,
+    startCol: 0,
+    startDirection: Direction.right,
+    slotsPerFunction: const [6, 0, 0, 0, 0],
+  );
+}
+
 /// An L-shaped path: three tiles east, then a red corner tile, then three
 /// tiles south — exercises movement, turning, color conditionals, subroutine
 /// calls, and star collection all together.
@@ -312,11 +332,15 @@ void main() {
     expect(interpreter.col, 3);
   });
 
-  group('callStack (drives the control bar\'s live status display)', () {
+  group('pendingByFrame (drives the control bar\'s live status display)', () {
+    List<List<ActionType>> actionsOnly(RobotInterpreter i) => i.pendingByFrame
+        .map((frame) => frame.map((instr) => instr.action).toList())
+        .toList();
+
     test(
         'a self-recursive tail call replaces the frame instead of growing '
         'the stack', () {
-      final level = _straightLine();
+      final level = _longStraightLine();
       final program = RobotProgram.empty(level);
       // F1: forward, then call F1 as the very last slot — the classic
       // "loop forever" pattern. Nothing follows the call, so there's no
@@ -325,19 +349,29 @@ void main() {
       program.setSlot(0, 1, const ProgramInstruction(ActionType.callF1));
 
       final interpreter = RobotInterpreter(level: level, program: program);
-      expect(interpreter.callStack, [0]);
+      expect(actionsOnly(interpreter), [
+        [ActionType.forward, ActionType.callF1]
+      ]);
 
       interpreter.step(); // forward
-      expect(interpreter.callStack, [0]);
+      expect(actionsOnly(interpreter), [
+        [ActionType.callF1]
+      ]);
 
       interpreter.step(); // call F1 — tail call: frame replaced, not pushed
-      expect(interpreter.callStack, [0]);
+      expect(actionsOnly(interpreter), [
+        [ActionType.forward, ActionType.callF1]
+      ]);
 
       interpreter.step(); // forward again, inside the "new" F1 frame
-      expect(interpreter.callStack, [0]);
+      expect(actionsOnly(interpreter), [
+        [ActionType.callF1]
+      ]);
 
       interpreter.step(); // call F1 again — still just the one frame
-      expect(interpreter.callStack, [0]);
+      expect(actionsOnly(interpreter), [
+        [ActionType.forward, ActionType.callF1]
+      ]);
     });
 
     test('a genuine nested call shows both frames until the callee returns',
@@ -354,13 +388,81 @@ void main() {
       final interpreter = RobotInterpreter(level: level, program: program);
 
       interpreter.step(); // call F2 — F1 has more to do, so it stays stacked
-      expect(interpreter.callStack, [0, 1]);
+      expect(actionsOnly(interpreter), [
+        [ActionType.forward],
+        [ActionType.forward],
+      ]);
 
-      interpreter.step(); // F2's forward — F2 still hasn't returned
-      expect(interpreter.callStack, [0, 1]);
+      interpreter.step(); // F2's forward — F2 now has nothing left, so it's omitted
+      expect(actionsOnly(interpreter), [
+        [ActionType.forward]
+      ]);
 
-      interpreter.step(); // F2 runs out and returns; F1's forward then runs
-      expect(interpreter.callStack, [0]);
+      interpreter.step(); // F2 returns and F1's forward runs, leaving nothing pending
+      expect(actionsOnly(interpreter), []);
+    });
+
+    test(
+        'recursing down a run of red tiles: repeated frames collapse into '
+        'one group instead of listing the same function over and over',
+        () {
+      // Reproduces a real bug report. F1: call F2. F2: forward, call F2
+      // (if red), turn right, forward. Every red tile recurses one level
+      // deeper. The old display just named the active function per frame
+      // ("F2", "F2", "F2", ...) — useless once it's the same function at
+      // every level. What's actually useful is what each paused frame
+      // still has left to run once it resumes: "turn right, forward" —
+      // identical across every waiting frame, so it should collapse into
+      // one "×N" group instead of repeating "F2" N times.
+      final level = Level(
+        id: 'test-red-run',
+        name: 'test-red-run',
+        grid: [
+          [
+            for (var i = 0; i < 6; i++) GridTile(color: TileColor.red),
+            GridTile(color: TileColor.blue, hasStar: true),
+          ],
+        ],
+        startRow: 0,
+        startCol: 0,
+        startDirection: Direction.right,
+        slotsPerFunction: const [1, 4, 0, 0, 0],
+      );
+      final program = RobotProgram.empty(level);
+      program.setSlot(0, 0, const ProgramInstruction(ActionType.callF2));
+      program.setSlot(1, 0, const ProgramInstruction(ActionType.forward));
+      program.setSlot(
+        1,
+        1,
+        const ProgramInstruction(ActionType.callF2, condition: TileColor.red),
+      );
+      program.setSlot(1, 2, const ProgramInstruction(ActionType.turnRight));
+      program.setSlot(1, 3, const ProgramInstruction(ActionType.forward));
+
+      final interpreter = RobotInterpreter(level: level, program: program);
+      interpreter.step(); // F1 calls F2 (tail call: F1 has nothing after it)
+      // Walk onto 4 red tiles, recursing one level deeper each time.
+      for (var i = 0; i < 4; i++) {
+        interpreter.step(); // forward
+        interpreter.step(); // call F2 (red) — condition holds, recurse
+      }
+
+      // 4 outer frames are all paused right after their own "call F2",
+      // each with the identical tail still to run; the 5th (innermost,
+      // freshly pushed) frame hasn't done anything yet, so its pending is
+      // its whole body instead.
+      expect(actionsOnly(interpreter), [
+        [ActionType.turnRight, ActionType.forward],
+        [ActionType.turnRight, ActionType.forward],
+        [ActionType.turnRight, ActionType.forward],
+        [ActionType.turnRight, ActionType.forward],
+        [
+          ActionType.forward,
+          ActionType.callF2,
+          ActionType.turnRight,
+          ActionType.forward
+        ],
+      ]);
     });
   });
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../engine/interpreter.dart';
+import '../models/instruction.dart';
 import '../theme/app_colors.dart';
 
 class ControlBar extends StatelessWidget {
@@ -9,7 +10,7 @@ class ControlBar extends StatelessWidget {
   final bool canStepBack;
   final int starsRemaining;
   final int totalStars;
-  final List<int> callStack;
+  final List<List<ProgramInstruction>> pendingByFrame;
   final VoidCallback onStep;
   final VoidCallback onStepBack;
   final ValueChanged<int> onSetSpeed;
@@ -22,7 +23,7 @@ class ControlBar extends StatelessWidget {
     required this.canStepBack,
     required this.starsRemaining,
     required this.totalStars,
-    required this.callStack,
+    required this.pendingByFrame,
     required this.onStep,
     required this.onStepBack,
     required this.onSetSpeed,
@@ -124,7 +125,7 @@ class ControlBar extends StatelessWidget {
       case RunStatus.notStarted:
         return 'Ready';
       case RunStatus.running:
-        return callStack.map((f) => 'F${f + 1}').join(' → ');
+        return _pendingStackText();
       case RunStatus.success:
         return 'Solved!';
       case RunStatus.crashed:
@@ -134,6 +135,36 @@ class ControlBar extends StatelessWidget {
       case RunStatus.stuck:
         return 'Stuck — looks like an infinite loop';
     }
+  }
+
+  /// Each stack frame's remaining instructions, outermost first — which
+  /// function is active tells you nothing once several frames are the same
+  /// function (recursion), but what's still queued in each does. Adjacent
+  /// frames with identical remaining instructions (the common case for a
+  /// straightforward recursive loop) collapse into one "×N" group instead
+  /// of repeating the same text N times.
+  String _pendingStackText() {
+    final groups = <String>[];
+    String? pendingSignature;
+    var repeat = 0;
+    void flush() {
+      if (pendingSignature == null) return;
+      groups.add(repeat > 1 ? '$pendingSignature ×$repeat' : pendingSignature);
+    }
+
+    for (final pending in pendingByFrame) {
+      final label = pending.map((i) => i.action.shortLabel).join(' ');
+      final signature = pending.length > 1 ? '($label)' : label;
+      if (signature == pendingSignature) {
+        repeat++;
+      } else {
+        flush();
+        pendingSignature = signature;
+        repeat = 1;
+      }
+    }
+    flush();
+    return groups.join('  →  ');
   }
 
   Color _statusColor() {

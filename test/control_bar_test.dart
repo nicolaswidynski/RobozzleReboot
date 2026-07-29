@@ -77,8 +77,9 @@ void main() {
   });
 
   testWidgets(
-      'status line shows "F1" (not a static "Running…") while running, and '
-      'stays flat through a self-recursive tail call', (tester) async {
+      'status line shows the pending instructions (not a static '
+      '"Running…") while running, and stays flat through a self-recursive '
+      'tail call', (tester) async {
     await tester.pumpWidget(MaterialApp(home: GameScreen(levels: [testLevel()])));
     await tester.pumpAndSettle();
 
@@ -95,16 +96,17 @@ void main() {
 
     expect(currentStatus().data, isNot('Running…'));
 
-    // First step just runs "forward".
+    // First step runs "forward" — only "call F1" is left pending.
     await tester.tap(find.byIcon(Icons.skip_next_rounded));
     await tester.pumpAndSettle();
     expect(currentStatus().data, 'F1');
 
     // Second step executes "call F1". Since that call was the last thing
     // in F1, it replaces the frame instead of stacking a second one on
-    // top — the display should still just say "F1", not "F1 → F1".
+    // top — the display should show F1's whole body pending again (both
+    // instructions, grouped in parens), not a meaningless "F1 → F1".
     await tester.tap(find.byIcon(Icons.skip_next_rounded));
     await tester.pumpAndSettle();
-    expect(currentStatus().data, 'F1');
+    expect(currentStatus().data, '(↑ F1)');
   });
 }
