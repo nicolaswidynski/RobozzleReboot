@@ -16,13 +16,15 @@ import 'tile_color_ui.dart';
 /// step; dragging a placed instruction out to empty space removes it, so
 /// there's no separate eraser either.
 ///
-/// Condition colors, paint colors, and F-calls each collapse into a single
-/// [_GroupButton] when the group has more than one option — press-and-hold
-/// fans a vertical menu out above the button, and sliding up through it
-/// (without lifting the finger) then continuing on to a slot commits
-/// whichever option the drag was over when it left the menu. A group with
-/// exactly one option skips the menu and is just that option's plain
-/// button; a group with zero options isn't shown at all.
+/// Condition colors are always individually visible, same as the movement
+/// actions — no press-and-hold step to pick a color. Paint colors and
+/// F-calls still collapse into a single [_GroupButton] when the group has
+/// more than one option — press-and-hold fans a vertical menu out above
+/// the button, and sliding up through it (without lifting the finger)
+/// then continuing on to a slot commits whichever option the drag was
+/// over when it left the menu. A group with exactly one option skips the
+/// menu and is just that option's plain button; a group with zero
+/// options isn't shown at all.
 ///
 /// Frozen (dimmed and unresponsive) via [enabled] while the program is
 /// auto-running, since edits mid-run don't apply until you stop anyway.
@@ -59,25 +61,36 @@ class InstructionPalette extends StatelessWidget {
   // same amount, so whichever slot the icon visually sits over is the one
   // that actually receives it (Draggable hit-tests the raw pointer unless
   // feedbackOffset compensates for a transformed/anchored feedback).
-  static const double _actionSize = 48;
-  static const double _dotSize = 30;
+  //
+  // _baseActionSize/_baseDotSize/_baseGlyphSize are the sizes tuned to
+  // exactly fill one line at the maximum layout — 3 movement + 3 condition
+  // colors + a paint button + a calls button (8 items). build() scales
+  // all three together to fill whatever width is actually available, so a
+  // level with fewer of those (no paint colors, say) gets slightly bigger
+  // buttons instead of a row with empty space on either side.
+  static const double _baseActionSize = 42;
+  static const double _baseDotSize = 26;
+  static const double _baseGlyphSize = 18;
+  static const double _itemSpacing = 8;
   static const double _dragLift = 56;
   static const Offset _feedbackOffset = Offset(0, -_dragLift);
-
-  static Offset _actionDragAnchor(
-      Draggable<Object> draggable, BuildContext context, Offset position) {
-    return const Offset(_actionSize / 2, _dragLift + _actionSize / 2);
-  }
 
   @override
   Widget build(BuildContext context) {
     // forward, turnLeft, turnRight always come first (see _baseActions in
     // game_screen.dart) — the paint colors, when allowed, and F1..F5 calls
     // follow, in that order.
-    final movementActions = availableActions.take(3);
+    final movementActions = availableActions.take(3).toList();
     final paintActions =
         availableActions.where((a) => _paintActions.contains(a)).toList();
     final callActions = availableActions.where((a) => a.isCall).toList();
+
+    // Movement, paint (if any), and calls (if any) are all action-sized
+    // slots; condition colors are always the 3 dot-sized ones.
+    final actionSlotCount = movementActions.length +
+        (paintActions.isNotEmpty ? 1 : 0) +
+        (callActions.isNotEmpty ? 1 : 0);
+    const dotSlotCount = 3;
 
     return IgnorePointer(
       ignoring: !enabled,
@@ -91,85 +104,128 @@ class InstructionPalette extends StatelessWidget {
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: AppColors.panelBorder),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              for (final action in movementActions) _buildActionButton(action),
-              _buildColorGroup(),
-              if (paintActions.isNotEmpty) _buildInstructionGroup(paintActions),
-              if (callActions.isNotEmpty) _buildInstructionGroup(callActions),
-            ],
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final naturalWidth =
+                  actionSlotCount * (_baseActionSize + _itemSpacing) +
+                      dotSlotCount * (_baseDotSize + _itemSpacing);
+              final scale = constraints.maxWidth.isFinite && naturalWidth > 0
+                  ? constraints.maxWidth / naturalWidth
+                  : 1.0;
+              final actionSize = _baseActionSize * scale;
+              final dotSize = _baseDotSize * scale;
+              final glyphSize = _baseGlyphSize * scale;
+
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  for (final action in movementActions)
+                    _buildActionButton(action, actionSize, glyphSize),
+                  for (final color in _conditionColors)
+                    _buildColorDot(color, dotSize),
+                  if (paintActions.isNotEmpty)
+                    _buildInstructionGroup(paintActions, actionSize, glyphSize),
+                  if (callActions.isNotEmpty)
+                    _buildInstructionGroup(callActions, actionSize, glyphSize),
+                ],
+              );
+            },
           ),
         ),
       ),
     );
   }
 
-  Widget _buildActionButton(ActionType action) {
+  Widget _buildActionButton(
+      ActionType action, double actionSize, double glyphSize) {
+    Offset dragAnchor(
+            Draggable<Object> draggable, BuildContext context, Offset position) =>
+        Offset(actionSize / 2, _dragLift + actionSize / 2);
+
     return Padding(
-      padding: const EdgeInsets.only(right: 8),
+      padding: const EdgeInsets.only(right: _itemSpacing),
       child: LongPressDraggable<ProgramInstruction>(
         data: ProgramInstruction(action),
         delay: _dragHoldDelay,
-        dragAnchorStrategy: _actionDragAnchor,
+        dragAnchorStrategy: dragAnchor,
         feedbackOffset: _feedbackOffset,
         feedback: Material(
           type: MaterialType.transparency,
           child: _ActionButton(
-            child: actionGlyph(action, size: 20, color: Colors.white),
+            size: actionSize,
+            child: actionGlyph(action, size: glyphSize, color: Colors.white),
           ),
         ),
         childWhenDragging: Opacity(
           opacity: 0.3,
           child: _ActionButton(
-            child: actionGlyph(action, size: 20, color: Colors.white),
+            size: actionSize,
+            child: actionGlyph(action, size: glyphSize, color: Colors.white),
           ),
         ),
         child: _ActionButton(
-          child: actionGlyph(action, size: 20, color: Colors.white),
+          size: actionSize,
+          child: actionGlyph(action, size: glyphSize, color: Colors.white),
         ),
       ),
     );
   }
 
-  // Condition colors are always exactly 3 options, so this is always a
-  // group button — no single-option fallback needed.
-  Widget _buildColorGroup() {
-    return _GroupButton<TileColor>(
-      options: _conditionColors,
-      itemSize: _dotSize,
-      buttonBuilder: (color) => _ColorDot(color: color),
+  Widget _buildColorDot(TileColor color, double dotSize) {
+    Offset dragAnchor(
+            Draggable<Object> draggable, BuildContext context, Offset position) =>
+        Offset(dotSize / 2, _dragLift + dotSize / 2);
+
+    return Padding(
+      padding: const EdgeInsets.only(right: _itemSpacing),
+      child: LongPressDraggable<TileColor>(
+        data: color,
+        delay: _dragHoldDelay,
+        dragAnchorStrategy: dragAnchor,
+        feedbackOffset: _feedbackOffset,
+        feedback: Material(
+          type: MaterialType.transparency,
+          child: _ColorDot(color: color, size: dotSize),
+        ),
+        childWhenDragging:
+            Opacity(opacity: 0.3, child: _ColorDot(color: color, size: dotSize)),
+        child: _ColorDot(color: color, size: dotSize),
+      ),
     );
   }
 
-  Widget _buildInstructionGroup(List<ActionType> actions) {
+  Widget _buildInstructionGroup(
+      List<ActionType> actions, double actionSize, double glyphSize) {
     if (actions.length == 1) {
-      return _buildActionButton(actions.first);
+      return _buildActionButton(actions.first, actionSize, glyphSize);
     }
     return _GroupButton<ProgramInstruction>(
       options: [for (final a in actions) ProgramInstruction(a)],
-      itemSize: _actionSize,
+      itemSize: actionSize,
       buttonBuilder: (instr) => _ActionButton(
-        child: actionGlyph(instr.action, size: 20, color: Colors.white),
+        size: actionSize,
+        child: actionGlyph(instr.action, size: glyphSize, color: Colors.white),
       ),
     );
   }
 }
 
 class _ActionButton extends StatelessWidget {
+  final double size;
   final Widget child;
 
-  const _ActionButton({required this.child});
+  const _ActionButton({required this.size, required this.child});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: InstructionPalette._actionSize,
-      height: InstructionPalette._actionSize,
+      width: size,
+      height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(9),
+        borderRadius: BorderRadius.circular(
+            9 * size / InstructionPalette._baseActionSize),
         border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
       ),
       child: child,
@@ -179,14 +235,15 @@ class _ActionButton extends StatelessWidget {
 
 class _ColorDot extends StatelessWidget {
   final TileColor color;
+  final double size;
 
-  const _ColorDot({required this.color});
+  const _ColorDot({required this.color, required this.size});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: InstructionPalette._dotSize,
-      height: InstructionPalette._dotSize,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: color.uiColor,
