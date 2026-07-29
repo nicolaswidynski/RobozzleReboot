@@ -16,6 +16,7 @@ import '../models/tile_color.dart';
 import '../theme/app_colors.dart';
 import '../utils/shake_detector.dart';
 import '../widgets/control_bar.dart';
+import '../widgets/edge_swipe_back.dart';
 import '../widgets/function_editor.dart';
 import '../widgets/instruction_palette.dart';
 import '../widgets/robot_grid.dart';
@@ -586,7 +587,12 @@ class _GameScreenState extends State<GameScreen> {
         children: [
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              // Left is wider than the other edges to clear
+              // EdgeSwipeBack.edgeWidth — the palette and control bar are
+              // both full-width, drag-heavy rows that would otherwise sit
+              // right under the swipe-back gesture's hit zone.
+              padding: const EdgeInsets.fromLTRB(
+                  EdgeSwipeBack.edgeWidth, 8, 12, 12),
               child: Column(
                 children: [
                   _Header(

@@ -9,6 +9,7 @@ import '../../models/program.dart';
 import '../../models/tile_color.dart';
 import '../../theme/app_colors.dart';
 import '../../widgets/control_bar.dart';
+import '../../widgets/edge_swipe_back.dart';
 import '../../widgets/function_editor.dart';
 import '../../widgets/instruction_palette.dart';
 import '../../widgets/robot_grid.dart';
@@ -227,7 +228,11 @@ class _EditorTestScreenState extends State<EditorTestScreen> {
         children: [
           SafeArea(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+              // Left is wider than the other edges to clear
+              // EdgeSwipeBack.edgeWidth — see the same padding in
+              // GameScreen for why.
+              padding: const EdgeInsets.fromLTRB(
+                  EdgeSwipeBack.edgeWidth, 8, 12, 12),
               child: Column(
                 children: [
                   _TestHeader(title: _level.name),
