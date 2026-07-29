@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../engine/interpreter.dart';
 import '../models/instruction.dart';
 import '../theme/app_colors.dart';
+import 'action_glyph.dart';
 
 class ControlBar extends StatelessWidget {
   final RunStatus status;
@@ -65,14 +66,29 @@ class ControlBar extends StatelessWidget {
                   // instead of being cut off, without needing to manage a
                   // ScrollController just to jump to it on every rebuild.
                   reverse: true,
-                  child: Text(
-                    _statusText(),
+                  child: KeyedSubtree(
                     key: const ValueKey('controlBarStatusText'),
-                    style: TextStyle(
-                      color: _statusColor(),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12.5,
-                    ),
+                    child: status == RunStatus.running
+                        // Icons, not text abbreviations, for the same
+                        // actions the palette and function slots already
+                        // draw as icons (forward/turn/paint) — a
+                        // different glyph for the same instruction here
+                        // would just be one more thing to learn.
+                        ? Semantics(
+                            label: _pendingStackText(),
+                            child: _PendingStackGlyphs(
+                              groups: _pendingGroups(),
+                              color: _statusColor(),
+                            ),
+                          )
+                        : Text(
+                            _statusText(),
+                            style: TextStyle(
+                              color: _statusColor(),
+                              fontWeight: FontWeight.w600,
+                              fontSize: 12.5,
+                            ),
+                          ),
                   ),
                 ),
               ),
@@ -137,35 +153,53 @@ class ControlBar extends StatelessWidget {
     }
   }
 
-  /// Each stack frame's remaining instructions, outermost first — which
-  /// function is active tells you nothing once several frames are the same
-  /// function (recursion), but what's still queued in each does. Adjacent
-  /// frames with identical remaining instructions (the common case for a
-  /// straightforward recursive loop) collapse into one "×N" group instead
-  /// of repeating the same text N times.
-  String _pendingStackText() {
-    final groups = <String>[];
-    String? pendingSignature;
+  /// Each stack frame's remaining instructions, grouped outermost first —
+  /// which function is active tells you nothing once several frames are
+  /// the same function (recursion), but what's still queued in each does.
+  /// Adjacent frames with identical remaining instructions (the common
+  /// case for a straightforward recursive loop) collapse into one group
+  /// with a repeat count instead of listing the same thing over and over.
+  List<_PendingGroup> _pendingGroups() {
+    final groups = <_PendingGroup>[];
+    List<ProgramInstruction>? current;
     var repeat = 0;
     void flush() {
-      if (pendingSignature == null) return;
-      groups.add(repeat > 1 ? '$pendingSignature ×$repeat' : pendingSignature);
+      if (current == null) return;
+      groups.add(_PendingGroup(current, repeat));
+    }
+
+    bool sameInstructions(List<ProgramInstruction> a, List<ProgramInstruction> b) {
+      if (a.length != b.length) return false;
+      for (var i = 0; i < a.length; i++) {
+        if (a[i].action != b[i].action || a[i].condition != b[i].condition) {
+          return false;
+        }
+      }
+      return true;
     }
 
     for (final pending in pendingByFrame) {
-      final label = pending.map((i) => i.action.shortLabel).join(' ');
-      final signature = pending.length > 1 ? '($label)' : label;
-      if (signature == pendingSignature) {
+      if (current != null && sameInstructions(current, pending)) {
         repeat++;
       } else {
         flush();
-        pendingSignature = signature;
+        current = pending;
         repeat = 1;
       }
     }
     flush();
-    return groups.join('  →  ');
+    return groups;
   }
+
+  /// A screen-reader/accessibility-testing-friendly text rendition of
+  /// [_pendingGroups] — the visible display uses real instruction glyphs.
+  String _pendingStackText() => _pendingGroups()
+      .map((g) {
+        final label = g.instructions.map((i) => i.action.shortLabel).join(' ');
+        final wrapped = g.instructions.length > 1 ? '($label)' : label;
+        return g.repeat > 1 ? '$wrapped ×${g.repeat}' : wrapped;
+      })
+      .join('  →  ');
 
   Color _statusColor() {
     switch (status) {
@@ -178,6 +212,53 @@ class ControlBar extends StatelessWidget {
       default:
         return Colors.white70;
     }
+  }
+}
+
+/// One collapsed run of stack frames sharing identical pending instructions.
+class _PendingGroup {
+  final List<ProgramInstruction> instructions;
+  final int repeat;
+  const _PendingGroup(this.instructions, this.repeat);
+}
+
+/// Renders [_PendingGroup]s as a single line of instruction glyphs — the
+/// same [actionGlyph] the palette and function slots use — with light
+/// punctuation ("(", ")", "×N", "→") to mark grouping and repetition.
+class _PendingStackGlyphs extends StatelessWidget {
+  final List<_PendingGroup> groups;
+  final Color color;
+
+  const _PendingStackGlyphs({required this.groups, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final punctuationStyle = TextStyle(
+      color: color,
+      fontWeight: FontWeight.w600,
+      fontSize: 12.5,
+    );
+    final children = <Widget>[];
+    for (var g = 0; g < groups.length; g++) {
+      if (g > 0) {
+        children.add(Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          child: Text('→', style: punctuationStyle),
+        ));
+      }
+      final group = groups[g];
+      final grouped = group.instructions.length > 1;
+      if (grouped) children.add(Text('(', style: punctuationStyle));
+      for (var i = 0; i < group.instructions.length; i++) {
+        if (i > 0) children.add(const SizedBox(width: 3));
+        children.add(actionGlyph(group.instructions[i].action, size: 15, color: color));
+      }
+      if (grouped) children.add(Text(')', style: punctuationStyle));
+      if (group.repeat > 1) {
+        children.add(Text(' ×${group.repeat}', style: punctuationStyle));
+      }
+    }
+    return Row(mainAxisSize: MainAxisSize.min, children: children);
   }
 }
 

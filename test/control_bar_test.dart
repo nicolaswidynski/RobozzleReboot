@@ -91,22 +91,64 @@ void main() {
     await placeInstruction(tester, ActionType.callF1,
         find.byType(DragTarget<ProgramInstruction>).at(1));
 
-    final statusText = find.byKey(const ValueKey('controlBarStatusText'));
-    Text currentStatus() => tester.widget<Text>(statusText);
+    // "F1" also appears elsewhere on screen (the palette's call button,
+    // the function badge), so scope every check to the status area itself.
+    final statusArea = find.byKey(const ValueKey('controlBarStatusText'));
+    Finder statusText(String text) =>
+        find.descendant(of: statusArea, matching: find.text(text));
+    Finder statusIcon(IconData icon) =>
+        find.descendant(of: statusArea, matching: find.byIcon(icon));
 
-    expect(currentStatus().data, isNot('Running…'));
+    expect(statusText('Running…'), findsNothing);
 
-    // First step runs "forward" — only "call F1" is left pending.
+    // First step runs "forward" — only "call F1" is left pending, drawn as
+    // plain text (calls don't have a dedicated icon anywhere in the app).
     await tester.tap(find.byIcon(Icons.skip_next_rounded));
     await tester.pumpAndSettle();
-    expect(currentStatus().data, 'F1');
+    expect(statusText('F1'), findsOneWidget);
+    expect(statusIcon(Icons.arrow_upward_rounded), findsNothing);
 
     // Second step executes "call F1". Since that call was the last thing
     // in F1, it replaces the frame instead of stacking a second one on
     // top — the display should show F1's whole body pending again (both
-    // instructions, grouped in parens), not a meaningless "F1 → F1".
+    // instructions, grouped in parens), not a meaningless "F1 → F1". The
+    // "forward" half is drawn with the real icon, not a text arrow.
     await tester.tap(find.byIcon(Icons.skip_next_rounded));
     await tester.pumpAndSettle();
-    expect(currentStatus().data, '(↑ F1)');
+    expect(statusIcon(Icons.arrow_upward_rounded), findsOneWidget);
+    expect(statusText('F1'), findsOneWidget);
+    expect(statusText('('), findsOneWidget);
+    expect(statusText(')'), findsOneWidget);
+  });
+
+  testWidgets(
+      'pending turn instructions draw with the same icons the palette and '
+      'function slots use, not the old text arrows', (tester) async {
+    await tester.pumpWidget(MaterialApp(home: GameScreen(levels: [testLevel()])));
+    await tester.pumpAndSettle();
+
+    // F1: forward, turn right, turn left — step past "forward" so "turn
+    // right, turn left" are what's left pending while running.
+    await placeInstruction(tester, ActionType.forward,
+        find.byType(DragTarget<ProgramInstruction>).first);
+    await placeInstruction(tester, ActionType.turnRight,
+        find.byType(DragTarget<ProgramInstruction>).at(1));
+    await placeInstruction(tester, ActionType.turnLeft,
+        find.byType(DragTarget<ProgramInstruction>).at(2));
+
+    await tester.tap(find.byIcon(Icons.skip_next_rounded));
+    await tester.pumpAndSettle();
+
+    final statusArea = find.byKey(const ValueKey('controlBarStatusText'));
+    expect(
+      find.descendant(
+          of: statusArea, matching: find.byIcon(Icons.turn_right_rounded)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+          of: statusArea, matching: find.byIcon(Icons.turn_left_rounded)),
+      findsOneWidget,
+    );
   });
 }
