@@ -9,6 +9,7 @@ class ControlBar extends StatelessWidget {
   final bool canStepBack;
   final int starsRemaining;
   final int totalStars;
+  final List<int> callStack;
   final VoidCallback onStep;
   final VoidCallback onStepBack;
   final ValueChanged<int> onSetSpeed;
@@ -21,6 +22,7 @@ class ControlBar extends StatelessWidget {
     required this.canStepBack,
     required this.starsRemaining,
     required this.totalStars,
+    required this.callStack,
     required this.onStep,
     required this.onStepBack,
     required this.onSetSpeed,
@@ -55,6 +57,7 @@ class ControlBar extends StatelessWidget {
               Expanded(
                 child: Text(
                   _statusText(),
+                  key: const ValueKey('controlBarStatusText'),
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: _statusColor(),
@@ -111,7 +114,7 @@ class ControlBar extends StatelessWidget {
       case RunStatus.notStarted:
         return 'Ready';
       case RunStatus.running:
-        return 'Running…';
+        return callStack.map((f) => 'F${f + 1}').join(' → ');
       case RunStatus.success:
         return 'Solved!';
       case RunStatus.crashed:

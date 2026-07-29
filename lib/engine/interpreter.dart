@@ -117,6 +117,11 @@ class RobotInterpreter {
 
   GridTile? get currentTile => grid[row][col];
 
+  /// The active call stack, outermost first (e.g. `[0, 2]` means F1 called
+  /// F3 and execution is currently inside F3) — for UI display while running.
+  List<int> get callStack =>
+      List.unmodifiable(_stack.map((f) => f.functionIndex));
+
   /// Whether [stepBack] has anything to rewind to.
   bool get canStepBack => _history.isNotEmpty;
 

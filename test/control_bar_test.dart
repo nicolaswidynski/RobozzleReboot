@@ -75,4 +75,33 @@ void main() {
     }
     expect(tester.getTopLeft(robotIcon).dx, pausedX); // no further movement while paused
   });
+
+  testWidgets(
+      'status line shows the call stack (not a static "Running…") while running',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(home: GameScreen(levels: [testLevel()])));
+    await tester.pumpAndSettle();
+
+    // F1: forward, then call F1 — a self-recursive loop, so the stack grows
+    // past one frame as soon as the call executes.
+    await placeInstruction(tester, ActionType.forward,
+        find.byType(DragTarget<ProgramInstruction>).first);
+    await placeInstruction(tester, ActionType.callF1,
+        find.byType(DragTarget<ProgramInstruction>).at(1));
+
+    final statusText = find.byKey(const ValueKey('controlBarStatusText'));
+    Text currentStatus() => tester.widget<Text>(statusText);
+
+    expect(currentStatus().data, isNot('Running…'));
+
+    // First step just runs "forward" — the stack is still one frame deep.
+    await tester.tap(find.byIcon(Icons.skip_next_rounded));
+    await tester.pumpAndSettle();
+    expect(currentStatus().data, 'F1');
+
+    // Second step executes "call F1", pushing a second frame onto the stack.
+    await tester.tap(find.byIcon(Icons.skip_next_rounded));
+    await tester.pumpAndSettle();
+    expect(currentStatus().data, 'F1 → F1');
+  });
 }
