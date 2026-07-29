@@ -324,8 +324,15 @@ class _GameScreenState extends State<GameScreen> {
     if (_interpreter.status == RunStatus.running && _autoRunTimer != null) {
       return; // don't allow edits mid auto-run
     }
+    // Dropping a fresh instruction from the palette onto a slot that
+    // already holds one keeps that slot's condition color instead of
+    // wiping it back to "no color" — only the action changes.
+    final existing = _program.functions[functionIndex].slots[slotIndex];
+    final toPlace = existing != null && existing.condition != TileColor.any
+        ? instruction.copyWith(condition: existing.condition)
+        : instruction;
     setState(() {
-      _program.setSlot(functionIndex, slotIndex, instruction);
+      _program.setSlot(functionIndex, slotIndex, toPlace);
       _interpreter = RobotInterpreter(level: _level, program: _program);
       _resetClearOverlay();
     });
