@@ -251,7 +251,7 @@ class _PendingStackGlyphs extends StatelessWidget {
       if (grouped) children.add(Text('(', style: punctuationStyle));
       for (var i = 0; i < group.instructions.length; i++) {
         if (i > 0) children.add(const SizedBox(width: 3));
-        children.add(actionGlyph(group.instructions[i].action, size: 15, color: color));
+        children.add(_glyph(group.instructions[i].action));
       }
       if (grouped) children.add(Text(')', style: punctuationStyle));
       if (group.repeat > 1) {
@@ -259,6 +259,21 @@ class _PendingStackGlyphs extends StatelessWidget {
       }
     }
     return Row(mainAxisSize: MainAxisSize.min, children: children);
+  }
+
+  // actionGlyph draws calls (F1..F5) as text sized relative to the icon
+  // size it's given — fine for the palette's ~40px buttons, but scaled
+  // down to that same 15px icon size here it comes out unreadably small.
+  // Movement/paint actions still go through actionGlyph, so they draw
+  // with the exact icon used everywhere else in the app.
+  Widget _glyph(ActionType action) {
+    if (action.isCall) {
+      return Text(
+        action.shortLabel,
+        style: TextStyle(color: color, fontWeight: FontWeight.bold, fontSize: 13),
+      );
+    }
+    return actionGlyph(action, size: 15, color: color);
   }
 }
 
