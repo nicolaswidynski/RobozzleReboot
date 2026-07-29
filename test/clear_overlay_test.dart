@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:robozzle_reboot/data/progress_store.dart';
 import 'package:robozzle_reboot/models/instruction.dart';
 import 'package:robozzle_reboot/screens/game_screen.dart';
 
@@ -48,6 +49,42 @@ void main() {
     // is gone since the new level hasn't been solved yet.
     expect(find.text('Test Level 2'), findsOneWidget);
     expect(find.text('Clear!'), findsNothing);
+  });
+
+  testWidgets(
+      'Next skips over a level already completed (e.g. from a previous '
+      'session), landing on the next one that still needs solving',
+      (tester) async {
+    await ProgressStore().markCompleted('test-fixture-2');
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GameScreen(levels: [testLevel(), testLevel2(), testLevel3()]),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Test Level'), findsOneWidget);
+
+    for (var i = 0; i < 3; i++) {
+      await placeInstruction(tester, ActionType.forward,
+          find.byType(DragTarget<ProgramInstruction>).at(i));
+    }
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
+      await tester.pumpAndSettle();
+    }
+
+    expect(find.text('Clear!'), findsOneWidget);
+    final nextButton = find.widgetWithText(ElevatedButton, 'Next');
+    expect(nextButton, findsOneWidget);
+
+    await tester.tap(nextButton);
+    await tester.pumpAndSettle();
+
+    // "Test Level 2" (already completed) is skipped entirely.
+    expect(find.text('Test Level 2'), findsNothing);
+    expect(find.text('Test Level 3'), findsOneWidget);
   });
 
   testWidgets(

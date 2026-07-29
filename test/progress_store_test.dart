@@ -28,4 +28,29 @@ void main() {
 
     expect(await store.loadCompleted(), {'catalog-1'});
   });
+
+  test('markAllCompleted merges a whole set in one go, keeping what was '
+      'already there', () async {
+    final store = ProgressStore();
+
+    await store.markCompleted('catalog-1');
+    await store.markAllCompleted({'catalog-2', 'catalog-3', 'catalog-1'});
+
+    expect(await store.loadCompleted(), {'catalog-1', 'catalog-2', 'catalog-3'});
+  });
+
+  test('server score round-trips, absent until saved, and always takes '
+      'the newest value written', () async {
+    final store = ProgressStore();
+
+    expect(await store.loadServerScore(), isNull);
+
+    await store.saveServerScore(19);
+    expect(await store.loadServerScore(), 19);
+
+    // Overwrites unconditionally -- the server's number always wins, even
+    // if it goes down (e.g. after a rescoring/re-rating on the backend).
+    await store.saveServerScore(12);
+    expect(await store.loadServerScore(), 12);
+  });
 }

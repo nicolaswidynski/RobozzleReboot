@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../data/auth_manager.dart';
 import '../data/catalog_refresher.dart';
+import '../data/leaderboard_sync.dart';
 import '../data/level_catalog.dart';
 import '../data/points.dart';
 import '../data/progress_store.dart';
@@ -43,7 +44,16 @@ class _LandingScreenState extends State<LandingScreen> {
     // fine — so this explicit setState is needed to pick up the loaded
     // pseudonym in the common "already signed in" case too.
     AuthManager.instance.addListener(_onAuthChanged);
-    AuthManager.instance.restoreSession().then((_) => _onAuthChanged());
+    AuthManager.instance.restoreSession().then((_) {
+      _onAuthChanged();
+      // At least once a day: pushes this device's score/completed puzzles
+      // and pulls back the account-wide completed-puzzles superset (see
+      // LeaderboardSync) — may grow the local completed set, so the points
+      // badge needs a refresh when it actually ran.
+      LeaderboardSync.instance.syncIfDue().then((synced) {
+        if (synced) _refreshPoints();
+      });
+    });
   }
 
   @override
@@ -57,7 +67,13 @@ class _LandingScreenState extends State<LandingScreen> {
     if (mounted) setState(() {});
   }
 
+  // Prefers the server's own score (cached from the last leaderboard sync
+  // — see ProgressStore.saveServerScore) once one exists, since the
+  // server is authoritative on it; falls back to a local recount only
+  // before the first-ever sync (offline/never-signed-in).
   Future<int> _loadPoints() async {
+    final serverScore = await ProgressStore().loadServerScore();
+    if (serverScore != null) return serverScore;
     final completedIds = await ProgressStore().loadCompleted();
     final levels = await loadCatalogLevels();
     return totalPoints(completedIds, levels);
@@ -226,8 +242,6 @@ class _LandingScreenState extends State<LandingScreen> {
                           'igoro',
                           'blake',
                           'markbyers',
-                          'snydej',
-                          'stingray',
                           'wido',
                         },
                         // Always sorted by difficulty — no Sort-by choice.

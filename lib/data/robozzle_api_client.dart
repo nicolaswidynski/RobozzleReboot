@@ -111,16 +111,22 @@ class RobozzleApiClient {
     return (json, response.statusCode);
   }
 
-  /// POSTs the player's [score] to `robozzle-leaderboard`, identifying the
-  /// player via `auth_provider` + `provider_user_id` (so the server can
-  /// verify the account) and a freshly generated `request_id` (echoed back
-  /// so responses can be matched to requests), same as every `manageUser`
-  /// call. The session token is still attached as `authorization_uuid`.
-  /// Returns the decoded JSON response (rank + full sorted leaderboard)
-  /// together with the HTTP status code.
+  /// POSTs the player's [score] and [completedPuzzleIds] (the bare catalog
+  /// numbers, e.g. `[1, 234, 54]` for level ids `catalog-1`/`catalog-234`/
+  /// `catalog-54` — JSON-encoded to a string, same convention as
+  /// `slotsPerFunction` in [publishPuzzle]) to `robozzle-leaderboard`,
+  /// identifying the player via `auth_provider` + `provider_user_id` (so
+  /// the server can verify the account) and a freshly generated
+  /// `request_id` (echoed back so responses can be matched to requests),
+  /// same as every `manageUser` call. The session token is still attached
+  /// as `authorization_uuid`. Returns the decoded JSON response (rank,
+  /// full sorted leaderboard, and the server's completed-puzzles superset
+  /// — see `fetchLeaderboard` in leaderboard.dart) together with the HTTP
+  /// status code.
   Future<(Map<String, dynamic>? json, int statusCode)> postScore(
-    int score,
-  ) async {
+    int score, {
+    required List<int> completedPuzzleIds,
+  }) async {
     final sessionToken = await _sessionStore.readSessionToken();
     if (sessionToken == null) throw MissingSessionTokenError();
 
@@ -136,6 +142,7 @@ class RobozzleApiClient {
         ...identityFields,
         'request_id': _uuid.v4(),
         'score': score,
+        'completed_puzzles': jsonEncode(completedPuzzleIds),
       }),
     );
 

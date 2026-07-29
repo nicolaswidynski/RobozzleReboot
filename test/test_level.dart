@@ -47,3 +47,25 @@ Level testLevel2() {
     slotsPerFunction: const [6, 0, 0, 0, 0],
   );
 }
+
+/// A third, distinctly-named fixture with the same shape as [testLevel],
+/// for tests with three levels in play (e.g. skipping over an
+/// already-completed one in the middle).
+Level testLevel3() {
+  return Level(
+    id: 'test-fixture-3',
+    name: 'Test Level 3',
+    grid: [
+      [
+        GridTile(color: TileColor.blue),
+        GridTile(color: TileColor.blue),
+        GridTile(color: TileColor.blue),
+        GridTile(color: TileColor.green, hasStar: true),
+      ],
+    ],
+    startRow: 0,
+    startCol: 0,
+    startDirection: Direction.right,
+    slotsPerFunction: const [6, 0, 0, 0, 0],
+  );
+}
