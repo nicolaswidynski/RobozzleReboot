@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'catalog_refresher.dart';
 import 'level_catalog.dart';
 import 'points.dart';
 import 'progress_store.dart';
@@ -75,6 +76,16 @@ Future<LeaderboardResult> fetchLeaderboard() async {
   if (serverScore != null) {
     await ProgressStore().saveServerScore(serverScore);
   }
+
+  // The server computes its score from puzzle difficulty that can have
+  // moved on since this device's own catalog metadata was last refreshed
+  // (itself on its own, independent up-to-daily schedule) — e.g. a newly
+  // completed puzzle this device has never fetched metadata for at all,
+  // or one whose average rating crossed a rounding boundary. Refreshing
+  // right after a leaderboard sync keeps the two in step, instead of
+  // leaving a locally-recomputed score to disagree with the server's
+  // until whatever the catalog's own refresh schedule happens to be.
+  await CatalogRefresher.instance.refreshNow();
 
   return parseLeaderboardResult(json);
 }
