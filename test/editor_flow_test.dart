@@ -87,6 +87,70 @@ void main() {
   });
 
   testWidgets(
+      'Test Solution blocks with a validation error when the only star is '
+      'on the starting tile', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: EditorScreen()));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'My Puzzle');
+    // Paint (0,0) — the default start tile — then place its only star
+    // there too.
+    await tester.tap(find.byKey(const ValueKey('editor_cell_0_0')));
+    await tester.pump();
+    await tester.tap(find.text('Star'));
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('editor_cell_0_0')));
+    await tester.pump();
+
+    final testSolutionButton =
+        find.widgetWithText(ElevatedButton, 'Test Solution');
+    await _scrollToVisible(tester, testSolutionButton);
+    await tester.tap(testSolutionButton);
+    await tester.pump();
+
+    expect(find.text("The only star can't be on the starting tile."),
+        findsOneWidget);
+    expect(find.byType(EditorTestScreen), findsNothing);
+  });
+
+  testWidgets(
+      'the row/column steppers can shrink the grid down to a 1-wide strip, '
+      'but never all the way down to a single 1x1 tile', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: EditorScreen()));
+    await tester.pumpAndSettle();
+
+    Finder stepperRemoveButton(String label) => find.descendant(
+          of: find
+              .ancestor(of: find.text(label), matching: find.byType(Row))
+              .first,
+          matching: find.byIcon(Icons.remove_rounded),
+        );
+
+    expect(find.text('Grid (6x6)'), findsOneWidget);
+
+    // Shrinking rows all the way down to 1 is fine — a 1-row corridor is a
+    // perfectly good puzzle shape.
+    for (var i = 0; i < 5; i++) {
+      await tester.tap(stepperRemoveButton('Rows'));
+      await tester.pump();
+    }
+    expect(find.text('Grid (1x6)'), findsOneWidget);
+
+    // A second removal is a no-op: rows are already at the floor.
+    await tester.tap(stepperRemoveButton('Rows'));
+    await tester.pump();
+    expect(find.text('Grid (1x6)'), findsOneWidget);
+
+    // Cols can shrink too, but not all the way to 1 while rows is already
+    // 1 — that would leave a single 1x1 tile with nowhere to move.
+    for (var i = 0; i < 5; i++) {
+      await tester.tap(stepperRemoveButton('Cols'));
+      await tester.pump();
+    }
+    expect(find.text('Grid (1x2)'), findsOneWidget);
+  });
+
+  testWidgets(
       'creating, solving, and saving a puzzle makes it playable from '
       'EditorHomeScreen', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: EditorHomeScreen()));

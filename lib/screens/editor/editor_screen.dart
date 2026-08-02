@@ -40,7 +40,7 @@ class EditorScreen extends StatefulWidget {
 class _EditorScreenState extends State<EditorScreen> {
   static const int _defaultRows = 6;
   static const int _defaultCols = 6;
-  static const int _minSize = 2;
+  static const int _minSize = 1;
   static const int _maxSize = 14;
   static const int _maxSlotsPerFunction = 12;
 
@@ -264,6 +264,10 @@ class _EditorScreenState extends State<EditorScreen> {
 
   void _removeRow() {
     if (_rowCount <= _minSize) return;
+    // A 1-row (or 1-column) corridor is a fine puzzle shape, but 1x1 is a
+    // single tile with nowhere to move — refuse the removal that would
+    // leave both dimensions at 1 instead of just the one being shrunk.
+    if (_rowCount - 1 <= _minSize && _colCount <= _minSize) return;
     setState(() {
       _grid.removeLast();
       _clampStart();
@@ -281,6 +285,7 @@ class _EditorScreenState extends State<EditorScreen> {
 
   void _removeCol() {
     if (_colCount <= _minSize) return;
+    if (_colCount - 1 <= _minSize && _rowCount <= _minSize) return;
     setState(() {
       for (final row in _grid) {
         row.removeLast();
@@ -315,8 +320,15 @@ class _EditorScreenState extends State<EditorScreen> {
     if (_titleController.text.trim().isEmpty) {
       return 'Give your puzzle a title first.';
     }
-    final hasStar = _grid.any((row) => row.any((t) => t?.hasStar ?? false));
-    if (!hasStar) return 'Place at least one star.';
+    final starCount =
+        _grid.fold(0, (n, row) => n + row.where((t) => t?.hasStar ?? false).length);
+    if (starCount == 0) return 'Place at least one star.';
+    // Solvable (walk off the start tile and back onto it), but a pointless
+    // puzzle shape — nothing to do until the one star is un-collectable
+    // except by immediately backtracking onto where the robot began.
+    if (starCount == 1 && (_grid[_startRow][_startCol]?.hasStar ?? false)) {
+      return "The only star can't be on the starting tile.";
+    }
     if (_grid[_startRow][_startCol] == null) {
       return "The start tile can't be a gap.";
     }
