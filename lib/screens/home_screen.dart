@@ -51,17 +51,11 @@ class HomeScreen extends StatefulWidget {
   /// meaningfully set at once.
   final Set<String>? excludeAuthors;
 
-  /// Whether the player can switch between sorting by difficulty and by
-  /// popularity. When `false` (Campaign), sorting is fixed to difficulty
-  /// and the Sort-by chips are hidden entirely.
-  final bool allowSortChoice;
-
   const HomeScreen({
     super.key,
     this.title = 'Community Puzzles',
     this.authorFilter,
     this.excludeAuthors,
-    this.allowSortChoice = true,
   });
 
   @override
@@ -155,17 +149,23 @@ class _HomeScreenState extends State<HomeScreen> {
           .toList();
     }
 
-    if (_sortBy == _SortBy.difficulty) {
-      final level = _difficultyFilter.level;
-      if (level != null) {
-        indexed =
-            indexed.where((e) => e.value.difficultyStars == level).toList();
-      }
+    // The star-count filter applies regardless of sort mode — it's a
+    // filter, not a sort-mode-specific option. Sorting by popularity within
+    // a "3 stars" filter, say, still only shows 3-star puzzles, just
+    // ordered by popularity instead of difficulty.
+    final level = _difficultyFilter.level;
+    if (level != null) {
+      indexed =
+          indexed.where((e) => e.value.difficultyStars == level).toList();
     }
 
     indexed.sort((a, b) {
       switch (_sortBy) {
         case _SortBy.difficulty:
+          // The precise rating, not the rounded star count: within a
+          // single star filter (everything tied at e.g. difficultyStars
+          // == 3), sorting by the rounded value would be a no-op — the
+          // exact rating (2.6 vs 3.4, say) is what actually orders them.
           final byDifficulty = a.value.difficulty.compareTo(b.value.difficulty);
           return byDifficulty != 0
               ? byDifficulty
@@ -290,29 +290,27 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 14),
                         Row(
                           children: [
-                            if (widget.allowSortChoice) ...[
-                              Text(
-                                'Sort by',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.6),
-                                  fontSize: 12,
-                                ),
+                            Text(
+                              'Sort by',
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.6),
+                                fontSize: 12,
                               ),
-                              const SizedBox(width: 10),
-                              _SortChip(
-                                label: 'Difficulty',
-                                selected: _sortBy == _SortBy.difficulty,
-                                onTap: () => setState(
-                                    () => _sortBy = _SortBy.difficulty),
-                              ),
-                              const SizedBox(width: 8),
-                              _SortChip(
-                                label: 'Popularity',
-                                selected: _sortBy == _SortBy.popularity,
-                                onTap: () => setState(
-                                    () => _sortBy = _SortBy.popularity),
-                              ),
-                            ],
+                            ),
+                            const SizedBox(width: 10),
+                            _SortChip(
+                              label: 'Difficulty',
+                              selected: _sortBy == _SortBy.difficulty,
+                              onTap: () => setState(
+                                  () => _sortBy = _SortBy.difficulty),
+                            ),
+                            const SizedBox(width: 8),
+                            _SortChip(
+                              label: 'Popularity',
+                              selected: _sortBy == _SortBy.popularity,
+                              onTap: () => setState(
+                                  () => _sortBy = _SortBy.popularity),
+                            ),
                             const Spacer(),
                             Text(
                               '${sorted.length} puzzles',
@@ -334,39 +332,39 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                           ],
                         ),
-                        if (_sortBy == _SortBy.difficulty) ...[
-                          const SizedBox(height: 10),
-                          // Wrap, not a horizontally-scrolling Row — see
-                          // the same choice in ControlBar for why a
-                          // scrollable flush against the left edge fights
-                          // iOS's edge-swipe-back gesture.
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              for (final filter in const [
-                                _DifficultyFilter.level1,
-                                _DifficultyFilter.level2,
-                                _DifficultyFilter.level3,
-                                _DifficultyFilter.level4,
-                                _DifficultyFilter.level5,
-                              ])
-                                _SortChip(
-                                  label: '${filter.level}',
-                                  selected: _difficultyFilter == filter,
-                                  onTap: () => setState(
-                                      () => _difficultyFilter = filter),
-                                ),
+                        const SizedBox(height: 10),
+                        // Wrap, not a horizontally-scrolling Row — see
+                        // the same choice in ControlBar for why a
+                        // scrollable flush against the left edge fights
+                        // iOS's edge-swipe-back gesture. Shown regardless
+                        // of sort mode — it's a filter, not tied to
+                        // sorting by difficulty specifically.
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final filter in const [
+                              _DifficultyFilter.level1,
+                              _DifficultyFilter.level2,
+                              _DifficultyFilter.level3,
+                              _DifficultyFilter.level4,
+                              _DifficultyFilter.level5,
+                            ])
                               _SortChip(
-                                label: 'All',
-                                selected: _difficultyFilter ==
-                                    _DifficultyFilter.all,
-                                onTap: () => setState(() =>
-                                    _difficultyFilter = _DifficultyFilter.all),
+                                label: '${filter.level}',
+                                selected: _difficultyFilter == filter,
+                                onTap: () => setState(
+                                    () => _difficultyFilter = filter),
                               ),
-                            ],
-                          ),
-                        ],
+                            _SortChip(
+                              label: 'All',
+                              selected:
+                                  _difficultyFilter == _DifficultyFilter.all,
+                              onTap: () => setState(() =>
+                                  _difficultyFilter = _DifficultyFilter.all),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 16),
                         Expanded(
                           child: RefreshIndicator(

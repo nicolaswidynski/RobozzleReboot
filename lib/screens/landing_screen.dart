@@ -100,7 +100,6 @@ class _LandingScreenState extends State<LandingScreen> {
     String title = 'Community Puzzles',
     Set<String>? authorFilter,
     Set<String>? excludeAuthors,
-    bool allowSortChoice = true,
   }) async {
     await Navigator.of(context).push(
       MaterialPageRoute(
@@ -108,7 +107,6 @@ class _LandingScreenState extends State<LandingScreen> {
           title: title,
           authorFilter: authorFilter,
           excludeAuthors: excludeAuthors,
-          allowSortChoice: allowSortChoice,
         ),
       ),
     );
@@ -248,8 +246,6 @@ class _LandingScreenState extends State<LandingScreen> {
                         context,
                         title: 'Campaign',
                         authorFilter: _campaignAuthors,
-                        // Always sorted by difficulty — no Sort-by choice.
-                        allowSortChoice: false,
                       ),
                     ),
                     const SizedBox(height: 12),

@@ -9,8 +9,8 @@ import 'fake_secure_storage.dart';
 void main() {
   testWidgets(
       'Campaign narrows the catalog to the chosen authors, titled '
-      '"Campaign", with no Sort-by choice and no Top 30 chip',
-      (tester) async {
+      '"Campaign", with the exact same Sort-by/filter UI as Community '
+      'Puzzles', (tester) async {
     SharedPreferences.setMockInitialValues({});
     installFakeSecureStorage();
 
@@ -26,7 +26,6 @@ void main() {
             'stingray',
             'wido',
           },
-          allowSortChoice: false,
         ),
       ),
     );
@@ -45,13 +44,12 @@ void main() {
     // of the bundled asset this test loads.
     expect(find.text('189 puzzles'), findsOneWidget);
 
-    // No Sort-by choice — always sorted by difficulty.
-    expect(find.text('Sort by'), findsNothing);
-    expect(find.text('Difficulty'), findsNothing);
-    expect(find.text('Popularity'), findsNothing);
-    // Top 30 was removed entirely.
-    expect(find.text('Top 30'), findsNothing);
-    // The per-difficulty filter chips are still there.
+    // Campaign is no longer a stripped-down HomeScreen — same Sort-by
+    // chips as Community Puzzles.
+    expect(find.text('Sort by'), findsOneWidget);
+    expect(find.text('Difficulty'), findsOneWidget);
+    expect(find.text('Popularity'), findsOneWidget);
+    // The per-difficulty filter chips are there too.
     expect(find.text('1'), findsOneWidget);
     expect(find.text('All'), findsOneWidget);
   });
