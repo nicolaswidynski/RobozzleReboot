@@ -139,7 +139,8 @@ class _HomeScreenState extends State<HomeScreen> {
     if (_sortBy == _SortBy.difficulty) {
       final level = _difficultyFilter.level;
       if (level != null) {
-        indexed = indexed.where((e) => e.value.difficulty == level).toList();
+        indexed =
+            indexed.where((e) => e.value.difficultyStars == level).toList();
       }
     }
 
@@ -486,7 +487,7 @@ class _LevelCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      _DifficultyDots(difficulty: level.difficulty),
+                      _DifficultyDots(difficulty: level.difficultyStars),
                       const SizedBox(width: 14),
                       Icon(
                         Icons.trending_up_rounded,

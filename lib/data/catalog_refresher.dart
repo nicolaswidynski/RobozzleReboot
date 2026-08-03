@@ -87,9 +87,9 @@ Map<String, CatalogMetadataOverride> parseCatalogOverrides(dynamic raw) {
       title: e['title'] as String?,
       author: e['author'] as String?,
       // A puzzle's rating is 1-5 stars — there's no such thing as a 0-star
-      // difficulty, so a rounded average just under 1 (e.g. from a puzzle
+      // difficulty, so a raw average just under 1 (e.g. from a puzzle
       // with no ratings yet) is floored up to the minimum instead.
-      difficulty: _roundedInt(e['difficulty'])?.clamp(1, 5),
+      difficulty: _rawDouble(e['difficulty'])?.clamp(1.0, 5.0),
       popularity: _roundedInt(e['popularity']),
     );
   }
@@ -103,4 +103,11 @@ Map<String, CatalogMetadataOverride> parseCatalogOverrides(dynamic raw) {
 int? _roundedInt(dynamic value) {
   if (value == null) return null;
   return double.tryParse('$value')?.round();
+}
+
+/// Same idea as [_roundedInt], but keeping the decimal precision instead
+/// of rounding it away — see [Level.difficulty].
+double? _rawDouble(dynamic value) {
+  if (value == null) return null;
+  return double.tryParse('$value');
 }

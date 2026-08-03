@@ -12,8 +12,8 @@ void main() {
   testWidgets('shows total points computed from completed puzzles',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
-    // "catalog-195" ("Another speed control") has difficulty 3 in the
-    // bundled catalog asset -> 3^2 = 9 points.
+    // "catalog-195" ("Another speed control") has difficulty 3.33 in the
+    // bundled catalog asset -> 3.33^2 = 11.0889, rounds to 11 points.
     final fakeStorage = installFakeSecureStorage();
     await fakeStorage.write(
       key: 'completed_level_ids',
@@ -30,6 +30,6 @@ void main() {
         () => Future<void>.delayed(const Duration(milliseconds: 100)));
     await tester.pump();
 
-    expect(find.text('9'), findsOneWidget);
+    expect(find.text('11'), findsOneWidget);
   });
 }

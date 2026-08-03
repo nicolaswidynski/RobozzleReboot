@@ -133,7 +133,7 @@ class _EditorHomeScreenState extends State<EditorHomeScreen> {
         allowedCommands: level.allowedCommandsBitmask,
         slotsPerFunction: level.slotsPerFunction,
         rows: level.rowStrings,
-        difficulty: level.difficulty,
+        difficulty: level.difficultyStars,
       );
       if (statusCode == 200) {
         await CustomPuzzleStore().markPublished(level.id);

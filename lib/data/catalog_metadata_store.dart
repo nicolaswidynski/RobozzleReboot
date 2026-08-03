@@ -8,7 +8,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 class CatalogMetadataOverride {
   final String? title;
   final String? author;
-  final int? difficulty;
+
+  /// The precise, often-decimal rating — see [Level.difficulty].
+  final double? difficulty;
   final int? popularity;
 
   CatalogMetadataOverride({
@@ -29,7 +31,7 @@ class CatalogMetadataOverride {
     return CatalogMetadataOverride(
       title: json['title'] as String?,
       author: json['author'] as String?,
-      difficulty: json['difficulty'] as int?,
+      difficulty: (json['difficulty'] as num?)?.toDouble(),
       popularity: json['popularity'] as int?,
     );
   }

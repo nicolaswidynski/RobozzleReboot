@@ -32,8 +32,9 @@ void main() {
     expect(overrides['catalog-53']!.title, 'Branches');
   });
 
-  test('rounds a decimal difficulty instead of dropping it — real puzzles '
-      'do come back with e.g. difficulty 3.053571428571428', () {
+  test('keeps a decimal difficulty precise instead of rounding it away — '
+      'real puzzles do come back with e.g. difficulty 3.053571428571428',
+      () {
     final raw = [
       {
         "sourceId": 392,
@@ -53,8 +54,8 @@ void main() {
 
     final overrides = parseCatalogOverrides(raw);
 
-    expect(overrides['catalog-392']!.difficulty, 3);
-    expect(overrides['catalog-23']!.difficulty, 2);
+    expect(overrides['catalog-392']!.difficulty, 3.053571428571428);
+    expect(overrides['catalog-23']!.difficulty, 2.000687127805772);
   });
 
   test('a difficulty that rounds below 1 (e.g. an unrated puzzle averaging '

@@ -95,7 +95,7 @@ class _EditorScreenState extends State<EditorScreen> {
     _startDirection = existing.startDirection;
     _slotsPerFunction = List.of(existing.slotsPerFunction);
     _allowedPaintColors = Set.of(existing.allowedPaintColors);
-    _suggestedDifficulty = existing.difficulty.clamp(1, 5);
+    _suggestedDifficulty = existing.difficultyStars;
   }
 
   void _applyBlankState() {
@@ -125,7 +125,7 @@ class _EditorScreenState extends State<EditorScreen> {
       _startDirection = level.startDirection;
       _slotsPerFunction = List.of(level.slotsPerFunction);
       _allowedPaintColors = Set.of(level.allowedPaintColors);
-      _suggestedDifficulty = level.difficulty.clamp(1, 5);
+      _suggestedDifficulty = level.difficultyStars;
     });
   }
 
@@ -141,7 +141,7 @@ class _EditorScreenState extends State<EditorScreen> {
       startDirection: _startDirection,
       slotsPerFunction: _slotsPerFunction,
       allowedPaintColors: _allowedPaintColors,
-      difficulty: _suggestedDifficulty,
+      difficulty: _suggestedDifficulty.toDouble(),
     );
     return {
       'sourceId': 'draft',
@@ -355,7 +355,7 @@ class _EditorScreenState extends State<EditorScreen> {
       startDirection: _startDirection,
       slotsPerFunction: List.of(_slotsPerFunction),
       allowedPaintColors: Set.of(_allowedPaintColors),
-      difficulty: _suggestedDifficulty,
+      difficulty: _suggestedDifficulty.toDouble(),
     );
 
     final program = await Navigator.of(context).push<RobotProgram>(

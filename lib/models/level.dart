@@ -23,10 +23,15 @@ class Level {
   /// A value of 0 means that function is not offered to the player at all.
   final List<int> slotsPerFunction;
 
-  /// Placeholder difficulty rating (1 = easiest) used to sort the level
-  /// list. How this gets set for real (author-assigned vs. derived from
-  /// solve stats) is still to be decided.
-  final int difficulty;
+  /// Difficulty rating (1 = easiest, 5 = hardest). For scraped puzzles this
+  /// is the precise, often-decimal average player rating (e.g. `3.33`),
+  /// straight from the source site — used as-is for scoring, so two
+  /// puzzles that both display as "3 stars" but rate 2.6 and 3.4 aren't
+  /// scored identically (see [difficultyStars] for that rounded display
+  /// value). For hand-authored tutorials and custom/editor puzzles, which
+  /// have no underlying rating, it's just the whole-number star count the
+  /// author chose.
+  final double difficulty;
 
   /// Placeholder popularity score (higher = more popular) used to sort the
   /// level list. How this gets set for real (e.g. play counts) is still to
@@ -83,7 +88,7 @@ class Level {
       startCol: json['startCol'] as int,
       startDirection: Direction.values.byName(json['startDirection'] as String),
       slotsPerFunction: (json['slotsPerFunction'] as List).cast<int>(),
-      difficulty: json['difficulty'] as int,
+      difficulty: (json['difficulty'] as num).toDouble(),
       popularity: json['popularity'] as int,
       allowedPaintColors: {
         if (allowedCommands & 1 != 0) TileColor.red,
@@ -92,6 +97,12 @@ class Level {
       },
     );
   }
+
+  /// [difficulty] rounded to a whole star count, clamped to the 1-5 range
+  /// a rating can actually display as — for sorting/filtering/showing
+  /// star icons, wherever a discrete difficulty is needed instead of the
+  /// precise rating.
+  int get difficultyStars => difficulty.round().clamp(1, 5);
 
   int get rowCount => grid.length;
   int get colCount => grid.isEmpty ? 0 : grid[0].length;
