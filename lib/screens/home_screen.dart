@@ -504,7 +504,7 @@ class _LevelCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Row(
                     children: [
-                      _DifficultyDots(difficulty: level.difficultyStars),
+                      _DifficultyDots(difficulty: level.difficulty),
                       const SizedBox(width: 14),
                       Icon(
                         Icons.trending_up_rounded,
@@ -533,11 +533,16 @@ class _LevelCard extends StatelessWidget {
 }
 
 /// Same star language as the post-solve difficulty rating and the editor's
-/// "suggested difficulty" picker, for visual consistency across the app.
+/// "suggested difficulty" picker, for visual consistency across the app —
+/// but each star's fill is quantized to the nearest quarter (0/25/50/75/
+/// 100%) instead of just on/off, so a precise scraped rating (e.g. 3.6)
+/// visibly reads as "between 3 and 4" instead of looking identical to a
+/// flat 4.0.
 class _DifficultyDots extends StatelessWidget {
   static const int _maxDifficulty = 5;
+  static const double _size = 13;
 
-  final int difficulty;
+  final double difficulty;
 
   const _DifficultyDots({required this.difficulty});
 
@@ -545,13 +550,39 @@ class _DifficultyDots extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        for (var i = 1; i <= _maxDifficulty; i++)
-          Icon(
-            i <= difficulty ? Icons.star_rounded : Icons.star_border_rounded,
-            color: AppColors.star,
-            size: 13,
-          ),
+        for (var i = 1; i <= _maxDifficulty; i++) _buildStar(i),
       ],
+    );
+  }
+
+  Widget _buildStar(int index) {
+    final raw = (difficulty - (index - 1)).clamp(0.0, 1.0);
+    final fraction = (raw * 4).round() / 4;
+
+    if (fraction == 0) {
+      return const Icon(Icons.star_border_rounded,
+          color: AppColors.star, size: _size);
+    }
+    if (fraction == 1) {
+      return const Icon(Icons.star_rounded, color: AppColors.star, size: _size);
+    }
+    return SizedBox(
+      width: _size,
+      height: _size,
+      child: Stack(
+        children: [
+          const Icon(Icons.star_border_rounded,
+              color: AppColors.star, size: _size),
+          ClipRect(
+            child: Align(
+              alignment: Alignment.centerLeft,
+              widthFactor: fraction,
+              child: const Icon(Icons.star_rounded,
+                  color: AppColors.star, size: _size),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
