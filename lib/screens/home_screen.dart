@@ -80,7 +80,10 @@ class _HomeScreenState extends State<HomeScreen> {
     _searchController.addListener(
       () => setState(() => _searchQuery = _searchController.text.trim()),
     );
-    _refreshCatalogMetadata(CatalogRefresher.instance.refreshDaily());
+    // No daily refresh trigger here — LandingScreen already does one on
+    // every launch, and it shares CatalogRefresher's throttle/cache with
+    // this screen, so by the time this opens there's nothing left to do
+    // that a second one wouldn't just skip anyway.
   }
 
   @override

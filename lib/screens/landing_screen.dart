@@ -32,11 +32,15 @@ class _LandingScreenState extends State<LandingScreen> {
   @override
   void initState() {
     super.initState();
-    // The catalog refreshes in the background (once daily, or on pull to
-    // refresh) while HomeScreen is on top of this route — a puzzle may have
-    // been re-rated or removed since, so the badge needs to recompute
-    // whenever that happens, not just when we're navigated back to.
+    // The catalog refreshes in the background here on every launch (once
+    // daily; see CatalogRefresher's own throttle) and again on pull to
+    // refresh from HomeScreen — a puzzle may have been re-rated or removed
+    // since, so the badge needs to recompute whenever that happens, not
+    // just when we're navigated back to. Unconditional, unlike the
+    // leaderboard sync below: browsing/scoring never requires an account,
+    // so refreshing puzzle metadata shouldn't either.
     CatalogRefresher.instance.addListener(_refreshPoints);
+    CatalogRefresher.instance.refreshDaily();
     // Loads the stored identity/pseudonym (if any) so the badge can show it
     // without the player first having to open an auth-gated screen.
     // restoreSession() only calls notifyListeners() when it actually changes
@@ -46,8 +50,9 @@ class _LandingScreenState extends State<LandingScreen> {
     AuthManager.instance.addListener(_onAuthChanged);
     AuthManager.instance.restoreSession().then((_) {
       _onAuthChanged();
-      // At least once a day: pushes this device's score/completed puzzles
-      // and pulls back the account-wide completed-puzzles superset (see
+      // At least once a day, signed in only (this actually needs an
+      // account): pushes this device's score/completed puzzles and pulls
+      // back the account-wide completed-puzzles superset (see
       // LeaderboardSync) — may grow the local completed set, so the points
       // badge needs a refresh when it actually ran.
       LeaderboardSync.instance.syncIfDue().then((synced) {
