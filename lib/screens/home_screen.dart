@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 
 import '../data/catalog_refresher.dart';
@@ -538,6 +540,13 @@ class _LevelCard extends StatelessWidget {
 /// 100%) instead of just on/off, so a precise scraped rating (e.g. 3.6)
 /// visibly reads as "between 3 and 4" instead of looking identical to a
 /// flat 4.0.
+///
+/// Draws its own star shape via [_StarPainter] rather than clipping the
+/// star_rounded/star_border_rounded icon glyphs: those glyphs have a fair
+/// amount of empty padding baked into their bounding box, so a width-
+/// fraction clip on them doesn't line up with how much of the visible
+/// star it actually covers (a 50% clip visibly looked closer to 75%
+/// full). A hand-drawn path has no such padding to correct for.
 class _DifficultyDots extends StatelessWidget {
   static const int _maxDifficulty = 5;
   static const double _size = 13;
@@ -550,7 +559,10 @@ class _DifficultyDots extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        for (var i = 1; i <= _maxDifficulty; i++) _buildStar(i),
+        for (var i = 1; i <= _maxDifficulty; i++) ...[
+          if (i > 1) const SizedBox(width: 2),
+          _buildStar(i),
+        ],
       ],
     );
   }
@@ -558,31 +570,79 @@ class _DifficultyDots extends StatelessWidget {
   Widget _buildStar(int index) {
     final raw = (difficulty - (index - 1)).clamp(0.0, 1.0);
     final fraction = (raw * 4).round() / 4;
-
-    if (fraction == 0) {
-      return const Icon(Icons.star_border_rounded,
-          color: AppColors.star, size: _size);
-    }
-    if (fraction == 1) {
-      return const Icon(Icons.star_rounded, color: AppColors.star, size: _size);
-    }
-    return SizedBox(
-      width: _size,
-      height: _size,
-      child: Stack(
-        children: [
-          const Icon(Icons.star_border_rounded,
-              color: AppColors.star, size: _size),
-          ClipRect(
-            child: Align(
-              alignment: Alignment.centerLeft,
-              widthFactor: fraction,
-              child: const Icon(Icons.star_rounded,
-                  color: AppColors.star, size: _size),
-            ),
-          ),
-        ],
-      ),
+    return CustomPaint(
+      size: const Size.square(_size),
+      painter: _StarPainter(fraction: fraction, color: AppColors.star),
     );
   }
+}
+
+/// Paints a 5-point star: an outline over the full shape, plus a solid
+/// fill clipped to the leftmost [fraction] of the star's own bounding
+/// box (not the glyph-padded box an Icon would use).
+class _StarPainter extends CustomPainter {
+  final double fraction;
+  final Color color;
+
+  _StarPainter({required this.fraction, required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = _starPath(size);
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color.withValues(alpha: 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+
+    if (fraction <= 0) return;
+    canvas.save();
+    canvas.clipRect(
+        Rect.fromLTWH(0, 0, size.width * _visualFraction(fraction), size.height));
+    canvas.drawPath(path, Paint()..color = color);
+    canvas.restore();
+  }
+
+  /// A star's visible "fullness" doesn't track clip width linearly — the
+  /// pointed tips near the left/right edges are thin slivers, so a literal
+  /// 25%/75% width clip reads as almost-empty/almost-full rather than a
+  /// quarter or three-quarters full. Nudged toward the center purely for
+  /// how it looks; [fraction] itself is untouched, so it still reports
+  /// the true quantized value to anything inspecting this painter.
+  static double _visualFraction(double fraction) {
+    if (fraction == 0.25) return 0.35;
+    if (fraction == 0.75) return 0.65;
+    return fraction;
+  }
+
+  static Path _starPath(Size size) {
+    const points = 5;
+    const innerRadiusRatio = 0.4;
+    final center = Offset(size.width / 2, size.height / 2);
+    final outerRadius = size.width / 2;
+    final innerRadius = outerRadius * innerRadiusRatio;
+    final path = Path();
+    for (var i = 0; i < points * 2; i++) {
+      final radius = i.isEven ? outerRadius : innerRadius;
+      final angle = -pi / 2 + i * pi / points;
+      final point = Offset(
+        center.dx + radius * cos(angle),
+        center.dy + radius * sin(angle),
+      );
+      if (i == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+    path.close();
+    return path;
+  }
+
+  @override
+  bool shouldRepaint(covariant _StarPainter oldDelegate) =>
+      oldDelegate.fraction != fraction || oldDelegate.color != color;
 }

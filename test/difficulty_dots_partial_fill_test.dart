@@ -24,22 +24,25 @@ void main() {
 
     // "Another speed control" (sourceId 195) rates 3.33 in the bundled
     // catalog, verified directly against the asset -- searching narrows
-    // the list to just this one card, so every star icon on screen
-    // afterward belongs to it.
+    // the list to just this one card, so its 5 stars are the only
+    // _StarPainter-backed CustomPaint widgets on screen.
     await tester.enterText(
         find.byType(TextField), 'Another speed control');
     await tester.pump();
-    // Matches both the search field's own echoed text and the level
-    // card's title.
-    expect(find.text('Another speed control'), findsNWidgets(2));
+
+    // _StarPainter is private, so it can't be named as a type here, but
+    // its "fraction" field isn't itself a private identifier -- Dart's
+    // library privacy hides the class name, not a public-named member on
+    // an instance of it, so reading it dynamically still works.
+    final starFractions = tester
+        .widgetList<CustomPaint>(find.byType(CustomPaint))
+        .map((w) => w.painter)
+        .where((p) => p != null && p.runtimeType.toString() == '_StarPainter')
+        .map((p) => (p as dynamic).fraction as double)
+        .toList();
 
     // 3.33 -> 3 full stars, a quarter-filled 4th (0.33 rounds to the
-    // nearest quarter, 0.25), and an empty 5th. The quarter-filled star is
-    // drawn as a full star clipped to 25% width over an empty one, so
-    // there are 4 "star_rounded" icons total (3 whole + 1 clipped) and 2
-    // "star_border_rounded" icons (the clipped star's backing outline +
-    // the fully empty 5th star).
-    expect(find.byIcon(Icons.star_rounded), findsNWidgets(4));
-    expect(find.byIcon(Icons.star_border_rounded), findsNWidgets(2));
+    // nearest quarter, 0.25), and an empty 5th.
+    expect(starFractions, [1.0, 1.0, 1.0, 0.25, 0.0]);
   });
 }
