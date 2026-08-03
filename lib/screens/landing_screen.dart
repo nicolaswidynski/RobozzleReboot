@@ -27,6 +27,11 @@ class LandingScreen extends StatefulWidget {
 }
 
 class _LandingScreenState extends State<LandingScreen> {
+  // Campaign and Community Puzzles partition the catalog rather than
+  // overlapping — a puzzle by one of these authors only ever shows up
+  // under Campaign, never also under Community Puzzles.
+  static const _campaignAuthors = {'igoro', 'blake', 'markbyers', 'wido'};
+
   late Future<int> _pointsFuture = _loadPoints();
 
   @override
@@ -94,6 +99,7 @@ class _LandingScreenState extends State<LandingScreen> {
     BuildContext context, {
     String title = 'Community Puzzles',
     Set<String>? authorFilter,
+    Set<String>? excludeAuthors,
     bool allowSortChoice = true,
   }) async {
     await Navigator.of(context).push(
@@ -101,6 +107,7 @@ class _LandingScreenState extends State<LandingScreen> {
         builder: (_) => HomeScreen(
           title: title,
           authorFilter: authorFilter,
+          excludeAuthors: excludeAuthors,
           allowSortChoice: allowSortChoice,
         ),
       ),
@@ -237,18 +244,10 @@ class _LandingScreenState extends State<LandingScreen> {
                     _LandingMenuButton(
                       icon: Icons.flag_rounded,
                       label: 'Campaign',
-                      // These puzzles also stay visible under Community
-                      // Puzzles — this only narrows which screen shows
-                      // them, it doesn't remove them from the full catalog.
                       onTap: () => _openHomeScreen(
                         context,
                         title: 'Campaign',
-                        authorFilter: {
-                          'igoro',
-                          'blake',
-                          'markbyers',
-                          'wido',
-                        },
+                        authorFilter: _campaignAuthors,
                         // Always sorted by difficulty — no Sort-by choice.
                         allowSortChoice: false,
                       ),
@@ -257,7 +256,10 @@ class _LandingScreenState extends State<LandingScreen> {
                     _LandingMenuButton(
                       icon: Icons.public_rounded,
                       label: 'Community Puzzles',
-                      onTap: () => _openHomeScreen(context),
+                      onTap: () => _openHomeScreen(
+                        context,
+                        excludeAuthors: _campaignAuthors,
+                      ),
                     ),
                     const SizedBox(height: 12),
                     _LandingMenuButton(

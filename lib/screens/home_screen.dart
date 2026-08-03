@@ -34,16 +34,22 @@ enum _DifficultyFilter {
 /// difficulty or popularity. Tapping one opens [GameScreen] starting on
 /// that level.
 ///
-/// Reused for both "Community Puzzles" (the full catalog) and "Campaign"
-/// (the same catalog narrowed to [authorFilter]) — a puzzle stays visible
-/// under Community Puzzles either way, since this never removes anything
-/// from the underlying data, just changes which screen shows it.
+/// Reused for both "Community Puzzles" (the full catalog, minus
+/// [excludeAuthors]) and "Campaign" (the same catalog narrowed to just
+/// [authorFilter]) — the two are meant to partition the catalog, not
+/// overlap, so a puzzle by a Campaign author only ever shows up there.
 class HomeScreen extends StatefulWidget {
   final String title;
 
   /// When set, only levels whose author (case-insensitively) is in this
-  /// set are shown. `null` means no filtering — the full catalog.
+  /// set are shown. `null` means no filtering — the full catalog (minus
+  /// [excludeAuthors], if that's set instead).
   final Set<String>? authorFilter;
+
+  /// When set, levels whose author (case-insensitively) is in this set are
+  /// hidden — the opposite of [authorFilter]. Only one of the two is ever
+  /// meaningfully set at once.
+  final Set<String>? excludeAuthors;
 
   /// Whether the player can switch between sorting by difficulty and by
   /// popularity. When `false` (Campaign), sorting is fixed to difficulty
@@ -54,6 +60,7 @@ class HomeScreen extends StatefulWidget {
     super.key,
     this.title = 'Community Puzzles',
     this.authorFilter,
+    this.excludeAuthors,
     this.allowSortChoice = true,
   });
 
@@ -65,6 +72,8 @@ class _HomeScreenState extends State<HomeScreen> {
   late Future<List<Level>> _levelsFuture = _loadAllLevels();
   late final Set<String>? _authorFilter =
       widget.authorFilter?.map((a) => a.toLowerCase()).toSet();
+  late final Set<String>? _excludeAuthors =
+      widget.excludeAuthors?.map((a) => a.toLowerCase()).toSet();
   final ProgressStore _progressStore = ProgressStore();
   final TextEditingController _searchController = TextEditingController();
   Set<String> _completedIds = const {};
@@ -124,6 +133,13 @@ class _HomeScreenState extends State<HomeScreen> {
     if (authorFilter != null) {
       indexed = indexed
           .where((e) => authorFilter.contains(e.value.author.toLowerCase()))
+          .toList();
+    }
+
+    final excludeAuthors = _excludeAuthors;
+    if (excludeAuthors != null) {
+      indexed = indexed
+          .where((e) => !excludeAuthors.contains(e.value.author.toLowerCase()))
           .toList();
     }
 
