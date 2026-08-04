@@ -45,6 +45,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('permanent ban'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Rate this game'),
+        findsOneWidget);
   });
 
   testWidgets(

@@ -4,6 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../data/auth_manager.dart';
 import '../theme/app_colors.dart';
+import '../widgets/rating_prompt_dialog.dart';
 
 const _robozzleUrl = 'https://robozzle.com/';
 
@@ -143,6 +144,23 @@ class _AboutScreenState extends State<AboutScreen> {
                 'Robozzle Reboot is a fresh implementation developed with '
                 'the agreement of the original author.',
                 style: bodyStyle,
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: openAppStoreReview,
+                  icon: const Icon(Icons.star_rounded, color: AppColors.star),
+                  label: const Text('Rate this game'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 13),
+                    side: const BorderSide(color: AppColors.panelBorder),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
               ),
               const SizedBox(height: 24),
               Container(

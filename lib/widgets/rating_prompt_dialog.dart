@@ -8,7 +8,10 @@ import '../theme/app_colors.dart';
 // published (App Store Connect -> App Information -> Apple ID).
 const _appStoreId = '0000000000';
 
-Future<void> _openAppStoreReview() async {
+/// Opens the App Store's write-a-review flow for this app directly — used
+/// by both the auto-triggered [_RatingPromptDialog] and the "Rate this
+/// game" button in the About screen.
+Future<void> openAppStoreReview() async {
   final uri = Uri.parse(
     'https://apps.apple.com/app/id$_appStoreId?action=write-review',
   );
@@ -73,7 +76,7 @@ class _RatingPromptDialog extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: () async {
                   await RatingPromptStore().recordRated();
-                  await _openAppStoreReview();
+                  await openAppStoreReview();
                   if (context.mounted) Navigator.of(context).pop();
                 },
                 style: ElevatedButton.styleFrom(
