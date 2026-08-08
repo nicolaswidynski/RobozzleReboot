@@ -39,6 +39,10 @@ void main() {
     }
 
     expect(find.text('Clear!'), findsOneWidget);
+    // testLevel() is difficulty 1 (1 point) with 6 slots in F1; solving it
+    // with exactly 3 forwards leaves 3 unused, so the bonus is 3*1=3.
+    expect(find.text('+1 points'), findsOneWidget);
+    expect(find.text('+3 bonus points'), findsOneWidget);
     final nextButton = find.widgetWithText(ElevatedButton, 'Next');
     expect(nextButton, findsOneWidget);
 
@@ -49,6 +53,31 @@ void main() {
     // is gone since the new level hasn't been solved yet.
     expect(find.text('Test Level 2'), findsOneWidget);
     expect(find.text('Clear!'), findsNothing);
+  });
+
+  testWidgets('no bonus line shown when the winning program used every '
+      'available slot', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: GameScreen(levels: [testLevel()])),
+    );
+    await tester.pumpAndSettle();
+
+    // Fill all 6 of F1's slots -- only the first 3 forwards actually run
+    // (the level is solved and the interpreter stops stepping once it
+    // hits success), but unusedSlots counts occupancy, not execution, so
+    // this should leave nothing unused.
+    for (var i = 0; i < 6; i++) {
+      await placeInstruction(tester, ActionType.forward,
+          find.byType(DragTarget<ProgramInstruction>).at(i));
+    }
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
+      await tester.pumpAndSettle();
+    }
+
+    expect(find.text('Clear!'), findsOneWidget);
+    expect(find.text('+1 points'), findsOneWidget);
+    expect(find.textContaining('bonus points'), findsNothing);
   });
 
   testWidgets(

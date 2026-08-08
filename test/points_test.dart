@@ -2,7 +2,9 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:robozzle_reboot/data/points.dart';
 import 'package:robozzle_reboot/models/direction.dart';
+import 'package:robozzle_reboot/models/instruction.dart';
 import 'package:robozzle_reboot/models/level.dart';
+import 'package:robozzle_reboot/models/program.dart';
 
 import 'test_level.dart';
 
@@ -57,5 +59,28 @@ void main() {
     ];
     final ids = levels.map((l) => l.id).toSet();
     expect(totalPoints(ids, levels), 13);
+  });
+
+  test('unusedSlots counts empty slots across every function, not just '
+      'the one in use', () {
+    final level = _levelWithDifficulty(1); // slotsPerFunction: [0,0,0,0,0]
+    final program = RobotProgram.empty(level);
+    expect(unusedSlots(program), 0); // no slots offered at all
+
+    final program2 = RobotProgram.empty(testLevel()); // slots: [6,0,0,0,0]
+    expect(unusedSlots(program2), 6); // nothing placed yet
+
+    program2.setSlot(0, 0, const ProgramInstruction(ActionType.forward));
+    program2.setSlot(0, 1, const ProgramInstruction(ActionType.forward));
+    expect(unusedSlots(program2), 4);
+  });
+
+  test('bonusPoints scales unused slots by difficulty, same shape as the '
+      'base score', () {
+    expect(bonusPoints(3, _levelWithDifficulty(1)), 3);
+    expect(bonusPoints(3, _levelWithDifficulty(2)), 6);
+    expect(bonusPoints(0, _levelWithDifficulty(5)), 0);
+    // 3 * 2.5 = 7.5 -> rounds to 8.
+    expect(bonusPoints(3, _levelWithDifficulty(2.5)), 8);
   });
 }

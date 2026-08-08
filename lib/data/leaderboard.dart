@@ -46,9 +46,13 @@ Future<LeaderboardResult> fetchLeaderboard() async {
   final levels = await loadCatalogLevels();
   final score = totalPoints(completedIds, levels);
 
+  final puzzleNumbers = catalogPuzzleNumbers(completedIds);
+  final parByLevelId = await ProgressStore().loadPar();
+
   final (json, statusCode) = await RobozzleApiClient.instance.postScore(
     score,
-    completedPuzzleIds: catalogPuzzleNumbers(completedIds),
+    completedPuzzleIds: puzzleNumbers,
+    par: parForCatalogPuzzles(puzzleNumbers, parByLevelId),
   );
   if (statusCode < 200 || statusCode > 299) {
     throw LeaderboardError(
@@ -102,6 +106,23 @@ List<int> catalogPuzzleNumbers(Set<String> completedIds) {
     if (n != null) numbers.add(n);
   }
   return numbers;
+}
+
+/// The best-ever unused-slot count (see [ProgressStore.recordPar]) for
+/// each puzzle in [puzzleNumbers], in the same order, sent to the server
+/// as `par` alongside `completed_puzzles`. Negated to match golf-style
+/// scoring: a puzzle solved with slots to spare comes out negative
+/// ("under par"), one solved using every slot is exactly `0`, and so is
+/// any puzzle this device has no locally recorded value for (completed
+/// before this feature shipped, or only known here via the server's
+/// completed-puzzles superset).
+List<int> parForCatalogPuzzles(
+  List<int> puzzleNumbers,
+  Map<String, int> parByLevelId,
+) {
+  return [
+    for (final n in puzzleNumbers) -(parByLevelId['catalog-$n'] ?? 0),
+  ];
 }
 
 /// Parses `completed_puzzles` (a JSON-encoded array of bare catalog

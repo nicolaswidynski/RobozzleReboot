@@ -10,6 +10,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 class ProgressStore {
   static const _key = 'completed_level_ids';
   static const _serverScoreKey = 'server_score';
+  static const _parKey = 'par_by_level_id';
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
 
@@ -51,5 +52,31 @@ class ProgressStore {
   /// would locally add up to.
   Future<void> saveServerScore(int score) async {
     await _storage.write(key: _serverScoreKey, value: '$score');
+  }
+
+  /// The best-ever [unusedSlots] (see points.dart) recorded per level id —
+  /// see [recordPar]. Empty until a puzzle's first completion after this
+  /// feature shipped; a puzzle solved before then (or recovered from
+  /// another device via the server's completed-puzzles superset) simply
+  /// has no entry.
+  Future<Map<String, int>> loadPar() async {
+    final raw = await _storage.read(key: _parKey);
+    if (raw == null) return {};
+    return (jsonDecode(raw) as Map<String, dynamic>)
+        .map((key, value) => MapEntry(key, value as int));
+  }
+
+  /// Records [unusedSlots] as [levelId]'s best-ever value if it beats
+  /// whatever's already stored (or nothing is yet) — a less efficient
+  /// replay never erases a previous better solve. This is what's reported
+  /// to the leaderboard as `par` (see `parForCatalogPuzzles` in
+  /// leaderboard.dart), so it needs to persist across sessions the same
+  /// way completion itself does.
+  Future<void> recordPar(String levelId, int unusedSlots) async {
+    final map = await loadPar();
+    final existing = map[levelId];
+    if (existing != null && existing >= unusedSlots) return;
+    map[levelId] = unusedSlots;
+    await _storage.write(key: _parKey, value: jsonEncode(map));
   }
 }

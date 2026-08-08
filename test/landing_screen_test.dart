@@ -11,24 +11,39 @@ import 'package:robozzle_reboot/screens/tutorial_screen.dart';
 
 import 'fake_secure_storage.dart';
 
+// The landing menu's ListView (like ListView.builder) only builds children
+// within its viewport/cache extent — with 7 entries now (Daily Challenge
+// added), the last couple start off-screen in the test surface's default
+// size. Same pattern as editor_flow_test.dart's _scrollToVisible.
+Future<void> _scrollToVisible(WidgetTester tester, Finder finder) async {
+  for (var attempt = 0; attempt < 20 && finder.evaluate().isEmpty; attempt++) {
+    await tester.drag(find.byType(ListView).first, const Offset(0, -300));
+    await tester.pump();
+  }
+  expect(finder, findsOneWidget);
+  await tester.ensureVisible(finder);
+  await tester.pump();
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
     installFakeSecureStorage();
   });
 
-  testWidgets('shows all 6 menu entries', (tester) async {
+  testWidgets('shows all 7 menu entries', (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LandingScreen()));
 
     for (final label in [
       'Tutorials',
       'Campaign',
       'Community Puzzles',
+      'Daily Challenge',
       'Editor',
       'Leaderboard',
       'About',
     ]) {
-      expect(find.text(label), findsOneWidget);
+      await _scrollToVisible(tester, find.text(label));
     }
   });
 
@@ -36,6 +51,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LandingScreen()));
 
+    await _scrollToVisible(tester, find.text('About'));
     await tester.tap(find.text('About'));
     await tester.pumpAndSettle();
 
@@ -88,6 +104,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LandingScreen()));
 
+    await _scrollToVisible(tester, find.text('Leaderboard'));
     await tester.tap(find.text('Leaderboard'));
     await tester.pumpAndSettle();
 
@@ -98,6 +115,7 @@ void main() {
       (tester) async {
     await tester.pumpWidget(const MaterialApp(home: LandingScreen()));
 
+    await _scrollToVisible(tester, find.text('Editor'));
     await tester.tap(find.text('Editor'));
     await tester.pumpAndSettle();
 

@@ -53,6 +53,8 @@ class RobozzleApiClient {
       'https://REDACTED-SERVER.example.com/webhook/robozzle-rate-puzzle';
   static const String _savePuzzleUrl =
       'https://REDACTED-SERVER.example.com/webhook/robozzle-save-puzzle';
+  static const String _dailyPuzzleUrl =
+      'https://REDACTED-SERVER.example.com/webhook/daily-puzzle';
 
   static const Uuid _uuid = Uuid();
 
@@ -111,21 +113,25 @@ class RobozzleApiClient {
     return (json, response.statusCode);
   }
 
-  /// POSTs the player's [score] and [completedPuzzleIds] (the bare catalog
+  /// POSTs the player's [score], [completedPuzzleIds] (the bare catalog
   /// numbers, e.g. `[1, 234, 54]` for level ids `catalog-1`/`catalog-234`/
   /// `catalog-54` — JSON-encoded to a string, same convention as
-  /// `slotsPerFunction` in [publishPuzzle]) to `robozzle-leaderboard`,
-  /// identifying the player via `auth_provider` + `provider_user_id` (so
-  /// the server can verify the account) and a freshly generated
-  /// `request_id` (echoed back so responses can be matched to requests),
-  /// same as every `manageUser` call. The session token is still attached
-  /// as `authorization_uuid`. Returns the decoded JSON response (rank,
-  /// full sorted leaderboard, and the server's completed-puzzles superset
-  /// — see `fetchLeaderboard` in leaderboard.dart) together with the HTTP
-  /// status code.
+  /// `slotsPerFunction` in [publishPuzzle]), and [par] (each completed
+  /// puzzle's best-ever unused-instruction-slot count, negated — see
+  /// `parForCatalogPuzzles` in leaderboard.dart — in the same order as
+  /// [completedPuzzleIds], same JSON-encoded-string convention) to
+  /// `robozzle-leaderboard`, identifying the player via `auth_provider` +
+  /// `provider_user_id` (so the server can verify the account) and a
+  /// freshly generated `request_id` (echoed back so responses can be
+  /// matched to requests), same as every `manageUser` call. The session
+  /// token is still attached as `authorization_uuid`. Returns the decoded
+  /// JSON response (rank, full sorted leaderboard, and the server's
+  /// completed-puzzles superset — see `fetchLeaderboard` in
+  /// leaderboard.dart) together with the HTTP status code.
   Future<(Map<String, dynamic>? json, int statusCode)> postScore(
     int score, {
     required List<int> completedPuzzleIds,
+    required List<int> par,
   }) async {
     final sessionToken = await _sessionStore.readSessionToken();
     if (sessionToken == null) throw MissingSessionTokenError();
@@ -143,6 +149,7 @@ class RobozzleApiClient {
         'request_id': _uuid.v4(),
         'score': score,
         'completed_puzzles': jsonEncode(completedPuzzleIds),
+        'par': jsonEncode(par),
       }),
     );
 
@@ -207,6 +214,36 @@ class RobozzleApiClient {
       headers: headers,
       body: jsonEncode({
         'puzzle_id': puzzleId,
+        'request_id': _uuid.v4(),
+      }),
+    );
+
+    final json = _firstJson(response.bodyBytes);
+
+    if (response.statusCode == 401 || response.statusCode == 403) {
+      await _sessionStore.clearSessionToken();
+    }
+
+    return (json, response.statusCode);
+  }
+
+  /// POSTs `{request_id}` to `daily-puzzle` — no identity, same as
+  /// [fetchPuzzleListing]/[fetchPuzzle]. Returns the raw response, whose
+  /// `daily_puzzle` field carries the source id of today's featured
+  /// puzzle (see `fetchDailyPuzzleLevel` in daily_puzzle.dart), together
+  /// with the HTTP status code.
+  Future<(Map<String, dynamic>? json, int statusCode)> fetchDailyPuzzle() async {
+    final sessionToken = await _sessionStore.readSessionToken();
+
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    if (sessionToken != null) {
+      headers['authorization_uuid'] = 'Bearer $sessionToken';
+    }
+
+    final response = await http.post(
+      Uri.parse(_dailyPuzzleUrl),
+      headers: headers,
+      body: jsonEncode({
         'request_id': _uuid.v4(),
       }),
     );

@@ -53,4 +53,26 @@ void main() {
     await store.saveServerScore(12);
     expect(await store.loadServerScore(), 12);
   });
+
+  test('par is empty until recorded, then round-trips through storage',
+      () async {
+    final store = ProgressStore();
+
+    expect(await store.loadPar(), isEmpty);
+
+    await store.recordPar('catalog-1', 3);
+    expect(await store.loadPar(), {'catalog-1': 3});
+  });
+
+  test('recordPar keeps the best (highest) value, ignoring a worse replay',
+      () async {
+    final store = ProgressStore();
+
+    await store.recordPar('catalog-1', 3);
+    await store.recordPar('catalog-1', 1); // worse -- fewer unused slots
+    expect(await store.loadPar(), {'catalog-1': 3});
+
+    await store.recordPar('catalog-1', 5); // better -- overwrites
+    expect(await store.loadPar(), {'catalog-1': 5});
+  });
 }

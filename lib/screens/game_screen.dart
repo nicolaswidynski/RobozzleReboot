@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../data/points.dart';
 import '../data/program_store.dart';
 import '../data/progress_store.dart';
 import '../data/puzzle_content.dart';
@@ -410,6 +411,11 @@ class _GameScreenState extends State<GameScreen> {
   void _maybeMarkCompleted() {
     if (_interpreter.status == RunStatus.success) {
       _progressStore.markCompleted(_level.id);
+      // Records this attempt's efficiency (see points.dart) as the
+      // level's best-ever if it beats whatever's already stored — the
+      // `par` figure reported to the leaderboard, and the source for the
+      // Clear overlay's bonus-points display below.
+      _progressStore.recordPar(_level.id, unusedSlots(_program));
       // So _goToNextLevel already knows to skip this one — no need to wait
       // on the store round-trip, and no setState needed here either: the
       // Clear overlay (which is what actually reads _goToNextLevel) only
@@ -698,6 +704,8 @@ class _GameScreenState extends State<GameScreen> {
           if (_showClearOverlay)
             Positioned.fill(
               child: _ClearOverlay(
+                points: pointsForDifficulty(_level).round(),
+                bonusPoints: bonusPoints(unusedSlots(_program), _level),
                 onNext: _goToNextLevel,
                 onBackToList: _backToList,
                 showRating: !_ratingHandled,
@@ -825,6 +833,8 @@ class _FunctionsHandle extends StatelessWidget {
 /// [onBackToList] (e.g. to pick a different difficulty) instead of being
 /// disabled.
 class _ClearOverlay extends StatelessWidget {
+  final int points;
+  final int bonusPoints;
   final VoidCallback? onNext;
   final VoidCallback onBackToList;
   final bool showRating;
@@ -834,6 +844,8 @@ class _ClearOverlay extends StatelessWidget {
   final VoidCallback onLikeToggle;
 
   const _ClearOverlay({
+    required this.points,
+    required this.bonusPoints,
     required this.onNext,
     required this.onBackToList,
     required this.showRating,
@@ -869,6 +881,45 @@ class _ClearOverlay extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                   fontSize: 24),
             ),
+            const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.star_rounded,
+                    color: AppColors.star, size: 18),
+                const SizedBox(width: 4),
+                Text(
+                  '+$points points',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 15,
+                  ),
+                ),
+              ],
+            ),
+            // Only shown when the winning program left slots unused (see
+            // points.dart's unusedSlots/bonusPoints) — a puzzle solved
+            // using every available slot earns no bonus.
+            if (bonusPoints > 0) ...[
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.bolt_rounded,
+                      color: AppColors.accent, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    '+$bonusPoints bonus points',
+                    style: const TextStyle(
+                      color: AppColors.accent,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             if (showRating) ...[
               const SizedBox(height: 20),
               Text(

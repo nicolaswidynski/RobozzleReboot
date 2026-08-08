@@ -171,4 +171,22 @@ void main() {
     expect(parseCompletedPuzzleIds('{"not": "a list"}'), isEmpty);
     expect(parseCompletedPuzzleIds(42), isEmpty);
   });
+
+  test('parForCatalogPuzzles negates each puzzle\'s recorded par (golf '
+      'convention: slots to spare is "under par"), 0 for anything not '
+      'locally recorded, in the same order as the input list', () {
+    expect(
+      parForCatalogPuzzles(
+        [662461, 140, 27],
+        {'catalog-662461': 0, 'catalog-140': 2, 'catalog-27': 1},
+      ),
+      [0, -2, -1],
+    );
+
+    // No entry at all for 999 -- treated as exactly at par (0), not an error.
+    expect(
+      parForCatalogPuzzles([999], {}),
+      [0],
+    );
+  });
 }

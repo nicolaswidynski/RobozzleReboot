@@ -10,6 +10,7 @@ import '../theme/app_colors.dart';
 import 'about_screen.dart';
 import 'auth/pseudonym_screen.dart';
 import 'auth/sign_in_screen.dart';
+import 'daily_challenge_screen.dart';
 import 'editor/editor_home_screen.dart';
 import 'home_screen.dart';
 import 'leaderboard_screen.dart';
@@ -256,6 +257,19 @@ class _LandingScreenState extends State<LandingScreen> {
                         context,
                         excludeAuthors: _campaignAuthors,
                       ),
+                    ),
+                    const SizedBox(height: 12),
+                    _LandingMenuButton(
+                      icon: Icons.today_rounded,
+                      label: 'Daily Challenge',
+                      onTap: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const DailyChallengeScreen(),
+                          ),
+                        );
+                        _refreshPoints();
+                      },
                     ),
                     const SizedBox(height: 12),
                     _LandingMenuButton(
