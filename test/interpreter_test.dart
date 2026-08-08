@@ -465,4 +465,102 @@ void main() {
       ]);
     });
   });
+
+  group('highlightFunction/highlightSlot (drives the yellow highlight in '
+      'the UI)', () {
+    test('after a step, the highlight points at the next instruction to '
+        'run, not the one that just ran', () {
+      final level = _longStraightLine();
+      final program = RobotProgram.empty(level);
+      program.setSlot(0, 0, const ProgramInstruction(ActionType.forward));
+      program.setSlot(0, 1, const ProgramInstruction(ActionType.forward));
+      final interpreter = RobotInterpreter(level: level, program: program);
+
+      interpreter.step(); // executes slot 0
+      expect(interpreter.highlightFunction, 0);
+      expect(interpreter.highlightSlot, 1); // slot 1, not the one that ran
+
+      interpreter.step(); // executes slot 1
+      // Nothing real left in F1 -- the program is about to end.
+      expect(interpreter.highlightFunction, isNull);
+      expect(interpreter.highlightSlot, isNull);
+    });
+
+    test('the highlight skips over empty slots to the next real '
+        'instruction', () {
+      final level = _longStraightLine();
+      final program = RobotProgram.empty(level);
+      program.setSlot(0, 0, const ProgramInstruction(ActionType.forward));
+      // slot 1 left empty
+      program.setSlot(0, 2, const ProgramInstruction(ActionType.forward));
+      final interpreter = RobotInterpreter(level: level, program: program);
+
+      interpreter.step();
+      expect(interpreter.highlightFunction, 0);
+      expect(interpreter.highlightSlot, 2);
+    });
+
+    test('the highlight skips a condition-mismatched instruction to the '
+        'next one that will actually run', () {
+      final level = _longStraightLine(); // every tile is blue
+      final program = RobotProgram.empty(level);
+      program.setSlot(0, 0, const ProgramInstruction(ActionType.forward));
+      program.setSlot(
+          0, 1, const ProgramInstruction(ActionType.turnRight, condition: TileColor.red));
+      program.setSlot(0, 2, const ProgramInstruction(ActionType.forward));
+      final interpreter = RobotInterpreter(level: level, program: program);
+
+      interpreter.step(); // slot 0: forward, lands on a blue tile
+      // slot 1's condition (red) doesn't match the blue tile it'll be
+      // evaluated against, so the highlight jumps straight past it to 2.
+      expect(interpreter.highlightFunction, 0);
+      expect(interpreter.highlightSlot, 2);
+    });
+
+    test('a call moves the highlight straight into the called function, '
+        'not to whatever follows the call', () {
+      final level = _lShapedLevel(); // has a real F2 (slotsPerFunction[1] > 0)
+      final program = RobotProgram.empty(level);
+      program.setSlot(0, 0, const ProgramInstruction(ActionType.callF2));
+      program.setSlot(0, 1, const ProgramInstruction(ActionType.turnRight));
+      program.setSlot(1, 0, const ProgramInstruction(ActionType.forward));
+      final interpreter = RobotInterpreter(level: level, program: program);
+
+      interpreter.step(); // executes the call, pushing a frame for F2
+      expect(interpreter.highlightFunction, 1);
+      expect(interpreter.highlightSlot, 0);
+    });
+
+    test('a self-recursive tail call wraps the highlight back to the '
+        'start of the loop', () {
+      final level = _longStraightLine();
+      final program = RobotProgram.empty(level);
+      program.setSlot(0, 0, const ProgramInstruction(ActionType.forward));
+      program.setSlot(0, 1, const ProgramInstruction(ActionType.callF1));
+      final interpreter = RobotInterpreter(level: level, program: program);
+
+      interpreter.step(); // slot 0: forward
+      expect(interpreter.highlightSlot, 1);
+
+      interpreter.step(); // slot 1: tail call back into F1
+      expect(interpreter.highlightFunction, 0);
+      expect(interpreter.highlightSlot, 0); // back to the top of the loop
+    });
+
+    test('a crash keeps the highlight on the instruction that caused it, '
+        'rather than advancing past it', () {
+      final level = _straightLine();
+      final program = RobotProgram.empty(level);
+      program.setSlot(0, 0, const ProgramInstruction(ActionType.turnLeft));
+      program.setSlot(0, 1, const ProgramInstruction(ActionType.forward));
+      final interpreter = RobotInterpreter(level: level, program: program);
+
+      interpreter.step(); // turnLeft
+      interpreter.step(); // forward off the edge -> crashed
+
+      expect(interpreter.status, RunStatus.crashed);
+      expect(interpreter.highlightFunction, 0);
+      expect(interpreter.highlightSlot, 1); // the forward that crashed
+    });
+  });
 }

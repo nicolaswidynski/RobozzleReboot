@@ -208,6 +208,12 @@ class RobotInterpreter {
         return status;
       }
 
+      // Default/fallback highlight — the instruction now executing. Every
+      // path below that completes normally overrides this to point at the
+      // *next* instruction instead (see _updateHighlightToNext) so the UI
+      // highlight shows what's about to happen, not what just did; a crash
+      // is the one case that deliberately keeps pointing here, at whatever
+      // instruction caused it.
       highlightFunction = frame.functionIndex;
       highlightSlot = evaluatedSlot;
 
@@ -236,24 +242,30 @@ class RobotInterpreter {
           _stack.removeLast();
         }
         _stack.add(_Frame(target, 0));
+        _updateHighlightToNext();
         return status;
       }
 
       switch (action) {
         case ActionType.turnLeft:
           direction = direction.turnLeft();
+          _updateHighlightToNext();
           return status;
         case ActionType.turnRight:
           direction = direction.turnRight();
+          _updateHighlightToNext();
           return status;
         case ActionType.paintRed:
           grid[row][col] = currentTile!.copyWith(color: TileColor.red);
+          _updateHighlightToNext();
           return status;
         case ActionType.paintGreen:
           grid[row][col] = currentTile!.copyWith(color: TileColor.green);
+          _updateHighlightToNext();
           return status;
         case ActionType.paintBlue:
           grid[row][col] = currentTile!.copyWith(color: TileColor.blue);
+          _updateHighlightToNext();
           return status;
         case ActionType.forward:
           final (dRow, dCol) = direction.delta;
@@ -264,7 +276,7 @@ class RobotInterpreter {
               : grid[nr][nc];
           if (target == null) {
             status = RunStatus.crashed;
-            return status;
+            return status; // keep highlighting the instruction that crashed
           }
           row = nr;
           col = nc;
@@ -275,11 +287,57 @@ class RobotInterpreter {
           if (starsRemaining == 0) {
             status = RunStatus.success;
           }
+          _updateHighlightToNext();
           return status;
         default:
           return status; // unreachable (calls handled above)
       }
     }
+  }
+
+  /// Points [highlightFunction]/[highlightSlot] at the next instruction
+  /// that will actually run — skipping empty slots, condition-mismatched
+  /// instructions, and calls to empty/disabled functions the exact same
+  /// way [step]'s own loop does, but on a throwaway copy of [_stack] so
+  /// none of that lookahead actually mutates real execution state. Null
+  /// when nothing's left to run (the program is about to end). Called
+  /// after every instruction that completes normally, so the UI's
+  /// highlight always shows what's about to happen, not what just did.
+  void _updateHighlightToNext() {
+    final peekStack = _stack.map((f) => _Frame(f.functionIndex, f.slotIndex)).toList();
+    while (peekStack.isNotEmpty) {
+      final frame = peekStack.last;
+      final fn = program.functions[frame.functionIndex];
+
+      if (frame.slotIndex >= fn.slots.length) {
+        peekStack.removeLast();
+        continue;
+      }
+
+      final instr = fn.slots[frame.slotIndex];
+      if (instr == null) {
+        frame.slotIndex++;
+        continue;
+      }
+      if (instr.condition != TileColor.any) {
+        final tile = currentTile;
+        if (tile == null || tile.color != instr.condition) {
+          frame.slotIndex++;
+          continue;
+        }
+      }
+      if (instr.action.isCall &&
+          program.functions[instr.action.callTarget].slots.isEmpty) {
+        frame.slotIndex++;
+        continue;
+      }
+
+      highlightFunction = frame.functionIndex;
+      highlightSlot = frame.slotIndex;
+      return;
+    }
+    highlightFunction = null;
+    highlightSlot = null;
   }
 
   /// Runs to completion for tests/tools. Not used by the interactive UI,
