@@ -64,4 +64,54 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets(
+      'startBlank skips restoring a saved program even though one exists '
+      '(Daily Challenge, when the puzzle was already solved elsewhere)',
+      (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(home: GameScreen(levels: [testLevel()])),
+    );
+    await tester.pumpAndSettle();
+
+    // Solve it once, so a winning program is saved for this level id.
+    for (var i = 0; i < 3; i++) {
+      await placeInstruction(tester, ActionType.forward,
+          find.byType(DragTarget<ProgramInstruction>).at(i));
+    }
+    for (var i = 0; i < 3; i++) {
+      await tester.tap(find.byIcon(Icons.skip_next_rounded));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Clear!'), findsOneWidget);
+
+    // Reopen with startBlank: true -- the saved program must not appear.
+    // A distinct key forces Flutter to actually tear down and recreate
+    // GameScreen's State here, rather than diffing it as an update to the
+    // still-live one from above (which — same widget type, same tree
+    // position, no key — is what pumpWidget would otherwise do, silently
+    // reusing initState()'s already-solved in-memory state instead of
+    // genuinely reloading, unlike a real re-navigation via Navigator).
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GameScreen(
+          key: const ValueKey('reopened'),
+          levels: [testLevel()],
+          startBlank: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Clear!'), findsNothing);
+    for (var i = 0; i < 3; i++) {
+      expect(
+        find.descendant(
+          of: find.byType(DragTarget<ProgramInstruction>).at(i),
+          matching: find.byIcon(Icons.arrow_upward_rounded),
+        ),
+        findsNothing,
+      );
+    }
+  });
 }

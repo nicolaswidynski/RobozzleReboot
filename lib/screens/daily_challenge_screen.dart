@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../data/daily_puzzle.dart';
+import '../data/progress_store.dart';
 import '../models/level.dart';
 import '../theme/app_colors.dart';
 import 'game_screen.dart';
@@ -19,17 +20,29 @@ class DailyChallengeScreen extends StatefulWidget {
 }
 
 class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
-  late Future<Level> _levelFuture = fetchDailyPuzzleLevel();
+  late Future<(Level, bool alreadySolved)> _levelFuture = _load();
+
+  // Whether the daily puzzle is already in the completed set matters here
+  // in a way it doesn't for any other entry point: Campaign/Community
+  // Puzzles/a past daily all reuse the same catalog, so today's puzzle may
+  // well be one the player already solved elsewhere — GameScreen would
+  // otherwise drop that old winning program straight into the functions
+  // (see startBlank below).
+  Future<(Level, bool)> _load() async {
+    final level = await fetchDailyPuzzleLevel();
+    final completed = await ProgressStore().loadCompleted();
+    return (level, completed.contains(level.id));
+  }
 
   void _retry() {
     setState(() {
-      _levelFuture = fetchDailyPuzzleLevel();
+      _levelFuture = _load();
     });
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<Level>(
+    return FutureBuilder<(Level, bool)>(
       future: _levelFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
@@ -41,8 +54,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
           );
         }
 
-        final level = snapshot.data;
-        if (level == null) {
+        final data = snapshot.data;
+        if (data == null) {
           return Scaffold(
             backgroundColor: AppColors.background,
             appBar: AppBar(
@@ -82,7 +95,8 @@ class _DailyChallengeScreenState extends State<DailyChallengeScreen> {
           );
         }
 
-        return GameScreen(levels: [level]);
+        final (level, alreadySolved) = data;
+        return GameScreen(levels: [level], startBlank: alreadySolved);
       },
     );
   }

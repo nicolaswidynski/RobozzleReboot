@@ -25,8 +25,18 @@ class GameScreen extends StatefulWidget {
   final List<Level> levels;
   final int initialLevelIndex;
 
-  const GameScreen(
-      {super.key, required this.levels, this.initialLevelIndex = 0});
+  /// Skips restoring a previously-saved program for these levels, even if
+  /// one exists — used by Daily Challenge so a puzzle already solved
+  /// elsewhere (Campaign, Community Puzzles, a past daily) doesn't just
+  /// hand back the answer already sitting in the functions.
+  final bool startBlank;
+
+  const GameScreen({
+    super.key,
+    required this.levels,
+    this.initialLevelIndex = 0,
+    this.startBlank = false,
+  });
 
   @override
   State<GameScreen> createState() => _GameScreenState();
@@ -261,13 +271,14 @@ class _GameScreenState extends State<GameScreen> {
     _selectedRating = null;
     _liked = false;
     _ratingHandled = false;
-    _restoreSavedProgram();
+    if (!widget.startBlank) _restoreSavedProgram();
     _loadRatingStatus();
   }
 
   // Loads asynchronously since it's a SharedPreferences ProgramStore. If
   // the player has already put something into this level, drop their saved
-  // program in instead of leaving them with a blank slate.
+  // program in instead of leaving them with a blank slate. Never called at
+  // all when widget.startBlank is set (see _loadLevel).
   Future<void> _restoreSavedProgram() async {
     final level = _level;
     final saved = await _programStore.load(level);
