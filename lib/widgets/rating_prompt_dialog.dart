@@ -4,9 +4,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../data/rating_prompt_store.dart';
 import '../theme/app_colors.dart';
 
-// TODO: replace with the real numeric App Store id once RobozzleReboot is
-// published (App Store Connect -> App Information -> Apple ID).
-const _appStoreId = '0000000000';
+const _appStoreId = '6792399726';
 
 /// Opens the App Store's write-a-review flow for this app directly — used
 /// by both the auto-triggered [_RatingPromptDialog] and the "Rate this
