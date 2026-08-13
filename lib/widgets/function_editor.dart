@@ -221,7 +221,7 @@ class _SlotBox extends StatelessWidget {
                                 color: AppColors.selectionBorder, width: 2.5)
                             : (highlighted
                                 ? Border.all(
-                                    color: Colors.amberAccent, width: 2.5)
+                                    color: AppColors.runningHighlight, width: 2.5)
                                 : (hasCondition
                                     ? Border.all(
                                         color: instruction!.condition.uiColor,

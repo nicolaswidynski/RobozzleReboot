@@ -447,21 +447,22 @@ void main() {
         interpreter.step(); // call F2 (red) — condition holds, recurse
       }
 
-      // 4 outer frames are all paused right after their own "call F2",
-      // each with the identical tail still to run; the 5th (innermost,
-      // freshly pushed) frame hasn't done anything yet, so its pending is
-      // its whole body instead.
+      // The innermost (freshly pushed) frame hasn't done anything yet, so
+      // its pending is its whole body -- listed first, since it's what
+      // actually runs next. The 4 outer frames are all paused right after
+      // their own "call F2", each with the identical tail still to run,
+      // in the order control will return to them.
       expect(actionsOnly(interpreter), [
-        [ActionType.turnRight, ActionType.forward],
-        [ActionType.turnRight, ActionType.forward],
-        [ActionType.turnRight, ActionType.forward],
-        [ActionType.turnRight, ActionType.forward],
         [
           ActionType.forward,
           ActionType.callF2,
           ActionType.turnRight,
           ActionType.forward
         ],
+        [ActionType.turnRight, ActionType.forward],
+        [ActionType.turnRight, ActionType.forward],
+        [ActionType.turnRight, ActionType.forward],
+        [ActionType.turnRight, ActionType.forward],
       ]);
     });
   });

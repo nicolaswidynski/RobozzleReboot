@@ -118,15 +118,16 @@ class RobotInterpreter {
   GridTile? get currentTile => grid[row][col];
 
   /// The still-pending (not yet executed) instructions in each active stack
-  /// frame, outermost first — what each paused caller still has left to run
-  /// once control returns to it. A frame that has genuinely nothing left
-  /// (about to be popped on the next [step]) is omitted. For UI display
-  /// while running: naming which function is active (e.g. "F2") tells you
-  /// nothing new once several nested/recursive frames all share the same
-  /// function, but the pending instructions do — e.g. five frames each
-  /// still holding "turn right, forward" makes it obvious what happens as
-  /// the recursion unwinds.
-  List<List<ProgramInstruction>> get pendingByFrame => _stack
+  /// frame, in the order they'll actually run: the currently active
+  /// (innermost) frame first, then each paused caller's remaining
+  /// instructions in the order control returns to them. A frame that has
+  /// genuinely nothing left (about to be popped on the next [step]) is
+  /// omitted. For UI display while running: naming which function is
+  /// active (e.g. "F2") tells you nothing new once several nested/
+  /// recursive frames all share the same function, but the pending
+  /// instructions do — e.g. five frames each still holding "turn right,
+  /// forward" makes it obvious what happens as the recursion unwinds.
+  List<List<ProgramInstruction>> get pendingByFrame => _stack.reversed
       .map((f) => program.functions[f.functionIndex].slots
           .sublist(f.slotIndex)
           .whereType<ProgramInstruction>()

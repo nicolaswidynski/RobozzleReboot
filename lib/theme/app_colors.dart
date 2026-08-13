@@ -14,6 +14,12 @@ class AppColors {
   static const star = Color(0xFFFFD84A);
   static const success = Color(0xFF4CAF50);
 
+  /// "This is happening right now" — the running highlight border on a
+  /// function slot (see FunctionPanel) and the currently-active frame's
+  /// instructions in the control bar's status line (see ControlBar) both
+  /// use this, so the two read as the same signal.
+  static const runningHighlight = Colors.amberAccent;
+
   /// Neutral (colorless) selection/drag-hover highlight — deliberately not
   /// blue, since [accent] is close enough to the blue tile-condition color
   /// that using it for "this is selected/hovered" reads as "this has a blue

@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:robozzle_reboot/engine/interpreter.dart';
 import 'package:robozzle_reboot/models/instruction.dart';
 import 'package:robozzle_reboot/screens/game_screen.dart';
+import 'package:robozzle_reboot/theme/app_colors.dart';
+import 'package:robozzle_reboot/widgets/control_bar.dart';
 
 import 'drag_helpers.dart';
 import 'test_level.dart';
@@ -111,14 +114,12 @@ void main() {
     // Second step executes "call F1". Since that call was the last thing
     // in F1, it replaces the frame instead of stacking a second one on
     // top — the display should show F1's whole body pending again (both
-    // instructions, grouped in parens), not a meaningless "F1 → F1". The
-    // "forward" half is drawn with the real icon, not a text arrow.
+    // instructions), not a meaningless "F1 → F1". The "forward" half is
+    // drawn with the real icon, not a text arrow.
     await tester.tap(find.byIcon(Icons.skip_next_rounded));
     await tester.pumpAndSettle();
     expect(statusIcon(Icons.arrow_upward_rounded), findsOneWidget);
     expect(statusText('F1'), findsOneWidget);
-    expect(statusText('('), findsOneWidget);
-    expect(statusText(')'), findsOneWidget);
   });
 
   testWidgets(
@@ -150,5 +151,52 @@ void main() {
           of: statusArea, matching: find.byIcon(Icons.turn_left_rounded)),
       findsOneWidget,
     );
+  });
+
+  testWidgets(
+      'the status line reads left to right in execution order (currently '
+      'active frame first, then each paused caller), with the active '
+      "frame's instructions in the running-highlight color and everything "
+      'else in the plain status color', (tester) async {
+    // Mirrors what GameScreen hands ControlBar mid-call: the callee (F2,
+    // currently executing) has "turn right" pending; the caller (F1) has
+    // "turn left" pending once F2 returns to it. RobotInterpreter.
+    // pendingByFrame already orders this innermost-first (see
+    // interpreter_test.dart) -- this only exercises how ControlBar renders
+    // that order and colors it.
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: ControlBar(
+          status: RunStatus.running,
+          runSpeed: null,
+          canStepBack: false,
+          starsRemaining: 1,
+          totalStars: 1,
+          pendingByFrame: const [
+            [ProgramInstruction(ActionType.turnRight)], // F2, active now
+            [ProgramInstruction(ActionType.turnLeft)], // F1, paused
+          ],
+          onStep: () {},
+          onStepBack: () {},
+          onSetSpeed: (_) {},
+          onReset: () {},
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+
+    final rightIcon =
+        tester.widget<Icon>(find.byIcon(Icons.turn_right_rounded));
+    final leftIcon = tester.widget<Icon>(find.byIcon(Icons.turn_left_rounded));
+
+    // Active frame (turn right) is highlighted; the paused caller (turn
+    // left) is plain status-color (white70 while running).
+    expect(rightIcon.color, AppColors.runningHighlight);
+    expect(leftIcon.color, Colors.white70);
+
+    // Reads left to right in execution order: active frame first.
+    final rightX = tester.getTopLeft(find.byIcon(Icons.turn_right_rounded)).dx;
+    final leftX = tester.getTopLeft(find.byIcon(Icons.turn_left_rounded)).dx;
+    expect(rightX, lessThan(leftX));
   });
 }

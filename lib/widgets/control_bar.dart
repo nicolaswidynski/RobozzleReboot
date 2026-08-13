@@ -79,6 +79,7 @@ class ControlBar extends StatelessWidget {
                             child: _PendingStackGlyphs(
                               groups: _pendingGroups(),
                               color: _statusColor(),
+                              currentColor: AppColors.runningHighlight,
                             ),
                           )
                         : Text(
@@ -153,12 +154,14 @@ class ControlBar extends StatelessWidget {
     }
   }
 
-  /// Each stack frame's remaining instructions, grouped outermost first —
-  /// which function is active tells you nothing once several frames are
-  /// the same function (recursion), but what's still queued in each does.
-  /// Adjacent frames with identical remaining instructions (the common
-  /// case for a straightforward recursive loop) collapse into one group
-  /// with a repeat count instead of listing the same thing over and over.
+  /// Each stack frame's remaining instructions, grouped in the order
+  /// they'll actually run (the currently active frame first — see
+  /// [RobotInterpreter.pendingByFrame]) — which function is active tells
+  /// you nothing once several frames are the same function (recursion),
+  /// but what's still queued in each does. Adjacent frames with identical
+  /// remaining instructions (the common case for a straightforward
+  /// recursive loop) collapse into one group with a repeat count instead
+  /// of listing the same thing over and over.
   List<_PendingGroup> _pendingGroups() {
     final groups = <_PendingGroup>[];
     List<ProgramInstruction>? current;
@@ -193,13 +196,16 @@ class ControlBar extends StatelessWidget {
 
   /// A screen-reader/accessibility-testing-friendly text rendition of
   /// [_pendingGroups] — the visible display uses real instruction glyphs.
+  /// Reads left to right in actual execution order (the currently active
+  /// frame's instructions, then each paused caller's in turn), matching
+  /// the visible display rather than the call stack's own outermost-first
+  /// structure.
   String _pendingStackText() => _pendingGroups()
       .map((g) {
         final label = g.instructions.map((i) => i.action.shortLabel).join(' ');
-        final wrapped = g.instructions.length > 1 ? '($label)' : label;
-        return g.repeat > 1 ? '$wrapped ×${g.repeat}' : wrapped;
+        return g.repeat > 1 ? '$label ×${g.repeat}' : label;
       })
-      .join('  →  ');
+      .join('  ');
 
   Color _statusColor() {
     switch (status) {
@@ -222,38 +228,42 @@ class _PendingGroup {
   const _PendingGroup(this.instructions, this.repeat);
 }
 
-/// Renders [_PendingGroup]s as a single line of instruction glyphs — the
-/// same [actionGlyph] the palette and function slots use — with light
-/// punctuation ("(", ")", "×N", "→") to mark grouping and repetition.
+/// Renders [_PendingGroup]s as a single continuous line of instruction
+/// glyphs — the same [actionGlyph] the palette and function slots use — in
+/// the order they'll actually run, with no per-frame boxing or arrows: a
+/// call/return boundary used to read as "(caller's queue) → (callee's
+/// queue)", which visually — and misleadingly — put the *later*-running
+/// caller first. The currently active (first) group is drawn in
+/// [currentColor] instead of [color] so it still reads as its own thing,
+/// the same way the highlighted slot in the function panels below does.
 class _PendingStackGlyphs extends StatelessWidget {
   final List<_PendingGroup> groups;
   final Color color;
+  final Color currentColor;
 
-  const _PendingStackGlyphs({required this.groups, required this.color});
+  const _PendingStackGlyphs({
+    required this.groups,
+    required this.color,
+    required this.currentColor,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final punctuationStyle = TextStyle(
-      color: color,
-      fontWeight: FontWeight.w600,
-      fontSize: 12.5,
-    );
     final children = <Widget>[];
     for (var g = 0; g < groups.length; g++) {
-      if (g > 0) {
-        children.add(Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Text('→', style: punctuationStyle),
-        ));
-      }
       final group = groups[g];
-      final grouped = group.instructions.length > 1;
-      if (grouped) children.add(Text('(', style: punctuationStyle));
+      final groupColor = g == 0 ? currentColor : color;
+      final punctuationStyle = TextStyle(
+        color: groupColor,
+        fontWeight: FontWeight.w600,
+        fontSize: 12.5,
+      );
+
+      if (g > 0) children.add(const SizedBox(width: 8));
       for (var i = 0; i < group.instructions.length; i++) {
         if (i > 0) children.add(const SizedBox(width: 3));
-        children.add(_glyph(group.instructions[i].action));
+        children.add(_glyph(group.instructions[i].action, groupColor));
       }
-      if (grouped) children.add(Text(')', style: punctuationStyle));
       if (group.repeat > 1) {
         children.add(Text(' ×${group.repeat}', style: punctuationStyle));
       }
@@ -266,7 +276,7 @@ class _PendingStackGlyphs extends StatelessWidget {
   // down to that same 15px icon size here it comes out unreadably small.
   // Movement/paint actions still go through actionGlyph, so they draw
   // with the exact icon used everywhere else in the app.
-  Widget _glyph(ActionType action) {
+  Widget _glyph(ActionType action, Color color) {
     if (action.isCall) {
       return Text(
         action.shortLabel,
