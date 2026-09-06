@@ -27,6 +27,11 @@ class MissingBootstrapTokenError implements Exception {
       'Missing bootstrap token: fill in assets/robozzle_token.txt';
 }
 
+class MissingServerUrlError implements Exception {
+  @override
+  String toString() => 'Missing server URL: fill in assets/server.txt';
+}
+
 class MissingSessionTokenError implements Exception {
   @override
   String toString() => 'Not signed in: no session token stored.';
@@ -41,26 +46,24 @@ class RobozzleApiClient {
   RobozzleApiClient._();
   static final RobozzleApiClient instance = RobozzleApiClient._();
 
-  static const String _manageUserUrl =
-      'https://REDACTED-SERVER.example.com/webhook/manage-robozzle-user';
-  static const String _leaderboardUrl =
-      'https://REDACTED-SERVER.example.com/webhook/robozzle-leaderboard';
-  static const String _listPuzzlesUrl =
-      'https://REDACTED-SERVER.example.com/webhook/robozzle-list-puzzles';
-  static const String _getPuzzleUrl =
-      'https://REDACTED-SERVER.example.com/webhook/robozzle-get-puzzle';
-  static const String _ratePuzzleUrl =
-      'https://REDACTED-SERVER.example.com/webhook/robozzle-rate-puzzle';
-  static const String _savePuzzleUrl =
-      'https://REDACTED-SERVER.example.com/webhook/robozzle-save-puzzle';
-  static const String _dailyPuzzleUrl =
-      'https://REDACTED-SERVER.example.com/webhook/daily-puzzle';
+  // Path only, not the full URL — the base (which reveals the actual
+  // server address) is loaded separately, the same way the bootstrap
+  // token below is, so it isn't sitting in plain sight in the (potentially
+  // public) repo. See [_loadBaseUrl] and [_endpoint].
+  static const String _manageUserPath = 'manage-robozzle-user';
+  static const String _leaderboardPath = 'robozzle-leaderboard';
+  static const String _listPuzzlesPath = 'robozzle-list-puzzles';
+  static const String _getPuzzlePath = 'robozzle-get-puzzle';
+  static const String _ratePuzzlePath = 'robozzle-rate-puzzle';
+  static const String _savePuzzlePath = 'robozzle-save-puzzle';
+  static const String _dailyPuzzlePath = 'daily-puzzle';
 
   static const Uuid _uuid = Uuid();
 
   final SecureSessionStore _sessionStore = SecureSessionStore.instance;
 
   String? _bootstrapToken;
+  String? _baseUrl;
 
   Future<String> _loadBootstrapToken() async {
     if (_bootstrapToken != null) return _bootstrapToken!;
@@ -71,6 +74,28 @@ class RobozzleApiClient {
     }
     _bootstrapToken = token;
     return token;
+  }
+
+  Future<String> _loadBaseUrl() async {
+    if (_baseUrl != null) return _baseUrl!;
+    final raw = await rootBundle.loadString('assets/server.txt');
+    // Trailing slash tolerated (see _endpoint's own join) so a value typed
+    // either way still works.
+    final url = raw.trim();
+    if (url.isEmpty || url == 'REPLACE_ME_WITH_SERVER_URL') {
+      throw MissingServerUrlError();
+    }
+    _baseUrl = url;
+    return url;
+  }
+
+  /// Joins the loaded base URL with [path] (an endpoint name, e.g.
+  /// `robozzle-leaderboard`) into the full request URI.
+  Future<Uri> _endpoint(String path) async {
+    final base = await _loadBaseUrl();
+    final baseWithoutTrailingSlash =
+        base.endsWith('/') ? base.substring(0, base.length - 1) : base;
+    return Uri.parse('$baseWithoutTrailingSlash/$path');
   }
 
   /// POSTs [body] to `manage-robozzle-user`. Always attaches the bootstrap
@@ -93,7 +118,7 @@ class RobozzleApiClient {
     }
 
     final response = await http.post(
-      Uri.parse(_manageUserUrl),
+      await _endpoint(_manageUserPath),
       headers: headers,
       body: jsonEncode(body),
     );
@@ -139,7 +164,7 @@ class RobozzleApiClient {
     final identityFields = await _identityFields();
 
     final response = await http.post(
-      Uri.parse(_leaderboardUrl),
+      await _endpoint(_leaderboardPath),
       headers: {
         'Content-Type': 'application/json',
         'authorization_uuid': 'Bearer $sessionToken',
@@ -178,7 +203,7 @@ class RobozzleApiClient {
     }
 
     final response = await http.post(
-      Uri.parse(_listPuzzlesUrl),
+      await _endpoint(_listPuzzlesPath),
       headers: headers,
       body: jsonEncode({
         'request_id': _uuid.v4(),
@@ -210,7 +235,7 @@ class RobozzleApiClient {
     }
 
     final response = await http.post(
-      Uri.parse(_getPuzzleUrl),
+      await _endpoint(_getPuzzlePath),
       headers: headers,
       body: jsonEncode({
         'puzzle_id': puzzleId,
@@ -241,7 +266,7 @@ class RobozzleApiClient {
     }
 
     final response = await http.post(
-      Uri.parse(_dailyPuzzleUrl),
+      await _endpoint(_dailyPuzzlePath),
       headers: headers,
       body: jsonEncode({
         'request_id': _uuid.v4(),
@@ -275,7 +300,7 @@ class RobozzleApiClient {
     }
 
     final response = await http.post(
-      Uri.parse(_ratePuzzleUrl),
+      await _endpoint(_ratePuzzlePath),
       headers: headers,
       body: jsonEncode({
         'puzzle_id': puzzleId,
@@ -322,7 +347,7 @@ class RobozzleApiClient {
     final identityFields = await _identityFields();
 
     final response = await http.post(
-      Uri.parse(_savePuzzleUrl),
+      await _endpoint(_savePuzzlePath),
       headers: {
         'Content-Type': 'application/json',
         'authorization_uuid': 'Bearer $sessionToken',

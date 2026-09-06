@@ -25,3 +25,8 @@ macos/Flutter/.last_build_id
 
 # Secret shared with the manage-robozzle-user webhook — never commit this.
 assets/robozzle_token.txt
+
+# The backend's base URL — kept out of the (potentially public) repo the
+# same way the bootstrap token above is, so cloning this project doesn't
+# hand out a working address for someone's personal server.
+assets/server.txt
