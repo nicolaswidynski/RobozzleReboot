@@ -28,8 +28,32 @@ class MissingBootstrapTokenError implements Exception {
 }
 
 class MissingServerUrlError implements Exception {
+  /// Why the value in assets/server.txt was rejected — e.g. "empty" or
+  /// "not a valid http(s) URL" — so the error actually says what's wrong
+  /// instead of just "something's wrong, go look".
+  final String reason;
+  MissingServerUrlError(this.reason);
+
   @override
-  String toString() => 'Missing server URL: fill in assets/server.txt';
+  String toString() => 'Invalid server URL ($reason): fill in assets/server.txt';
+}
+
+/// Whether [url] is well-formed enough to be used as the backend's base
+/// URL: an absolute http/https address with a non-empty host. Checked
+/// eagerly by [RobozzleApiClient._loadBaseUrl] so a typo'd or unfilled
+/// assets/server.txt fails loudly and specifically as
+/// [MissingServerUrlError] — instead of quietly producing a nonsense `Uri`
+/// (`Uri.parse` doesn't reject most garbage strings, it just parses them
+/// as a relative path with no host) that only surfaces as a confusing
+/// failure once an actual request goes out, or not at all if a request
+/// happens to still "succeed" against the wrong place.
+bool isWellFormedServerUrl(String url) {
+  if (url.isEmpty || url == 'REPLACE_ME_WITH_SERVER_URL') return false;
+  final uri = Uri.tryParse(url);
+  return uri != null &&
+      uri.isAbsolute &&
+      (uri.scheme == 'http' || uri.scheme == 'https') &&
+      uri.host.isNotEmpty;
 }
 
 class MissingSessionTokenError implements Exception {
@@ -83,7 +107,10 @@ class RobozzleApiClient {
     // either way still works.
     final url = raw.trim();
     if (url.isEmpty || url == 'REPLACE_ME_WITH_SERVER_URL') {
-      throw MissingServerUrlError();
+      throw MissingServerUrlError('empty or unfilled placeholder');
+    }
+    if (!isWellFormedServerUrl(url)) {
+      throw MissingServerUrlError('not a valid http(s) URL');
     }
     _baseUrl = url;
     return url;
