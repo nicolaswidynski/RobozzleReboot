@@ -5,6 +5,16 @@ set (move, turn, paint, call one of 5 subroutines) — each instruction can
 be conditioned on the color of the tile the robot is standing on — to
 collect all the stars on a grid.
 
+<p align="center">
+  <img src="www/images/screenshot-play.png" alt="Robozzle Reboot gameplay screenshot" width="280" />
+</p>
+
+<p align="center">
+  <img src="www/images/screenshot-menu.png" alt="Mode selection screen" width="220" />
+  <img src="www/images/screenshot-campaign.png" alt="Campaign puzzle list" width="220" />
+  <img src="www/images/screenshot-editor.png" alt="Puzzle editor" width="220" />
+</p>
+
 ## Project layout
 
 - `lib/models/` — pure Dart data types: grid tiles, tile colors, directions,
