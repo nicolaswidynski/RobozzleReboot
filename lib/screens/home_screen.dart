@@ -7,7 +7,6 @@ import '../data/level_catalog.dart';
 import '../data/progress_store.dart';
 import '../models/level.dart';
 import '../theme/app_colors.dart';
-import '../widgets/rating_prompt_dialog.dart';
 import 'game_screen.dart';
 
 enum _SortBy { difficulty, popularity }
@@ -101,7 +100,6 @@ class _HomeScreenState extends State<HomeScreen> {
     final ids = await _progressStore.loadCompleted();
     if (!mounted) return;
     setState(() => _completedIds = ids);
-    maybeShowRatingPrompt(context, _completedIds.length);
   }
 
   /// Pull-to-refresh from the top of the list — always shows the loading

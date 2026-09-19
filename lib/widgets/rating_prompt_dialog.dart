@@ -19,12 +19,14 @@ Future<void> openAppStoreReview() async {
 }
 
 /// Shows the rate-the-game prompt if [RatingPromptStore.shouldShow] says
-/// it's due for the given number of solved puzzles. Safe to call after any
-/// completion-count refresh — it's a no-op when not due.
-Future<void> maybeShowRatingPrompt(
-    BuildContext context, int completedCount) async {
+/// it's due (the third launch, and only ever once). Safe to call on every
+/// launch — it's a no-op when not due. The ask is recorded as soon as the
+/// dialog goes up, so it can't repeat however it's dismissed.
+Future<void> maybeShowRatingPrompt(BuildContext context) async {
   final store = RatingPromptStore();
-  if (!await store.shouldShow(completedCount)) return;
+  if (!await store.shouldShow()) return;
+  if (!context.mounted) return;
+  await store.recordShown();
   if (!context.mounted) return;
   await showDialog<void>(
     context: context,
@@ -73,7 +75,6 @@ class _RatingPromptDialog extends StatelessWidget {
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () async {
-                  await RatingPromptStore().recordRated();
                   await openAppStoreReview();
                   if (context.mounted) Navigator.of(context).pop();
                 },
@@ -96,10 +97,7 @@ class _RatingPromptDialog extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             TextButton(
-              onPressed: () async {
-                await RatingPromptStore().recordShown();
-                if (context.mounted) Navigator.of(context).pop();
-              },
+              onPressed: () => Navigator.of(context).pop(),
               child: Text(
                 'Not now',
                 style: TextStyle(color: Colors.white.withValues(alpha: 0.6)),

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'data/rating_prompt_store.dart';
 import 'screens/landing_screen.dart';
 import 'theme/app_colors.dart';
 
@@ -9,6 +10,9 @@ void main() async {
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
+  // Once per process start — LandingScreen decides from this whether the
+  // (one-time) rate-the-game prompt is due.
+  await RatingPromptStore().recordLaunch();
   runApp(const RobozzleRebootApp());
 }
 

@@ -1,40 +1,61 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:robozzle_reboot/screens/home_screen.dart';
+import 'package:robozzle_reboot/screens/landing_screen.dart';
 
 import 'fake_secure_storage.dart';
 
+Future<void> _openLanding(WidgetTester tester, {required Key key}) async {
+  await tester.pumpWidget(MaterialApp(home: LandingScreen(key: key)));
+  await tester.pump(); // first frame -> post-frame callback fires
+  await tester.pump(); // let the async shouldShow() check resolve
+}
+
 void main() {
-  testWidgets(
-      'shows the rating prompt once 5 puzzles are completed, and "Not now" dismisses it',
-      (tester) async {
+  setUp(() {
     SharedPreferences.setMockInitialValues({});
-    final fakeStorage = installFakeSecureStorage();
-    await fakeStorage.write(
-      key: 'completed_level_ids',
-      value: jsonEncode(['a', 'b', 'c', 'd', 'e']),
-      options: const {},
-    );
+    installFakeSecureStorage();
+  });
 
-    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+  testWidgets('does not ask before the third launch', (tester) async {
+    SharedPreferences.setMockInitialValues({'rating_prompt_launch_count': 2});
+    await _openLanding(tester, key: const ValueKey('a'));
 
-    // Loading the catalog does real dart:io file I/O (rootBundle.loadString
-    // on a real asset), which never completes under testWidgets' FakeAsync
-    // zone via plain pump(); runAsync briefly escapes to real time so it can.
-    await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 100)));
-    await tester.pump();
-    await tester.pump(); // let the async shouldShow() check resolve and show it
+    expect(find.text('Enjoying Robozzle?'), findsNothing);
+  });
+
+  testWidgets(
+      'asks on the third launch, "Not now" dismisses it, and it never comes '
+      'back on a later launch', (tester) async {
+    SharedPreferences.setMockInitialValues({'rating_prompt_launch_count': 3});
+    await _openLanding(tester, key: const ValueKey('third'));
 
     expect(find.text('Enjoying Robozzle?'), findsOneWidget);
 
     await tester.tap(find.text('Not now'));
     await tester.pumpAndSettle();
+    expect(find.text('Enjoying Robozzle?'), findsNothing);
 
+    // A fourth launch (new LandingScreen state, more launches counted).
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('rating_prompt_launch_count', 4);
+    await _openLanding(tester, key: const ValueKey('fourth'));
+
+    expect(find.text('Enjoying Robozzle?'), findsNothing);
+  });
+
+  testWidgets('dismissing by tapping outside still counts as the one ask',
+      (tester) async {
+    SharedPreferences.setMockInitialValues({'rating_prompt_launch_count': 3});
+    await _openLanding(tester, key: const ValueKey('first'));
+    expect(find.text('Enjoying Robozzle?'), findsOneWidget);
+
+    await tester.tapAt(const Offset(5, 5)); // the barrier
+    await tester.pumpAndSettle();
+    expect(find.text('Enjoying Robozzle?'), findsNothing);
+
+    await _openLanding(tester, key: const ValueKey('second'));
     expect(find.text('Enjoying Robozzle?'), findsNothing);
   });
 }

@@ -7,6 +7,7 @@ import '../data/level_catalog.dart';
 import '../data/points.dart';
 import '../data/progress_store.dart';
 import '../theme/app_colors.dart';
+import '../widgets/rating_prompt_dialog.dart';
 import 'about_screen.dart';
 import 'auth/pseudonym_screen.dart';
 import 'auth/sign_in_screen.dart';
@@ -47,6 +48,11 @@ class _LandingScreenState extends State<LandingScreen> {
     // so refreshing puzzle metadata shouldn't either.
     CatalogRefresher.instance.addListener(_refreshPoints);
     CatalogRefresher.instance.refreshDaily();
+    // One-time rate-the-game ask (see RatingPromptStore) — after the first
+    // frame, since showDialog needs the Overlay to already be in the tree.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) maybeShowRatingPrompt(context);
+    });
     // Loads the stored identity/pseudonym (if any) so the badge can show it
     // without the player first having to open an auth-gated screen.
     // restoreSession() only calls notifyListeners() when it actually changes

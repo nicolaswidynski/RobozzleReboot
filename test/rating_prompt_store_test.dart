@@ -5,54 +5,61 @@ import 'package:robozzle_reboot/data/rating_prompt_store.dart';
 
 void main() {
   group('RatingPromptStore', () {
-    test('does not show before the 5th completed puzzle', () async {
+    test('does not show on the first or second launch', () async {
       SharedPreferences.setMockInitialValues({});
       final store = RatingPromptStore();
-      expect(await store.shouldShow(4), isFalse);
+
+      await store.recordLaunch();
+      expect(await store.shouldShow(), isFalse);
+      await store.recordLaunch();
+      expect(await store.shouldShow(), isFalse);
     });
 
-    test('shows the first time completedCount reaches 5, having never shown before',
-        () async {
+    test('shows on the third launch', () async {
       SharedPreferences.setMockInitialValues({});
       final store = RatingPromptStore();
-      expect(await store.shouldShow(5), isTrue);
-      expect(await store.shouldShow(20), isTrue); // still true well past 5
+
+      for (var i = 0; i < RatingPromptStore.promptOnLaunch; i++) {
+        await store.recordLaunch();
+      }
+      expect(await store.shouldShow(), isTrue);
     });
 
-    test('does not re-show again right after being shown', () async {
+    test('once shown, never shows again on any later launch', () async {
       SharedPreferences.setMockInitialValues({});
       final store = RatingPromptStore();
+
+      for (var i = 0; i < RatingPromptStore.promptOnLaunch; i++) {
+        await store.recordLaunch();
+      }
       await store.recordShown();
-      expect(await store.shouldShow(10), isFalse);
+
+      expect(await store.shouldShow(), isFalse);
+      for (var i = 0; i < 50; i++) {
+        await store.recordLaunch();
+      }
+      expect(await store.shouldShow(), isFalse);
     });
 
-    test('re-shows once the reminder interval has fully elapsed', () async {
-      final longAgo = DateTime.now()
-          .subtract(RatingPromptStore.reminderInterval)
-          .subtract(const Duration(minutes: 1));
+    test('still shows on a later launch if the third one never got to '
+        'show it', () async {
+      SharedPreferences.setMockInitialValues({'rating_prompt_launch_count': 7});
+      expect(await RatingPromptStore().shouldShow(), isTrue);
+    });
+
+    test('an install that was already asked under the old scheme is never '
+        'asked again', () async {
       SharedPreferences.setMockInitialValues({
-        'rating_prompt_last_shown_at': longAgo.millisecondsSinceEpoch,
+        'rating_prompt_launch_count': 10,
+        'rating_prompt_last_shown_at': 1,
       });
-      final store = RatingPromptStore();
-      expect(await store.shouldShow(10), isTrue);
-    });
+      expect(await RatingPromptStore().shouldShow(), isFalse);
 
-    test('does not re-show before the reminder interval has elapsed', () async {
-      final recently = DateTime.now()
-          .subtract(RatingPromptStore.reminderInterval)
-          .add(const Duration(days: 1));
       SharedPreferences.setMockInitialValues({
-        'rating_prompt_last_shown_at': recently.millisecondsSinceEpoch,
+        'rating_prompt_launch_count': 10,
+        'rating_prompt_rated': true,
       });
-      final store = RatingPromptStore();
-      expect(await store.shouldShow(10), isFalse);
-    });
-
-    test('never shows again once the player has rated', () async {
-      SharedPreferences.setMockInitialValues({});
-      final store = RatingPromptStore();
-      await store.recordRated();
-      expect(await store.shouldShow(1000), isFalse);
+      expect(await RatingPromptStore().shouldShow(), isFalse);
     });
   });
 }
