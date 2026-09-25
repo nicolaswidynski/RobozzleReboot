@@ -1,30 +1,36 @@
-# Robozzle Solver — Tasarım Spesifikasyonu (v1)
+# Robozzle Solver — Tasarım Spesifikasyonu (v1.1)
 
 > **Dil / Language:** Türkçe metin aşağıda. The English version follows the
 > Turkish one: [jump to English](#english). Both versions describe the same
 > spec with the same section numbers and rule IDs; if they ever disagree, fix
 > both in the same change.
 
-Bu belge solver'ın **ne yapacağını ve neden doğru olduğunu** tanımlar. Kod bu
-belgeye göre yazılır; bir kural değişirse önce burası güncellenir.
+Bu belge solver'ın **ne yapacağını ve neden doğru olduğunu** anlatır:
+kuralların gerekçelerini, ispatlarını ve değerlendirilen alternatifleri.
+**Normatif sözleşme [`SPEC.md`](SPEC.md)'dir** (İngilizce): tip ve fonksiyon
+isimleri, kesin geçiş kuralları, test vektörleri ve çıktı formatı oradadır.
+İki belge çelişirse SPEC.md geçerlidir ve ikisi aynı değişiklikte düzeltilir.
+Bu belgedeki isimler (`Level`, `Cond::Is` gibi) açıklama amaçlıdır; kodda
+SPEC.md'deki isimler kullanılır.
 
-Kimlik etiketleri (`R-*`, `INV-*`, `P-*`, `T-*`) koddaki yorumlarda ve test
-isimlerinde referans olarak kullanılır. Örneğin bir budama kuralının kodu
-`// P-TURN` yorumu taşır, testi `t_p_turn_*` diye adlandırılır.
+Kimlik etiketleri (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) koddaki
+yorumlarda ve test isimlerinde referans olarak kullanılır. Örneğin bir budama
+kuralının kodu `// P-TURN` yorumu taşır, testi `t_p_turn_*` diye adlandırılır.
 
 ---
 
 ## 0. Amaç ve temel ilkeler
 
-**Amaç:** `assets/levels_catalog.json` içindeki her bulmaca için, uygulamanın
-motorunda ([`lib/engine/interpreter.dart`](../lib/engine/interpreter.dart))
-başarıyla çalışan ve **dolu slot sayısı en az olan** programı bulmak.
+**Amaç:** `assets/levels_catalog.json` içindeki (ve editörde yapılmış) her
+bulmaca için, uygulamanın motorunda
+([`lib/engine/interpreter.dart`](../lib/engine/interpreter.dart)) başarıyla
+çalışan ve **dolu slot sayısı en az olan** programı bulmak.
 
 - **Birincil hedef:** dolu (non-empty) slot sayısını en aza indirmek.
 - **Kısıt:** gerçek motordaki 20000 adım sınırı. Bu bir hedef değil, bir kısıttır.
 - **İkincil hedef (v1'de yok):** aynı slot sayısında daha az adım.
 
-Üç ilke her kararın üstündedir:
+Dört ilke her kararın üstündedir:
 
 1. **Motor semantiği kutsaldır.** Solver'ın "çözüm" dediği her program Dart
    motorunda `RunStatus.success` vermek ZORUNDADIR (§2, §10).
@@ -34,6 +40,9 @@ başarıyla çalışan ve **dolu slot sayısı en az olan** programı bulmak.
    belirler (§8.6).
 3. **Belirlenimcilik.** Aynı girdi her zaman aynı çıktıyı verir. Arama
    kararları hiçbir zaman `HashMap` iterasyon sırasına bağlı olmaz.
+4. **Ölçülebilirlik.** Her optimizasyon bir `Config` bayrağıyla kapatılabilir
+   ve etkisi `SearchStats` ile ölçülür (§8.7, §9.4). Bir optimizasyonu kapatmak
+   hiçbir zaman çözüm kaybettirmez, sadece aramayı büyütür.
 
 ---
 
@@ -48,6 +57,8 @@ başarıyla çalışan ve **dolu slot sayısı en az olan** programı bulmak.
 | Adım (step) | Motorun `stepsExecuted` sayacı. Her **boş olmayan** slot değerlendirmesinde +1 (§2). |
 | Frontier | Çalıştırmanın, programda henüz karar verilmemiş bir noktaya gelip durduğu an. |
 | Maliyet | Programdaki dolu slot sayısı. |
+| Çalışan frame | Şu an komutları yürütülen frame (`current`). |
+| Askıdaki frame | Bir çağrı yapıp dönüşü bekleyen frame (`callers` zincirinde). |
 
 ---
 
@@ -107,7 +118,8 @@ Kritik noktalar (her birinin testi var, §11):
   push'tan önce silinir. Bunun gözlemlenebilir tek etkisi stack'in
   derinliğidir; davranışı değiştirmez, çünkü silinmeseydi de o frame dönüşte
   adım saymadan pop olurdu.
-- Stack derinliğinin sınırı yoktur. Solver da bir sınır **koymaz**.
+- Stack derinliğinin sınırı yoktur. Solver da bir sınır **koymaz**. (Pratikte
+  derinlik adım sayısıyla, yani 20000 ile sınırlıdır.)
 - Yıldız yalnızca bir kareye **girerken** alınır. Katalogda başlangıç karesinde
   yıldız olan bulmaca yok; olsaydı bile, o yıldız robot o kareye tekrar
   girmeden alınmış sayılmazdı.
@@ -116,7 +128,7 @@ Kritik noktalar (her birinin testi var, §11):
 
 ## 3. Girdi ve ön işleme
 
-### 3.1 Katalog
+### 3.1 Girdi ve desteklenen sınırlar
 
 Her kayıt: `sourceId`, `rows` (string listesi), `startRow`, `startCol`,
 `startDirection` (`up|right|down|left`), `slotsPerFunction` (5 sayı),
@@ -125,23 +137,37 @@ Her kayıt: `sourceId`, `rows` (string listesi), `startRow`, `startCol`,
 Karakterler: `' '` ya da `'.'` boşluk; `r g b` renkli kare; `R G B` aynı
 renkte, üzerinde yıldız olan kare.
 
-Katalog üzerinde doğrulanmış varsayımlar (loader bunları `assert` eder):
-satırların hepsi aynı uzunlukta; grid en fazla 12×16 (192 kare); başlangıç
-karesi hiçbir zaman boşluk değil; `cap[F1] > 0`; her bulmacada en az 1 yıldız
-var; `cap[f] ≤ 10`; toplam kapasite ≤ 50.
+Solver'ın sınırları, hem katalogu hem de uygulamanın editörünü
+([`editor_screen.dart:44-45`](../lib/screens/editor/editor_screen.dart))
+kapsayacak şekilde seçildi:
+
+| Sabit | Değer | Katalogda görülen | Editörün izin verdiği |
+|---|---|---|---|
+| `MAX_TILES` (`rows × cols`) | 256 | 192 (12×16) | 196 (14×14) |
+| `MAX_FUNCTION_SLOTS` | 12 | 10 | 12 |
+
+**Doğrulama:** Loader her bulmacayı yüklerken şunları kontrol eder: bütün
+satırlar aynı uzunlukta; başlangıç karesi grid içinde ve boşluk değil;
+`cap[F1] > 0`; bilinmeyen karakter yok; yukarıdaki sınırlar aşılmıyor. Bir
+kontrol başarısız olursa o bulmaca için `Unsupported(sebep)` döner.
+**Hiçbir zaman sessizce kırpılmaz ve panic olmaz**; diğer bulmacalar
+çözülmeye devam eder.
+
+Yıldızı olmayan bir bulmaca (editörde mümkün) geçerlidir: boş program onu
+çözer (§9.1).
 
 ### 3.2 Hazırlanan statik veri (`Level`)
 
 | Alan | Tanım |
 |---|---|
-| `TileId` | `row * cols + col`, `u8` (≤ 191). Boşluklar da bir `TileId` alır ama `is_tile = false`. |
+| `TileId` | `row * cols + col`, `u8` (≤ 255). Boşluklar da bir `TileId` alır ama `is_tile = false`. |
 | `neighbor[tile][dir]` | `Option<TileId>`. Grid dışı ya da boşluk ise `None`. |
-| `init_color[tile]` | Karenin başlangıç rengi. |
-| `init_stars` | Yıldızlı karelerin kümesi, `[u64; 3]` bitset. |
+| `init_colors` | Başlangıç renkleri, `PackedColors` (§4.3). |
+| `init_stars` | Yıldızlı karelerin kümesi, `StarSet = [u64; 4]` bitset. |
 | `allowed_paints` | `allowedCommands` bitmask'ından türetilen renk kümesi. |
 | `possible_colors` | `{başlangıçta griddeki renkler} ∪ allowed_paints` (§8.2). |
 | `cap[0..5]` | Fonksiyon kapasiteleri. |
-| `class_rep` | F2..F5 için kapasite sınıfları (§8.4). |
+| `classes` | F2..F5 için kapasite sınıfları (§8.4). |
 
 Yön kodlaması: `Up = 0, Right = 1, Down = 2, Left = 3`.
 `turn_left(d) = (d + 3) % 4`, `turn_right(d) = (d + 1) % 4`.
@@ -156,6 +182,44 @@ Yön kodlaması: `Up = 0, Right = 1, Down = 2, Left = 3`.
 
 ## 4. Veri yapıları
 
+### 4.0 Mimari: paylaşılan bağlam ve dal state'i
+
+İki tür veri var ve karıştırılmamaları gerekiyor:
+
+```rust
+// Bütün arama boyunca bir tane. Dallarla kopyalanmaz.
+struct Solver {
+    level: Level,          // statik bulmaca (§3.2)
+    config: Config,        // ablation bayrakları (§8.7)
+    limits: Limits,        // zaman ve node sınırı
+    arena: StackArena,     // askıdaki frame'ler (§6)
+    stats: SearchStats,    // sayaçlar (§9.4)
+}
+
+// Bir dalın tüm anlamsal durumu. Copy; her çocuk dal için kopyalanır.
+#[derive(Clone, Copy)]
+struct SearchState {
+    program: PartialProgram,
+    machine: Machine,
+    used: u8,          // maliyet: Resolved + CondOnly hücre sayısı
+    introduced: u8,    // bitmask: çağrı hücresi oluşturulmuş fonksiyonlar (§8.4)
+}
+```
+
+**Kopyala ve ilerle (copy-make).** Bir çocuk dal açmak, `SearchState`'i
+kopyalamak demektir (heap'siz, birkaç yüz bayt). Undo/trail kaydı tutulmaz.
+Tek istisna arena'dır: o `mark()` / `truncate(mark)` ile geri sarılır (§6.1).
+
+*Neden undo değil:* Satranç motorlarında bir hamle birkaç kareyi değiştirir
+ve hemen yeni bir node'a geçilir. Bizde her node'da `normalize()` binlerce
+adım çalıştırabilir. Trail yaklaşımı her boyamayı ve her yıldız toplamayı
+bu en sıcak döngüde kaydetmek zorunda kalır. Kopyalama ise bedeli node
+başına bir kez öder. `SearchStats` kopyalamanın bir darboğaz olduğunu
+gösterirse bu karar yeniden değerlendirilir (§15).
+
+`Config` ve `SearchStats` hiçbir zaman `SearchState` içinde olmaz. Olsalardı
+her kopyada sayaçlar da kopyalanır ve anlamlarını yitirirdi.
+
 ### 4.1 Komutlar
 
 ```rust
@@ -167,30 +231,33 @@ enum Action { Forward, TurnLeft, TurnRight, Paint(Color), Call(FnId) }
 ### 4.2 Kısmi program
 
 ```rust
+#[derive(Clone, Copy)]
 enum Cell {
     Resolved { cond: Cond, action: Action },
     CondOnly { cond: Color },          // koşul seçildi, aksiyon henüz yok
 }
 
+#[derive(Clone, Copy)]
 struct FunctionDraft {
-    cells: Vec<Cell>,   // karar verilmiş hücreler, soldan sıkıştırılmış
-    ended: bool,        // true: cells'ten sonrası kesin olarak boş (END)
+    cells: [Cell; MAX_FUNCTION_SLOTS], // yalnızca cells[..len] anlamlı
+    len: u8,                           // karar verilmiş hücre sayısı (soldan sıkıştırılmış)
+    ended: bool,                       // true: len'den sonrası kesin olarak boş (END)
 }
 
-struct PartialProgram {
-    fns: [FunctionDraft; 5],
-    introduced: u8,     // bitmask: çağrı hücresi oluşturulmuş fonksiyonlar (§8.4)
-    used: u8,           // maliyet: Resolved ve CondOnly hücrelerin toplamı
-}
+#[derive(Clone, Copy)]
+struct PartialProgram { fns: [FunctionDraft; 5] }
 ```
+
+Temsilde `UNKNOWN` ve `EMPTY` diye bir hücre **yoktur**:
+`len < cap && !ended` ise bir sonraki slot henüz karar verilmemiştir;
+`ended` ise o noktadan sonrası boştur.
 
 Tanımlar:
 
-- `len(f) = fns[f].cells.len()`.
-- **Kapalı fonksiyon:** `closed(f) := fns[f].ended || len(f) == cap[f]`.
-- **Tükenmiş frame:** `exhausted(f, pc) := pc == len(f) && closed(f)`. Bu frame'in
-  önünde kesin olarak çalışacak hiçbir komut yoktur.
-- Fiziksel karşılık: `physical(f) = cells (hepsi Resolved) ++ [null; cap[f] - len(f)]`.
+- **Kapalı fonksiyon:** `closed(f) := fns[f].ended || fns[f].len == cap[f]`.
+- **Tükenmiş frame:** `exhausted(f, pc) := pc == fns[f].len && closed(f)`. Bu
+  frame'in önünde kesin olarak çalışacak hiçbir komut yoktur.
+- Fiziksel karşılık: `physical(f) = cells[..len] (hepsi Resolved) ++ [null; cap[f] - len]`.
 
 **Lemma L1 (sola sıkıştırma).** Bir fonksiyondaki `null` slotları sona taşımak
 davranışı değiştirmez. `null` adım saymaz ve atlanır (R-NULL). R-TAIL yalnızca
@@ -203,30 +270,35 @@ aramak hiçbir çözümü kaybettirmez.
 ### 4.3 Makine
 
 ```rust
+#[derive(Clone, Copy)]
 struct Machine {
     pos: TileId,
     dir: u8,
-    colors: [Color; 192],   // v1 için basit dizi
-    stars: [u64; 3],
+    colors: PackedColors,       // kare başına 2 bit → 64 bayt
+    stars: StarSet,             // [u64; 4] → 32 bayt
     star_count: u16,
     steps: u32,
-    top: Option<Frame>,     // çalışan frame (pc'si değişir)
-    rest: StackRef,         // askıdaki frame'ler, kalıcı stack (§6)
-    phys_hash: u128,        // pos, dir, stars, colors Zobrist hash'i (§7.3)
+    current: Option<Frame>,     // çalışan frame; pc'si her komutta ilerler
+    callers: Option<NodeId>,    // askıdaki frame'ler, arena'daki kalıcı zincir (§6)
+    phys_hash: u128,            // pos, dir, stars, colors'ın Zobrist hash'i (§7.3)
 }
 
+#[derive(Clone, Copy)]
 struct Frame { f: u8, pc: u8 }
 ```
 
-Makine bir frontier'da klonlanır. Boyutu yaklaşık 250 bayt olduğu için
-kopyalamak ucuzdur; v1'de make/unmake (değişikliği yapıp geri alma) yapılmaz.
+Stack **kopyalanmaz**: `Machine` sadece `current` frame'i ve `callers`
+zincirinin tepesini gösteren bir `NodeId` tutar. Zincirin kendisi arena'da
+değişmez olarak durur.
 
 ---
 
 ## 5. `normalize()`: çalıştırma katmanı
 
-`normalize(P, M, seen) -> Outcome` kısmi program `P` altında makineyi `M`
-**yerinde** ilerletir. Program sabittir; bu fonksiyon hiçbir karar vermez.
+`normalize(solver, state, cycles) -> Outcome`, kısmi program altında makineyi
+**yerinde** ilerletir. **Programı değiştirmez ve hiçbir karar vermez.** Sentez
+(program oluşturma) yalnızca arama katmanının işidir (§9); bu sınır
+bozulmamalıdır.
 
 ```rust
 enum Outcome {
@@ -238,11 +310,11 @@ enum Outcome {
 ```
 
 ```text
-normalize(P, M, seen):                                          # N-*
+normalize(P, M, cycles):                                        # N-*
     loop:
         if M.star_count == 0: return Solved                     # N-SOLVED
-        if M.top is None:     return Dead(OutOfInstructions)
-        (f, pc) = M.top
+        if M.current is None: return Dead(OutOfInstructions)
+        (f, pc) = M.current
 
         if pc == len(f):                                        # N-END
             if closed(f): pop(M); continue                      # R-POP ile aynı
@@ -253,13 +325,13 @@ normalize(P, M, seen):                                          # N-*
             CondOnly{c}:                                        # N-CONDONLY
                 if M.colors[M.pos] == c:
                     return NeedAction{f, pc, c}                 # ADIM SAYILMAZ, pc İLERLEMEZ
-                if !consume_step(M): return Dead(StepLimit)
-                M.top.pc += 1
+                consume_step(M)?                                # sınır aşıldı → Dead(StepLimit)
+                M.current.pc += 1
                 continue                                        # koşul tutmadı, atla
 
             Resolved{cond, action}:                             # N-RESOLVED
-                if !consume_step(M): return Dead(StepLimit)     # R-STEP: ÖNCE sınır
-                M.top.pc += 1
+                consume_step(M)?                                # R-STEP: ÖNCE sınır
+                M.current.pc += 1
                 if cond == Is(c) and M.colors[M.pos] != c: continue
                 match action:
                     Forward:
@@ -270,13 +342,16 @@ normalize(P, M, seen):                                          # N-*
                     Paint(c): paint(M, c)
                     Call(g):
                         call(P, M, g)                           # §6.2, R-TAIL dahil
-                        if seen.check_and_insert(M):            # §7
-                            return Dead(Loop)
+                        if config.cycle_detection and cycles.observe(M) == Repeated:
+                            return Dead(Loop)                   # §7
 
-consume_step(M):
+consume_step(M) -> Result<(), DeadReason>:                      # tek adım sayacı
     M.steps += 1
-    return M.steps <= MAX_STEPS
+    if M.steps > MAX_STEPS: Err(StepLimit) else Ok(())
 ```
+
+**`consume_step` adım sayacına dokunan tek fonksiyondur.** Kodun başka hiçbir
+yerinde `steps += 1` yazılmaz.
 
 Hücreler hiçbir zaman `cap[g] == 0` olan bir fonksiyonu çağırmaz (§8.3), bu
 yüzden R-RUN'daki (232) dalının karşılığına gerek yoktur.
@@ -284,15 +359,17 @@ yüzden R-RUN'daki (232) dalının karşılığına gerek yoktur.
 **Lemma L2 (frontier'da durmak).** `OpenSlot` ve `NeedAction` durumunda makine,
 o slot değerlendirilmeden **hemen önceki** state'tedir: adım sayılmamış, `pc`
 ilerlememiştir. Karar verildikten sonra `normalize` aynı slotu motorun yaptığı
-gibi baştan işler. Böylece her dolu slot tam olarak bir kez sayılır.
+gibi baştan işler. Böylece her dolu slot tam olarak bir kez sayılır. Koşulu
+tutmayan bir `CondOnly` ise aksiyona ihtiyaç duymadığı için hemen sayılır ve
+atlanır.
 
 **Lemma L3 (frontier'dan devam).** Frontier'a kadar olan çalışma, karar
 verilecek hücreyi hiç okumamıştır; okusaydı orada dururdu. Bu yüzden her çocuk
 dal, frontier makinesinin bir kopyasından devam edebilir. Baştan çalıştırmaya
 gerek yoktur.
 
-**Lemma L4 (eşdeğerlik).** Bir `P` programının bütün hücreleri `Resolved` ise
-ve `normalize` hiç frontier'a varmadan `Solved`, `Crash`, `StepLimit` ya da
+**Lemma L4 (eşdeğerlik).** Bir programın bütün hücreleri `Resolved` ise ve
+`normalize` hiç frontier'a varmadan `Solved`, `Crash`, `StepLimit` ya da
 `OutOfInstructions` ile bitiyorsa, `REFERENCE_RUN(physical(P))` aynı sonucu,
 aynı `steps` değerini ve aynı son state'i verir. `Loop` sonucunda ise
 referans çalıştırma ya `STUCK` verir ya da hiç sonlanmaz. Bu lemma T-DIFF
@@ -302,53 +379,67 @@ testiyle doğrulanır.
 
 ## 6. Stack
 
-### 6.1 Temsil
+### 6.1 Temsil ve arena
 
-Çalışan frame (`M.top`) değiştirilebilir durumdadır ve onun `pc`'si her komutta
-ilerler. Askıdaki frame'lerin `pc`'si ise **askıdayken değişmez**, bu yüzden
-kalıcı (persistent) bir bağlı liste içinde tutulurlar:
+Çalışan frame (`M.current`) `Machine` içinde durur ve onun `pc`'si her komutta
+ilerler; bunun için arena'ya dokunulmaz. Askıdaki frame'lerin `pc`'si ise
+**askıdayken değişmez**, bu yüzden arena içinde kalıcı (persistent) bir bağlı
+liste olarak tutulurlar:
 
 ```rust
-struct StackNode { frame: Frame, parent: StackRef, depth: u32, hash: u128 }
-type StackRef = Option<NodeId>;          // NodeId = arena içindeki u32 indeks
+struct StackNode {
+    frame: Frame,
+    parent: Option<NodeId>,
+    depth: u16,      // zincirdeki frame sayısı (≤ 20000)
+    hash: u128,      // mix(parent.hash (yoksa 0), frame.f, frame.pc)
+}
+type NodeId = u32;   // StackArena içindeki indeks
 
-node.hash = mix(parent.hash (yoksa 0), frame.f, frame.pc)
-stack_hash(M) = mix(hash(M.rest), M.top.f, M.top.pc)
+stack_hash(M) = mix(hash(M.callers), M.current.f, M.current.pc)     # O(1)
 ```
 
-- **Arena:** `Vec<StackNode>`. Arama derinlik öncelikli (DFS) olduğu için yer
-  açma da yığın disipliniyle yapılır: bir çocuk daldan dönülünce
-  `arena.truncate(mark)`. O dalın oluşturduğu düğümlere artık kimse referans
-  vermez.
-- Cache kaydı stack'i kopyalamaz, sadece `NodeId` tutar. Böylece derin
+- **Arena:** `Vec<StackNode>`. Düğümler hiçbir zaman değiştirilmez.
+- **Geri sarma:** Arama derinlik öncelikli (DFS) olduğu için yer açma da
+  yığın disipliniyle yapılır. Her çocuk dal için `mark = arena.mark()` **aday
+  uygulanmadan önce** alınır (çünkü END onarımı da düğüm oluşturur), dal
+  bitince `arena.truncate(mark)` çağrılır. Ebeveyn state'in gösterdiği düğümler
+  mark'tan önce oluşturulduğu için etkilenmez.
+- Bir cache kaydı stack'i kopyalamaz, sadece bir `NodeId` tutar. Böylece derin
   özyinelemede bile kayıt başına O(1) bellek harcanır.
 
 ### 6.2 İşlemler
 
 ```text
 call(P, M, g):                                                   # S-CALL
-    if exhausted(M.top.f, M.top.pc):      # R-TAIL: çağıranın devamı kesin boş
-        M.top = (g, 0)                    # replace
+    # M.current.pc zaten çağrı komutunun bir sonrasını gösteriyor
+    if exhausted(M.current.f, M.current.pc):   # R-TAIL: çağıranın devamı kesin boş
+        M.current = (g, 0)                     # replace, arena'ya dokunulmaz
     else:
-        M.rest = push_node(M.rest, M.top) # askıya al
-        M.top  = (g, 0)
+        M.callers = arena.push(M.current, parent = M.callers)   # askıya al
+        M.current = (g, 0)
 
 pop(M):                                                          # S-POP
-    if M.rest is None: M.top = None
-    else: M.top = node(M.rest).frame; M.rest = node(M.rest).parent
+    if M.callers is None: M.current = None
+    else:
+        node = arena[M.callers]
+        M.current = node.frame
+        M.callers = node.parent
 ```
+
+Üçü de O(1). Devamı henüz karar verilmemiş bir slot içeren çağıran (fonksiyon
+kapalı değil) askıya alınır; o slot ileride bir komut olabilir.
 
 **Motordan fark ve eşdeğerlik.** Motor R-TAIL'de "kalan fiziksel slotların
 hepsi `null` mı?" diye sorar. Biz `exhausted(...)` diye soruyoruz. Çağıranın
-kalanında bir `UNKNOWN` varsa (fonksiyon kapalı değilse) frame'i tutarız; motor
-ise o slot sonradan `null` olursa frame'i silerdi. Bu fark davranışı
-değiştirmez (R-TAIL notu), sadece stack'in gösterimini değiştirir. Gösterimi
-düzeltmek için §6.3'teki kural uygulanır.
+kalanında bir `UNKNOWN` varsa frame'i tutarız; motor ise o slot sonradan
+`null` olursa frame'i silerdi. Bu fark davranışı değiştirmez (R-TAIL notu),
+sadece stack'in gösterimini değiştirir. Gösterimi düzeltmek için §6.3'teki
+kural uygulanır.
 
 ### 6.3 Canonical stack (INV-STACK)
 
 **INV-STACK:** Askıdaki frame'lerin hiçbiri `exhausted` değildir. Çalışan
-frame (`top`) tükenmiş olabilir; o zaman döngünün başında pop edilir.
+frame tükenmiş olabilir; o zaman döngünün başında pop edilir.
 
 **Lemma L5.** Tek bir `normalize` çağrısı boyunca INV-STACK korunur. Bir frame
 ancak tükenmemişse askıya alınır (S-CALL), ve bir frame'in tükenmiş olup
@@ -363,19 +454,29 @@ askıdaki bir frame sonradan tükenmiş hale gelemez.
 | `NeedAction` çözmek | Hücre zaten vardı. Etkisi yok. |
 | **END (`f`, `k`)** | `(f, pc == k)` olan askıdaki frame'ler tükenmiş hale gelir. |
 
-**S-REBUILD:** END kararı verildikten sonra, **yalnızca o çocuk dalın** makine
-kopyası üzerinde:
+**S-REBUILD:** END kararı `OpenSlot{f, k}` frontier'ında verilir. Bu an
+**çalışan frame'in kendisi** `(f, k)`'dir; END'e o frame'in slotu için karar
+verilir. Kararın ardından, **yalnızca o çocuk dalın** state kopyası üzerinde:
 
 ```text
-frames = M.rest zincirini alttan üste topla
+frames = M.callers zincirini alttan üste topla
 frames = [fr for fr in frames if !(fr.f == f and fr.pc == k)]
-M.rest = frames'i arenaya yeniden push et (hash zinciri baştan hesaplanır)
+M.callers = frames'i arenaya sırayla yeniden push et   # parent, depth, hash yeniden hesaplanır
 ```
 
-Maliyeti O(derinlik), ama çağrı başına değil END kararı başına ödenir.
-Frame'ler stack'in **ortasından** da silinebilir. Örnek:
-`[B@k, C@j, B@k (top)]` iken B'nin k. slotuna END denirse top pop olur, C
-çalışmaya devam eder, alttaki `B@k` silinir.
+Çalışan `(f, k)` frame'i onarıma dahil değildir: normalize döngüsünün başında
+tükenmiş olarak pop edilir. Maliyet O(derinlik), ama çağrı başına değil END
+kararı başına ödenir.
+
+**Ulaşılabilir örnek** (`t_rebuild_middle`): `B` fonksiyonu, `C` üzerinden
+kendini çağırmış olsun. Stack alttan üste:
+
+```text
+B@k (askıda),  C@j (askıda),  B@k (çalışan, OpenSlot{B, k})
+```
+
+`B[k] = END` kararından sonra çalışan `B@k` pop olur, `C@j` çalışan frame olur,
+alttaki `B@k` onarımla silinir. Sonuç: `[C@j (çalışan)]`.
 
 ---
 
@@ -387,7 +488,7 @@ Bir `Call` gerçekleştikten sonra (S-CALL bittikten sonra) makinenin **döngü
 anahtarı** hesaplanır:
 
 ```text
-key(M) = (pos, dir, stars, colors, [rest'teki frame'ler], top)     # steps DAHİL DEĞİL
+key(M) = (pos, dir, stars, colors, callers zinciri, current)     # steps DAHİL DEĞİL
 ```
 
 Anahtar daha önce görüldüyse sonuç `Dead(Loop)` olur.
@@ -404,16 +505,17 @@ dolayısıyla bu dal hiçbir zaman `Solved` olamaz.
 
 ### 7.2 Cache'in ömrü
 
-`seen` **her `normalize` çağrısında sıfırdan başlar**: v1'de her sentez
-kararından sonra yeni bir cache açılır.
+`CycleDetector` **her `normalize` çağrısında sıfırdan oluşturulur**: v1'de
+her sentez kararından sonra yeni bir cache açılır.
 
-*Gerekçe (kodda aynen yazılacak):* Bir `S` state'i bir karardan önce görülmüş
-olsun ve karardan sonra tekrar görülsün. İkinci görülme anında `S → … → S`
-yolunun okuduğu her hücre artık programda sabittir ve ileride eklenecek
-hücreler bu yolu etkileyemez. Yani cache'i o anki arama yolu boyunca taşımak
-**da** güvenli olurdu. Güvenli **olmayan** tek şey cache'i kardeş dallar
-arasında paylaşmaktır. v1'de her kararda sıfırlıyoruz çünkü daha basit, ve
-bedeli döngünün en fazla bir tur geç yakalanması.
+*Gerekçe (kodda aynen yazılacak):* Aynı DFS ata zinciri üzerinde, yol
+kapsamlı bir döngü cache'i sentez kararlarından sonra da güvenle yaşayabilir.
+Program hücreleri yalnızca eklenerek rafine edilir (monoton), ve tamamlanmış
+tekrar eden bir çalıştırma yolu yalnızca o ata zinciri boyunca zaten sabitlenmiş
+hücrelere bağlıdır. v1, uygulama sadeliği için döngü tespitini her
+normalize çağrısında bilerek sıfırlar; bedeli döngünün en fazla bir tur geç
+yakalanmasıdır. **Cache kayıtları hiçbir zaman kardeş dallar arasında
+paylaşılmamalıdır.**
 
 ### 7.3 Hash ve kesin eşitlik
 
@@ -422,18 +524,35 @@ bedeli döngünün en fazla bir tur geç yakalanması.
   `COLOR[tile][color]`. Hareket, dönüş, boyama ve yıldız toplama hash'i
   XOR ile O(1) günceller.
 - `key_hash = mix(phys_hash, stack_hash(M))`.
-- `seen: HashMap<u128, Vec<SeenEntry>>`. Hash eşleşince **kesin
-  eşitlik** kontrol edilir: `pos`, `dir`, `stars`, `colors` ve stack zinciri
-  (aynı `NodeId`'ye ulaşana ya da kökte bitene kadar frame frame karşılaştırma).
-  `SeenEntry` renk dizisinin bir kopyasını tutar (192 bayt).
+- `CycleDetector { buckets: HashMap<u128, Vec<CycleSnapshot>> }`, burada
+  `CycleSnapshot = { pos, dir, stars, colors, current, callers }`. `stars` ve
+  `colors` paketli olduğu için bir kayıt yaklaşık 120 bayttır; stack
+  kopyalanmaz.
+- Hash eşleşince **kesin eşitlik** kontrol edilir. Stack karşılaştırması iki
+  zinciri birlikte yürür: `NodeId`'ler eşitse zincirlerin geri kalanı da
+  kesin olarak aynıdır (düğümler değişmez), dur. `depth`'ler farklıysa
+  stack'ler farklıdır, dur. Aksi halde frame'leri karşılaştırıp bir üst
+  düğüme geç. `NodeId`'ler farklı olup içerik aynı olabilir: aynı stack END
+  onarımıyla ya da farklı bir push sırasıyla yeniden oluşmuş olabilir.
 
-Not: Bir hash çakışmasının sonucu yanlış bir *budama* olurdu, yani bir çözüm
-kaçırılırdı; yanlış bir çözüm üretilmezdi. Yine de kesin eşitlik v1'de
-zorunludur.
+**Kesin eşitlik neden zorunlu:** Bir hash çakışmasının sonucu yanlış bir
+*budama* olur, yani var olan bir çözüm kaçırılır. `finalize`'daki doğrulama
+(§9.3) bunu yakalayamaz: o sadece *bulunan* çözümün çalışıp çalışmadığını
+kontrol eder, kaçırılan dalları göremez. Tamlık (completeness) iddiası kesin
+eşitliğe dayanır.
 
 ---
 
 ## 8. Aday üretimi
+
+Aday üretimi iki ayrı adımdan oluşur ve bunlar kodda ayrı tutulur:
+
+- **Generator:** Anlamsal olarak hangi hücreler mümkün?
+- **Canonicalizer:** Bunlardan hangileri arama uzayında gereksiz bir
+  eşdeğerin kopyası? (§8.5)
+
+Tek istisna P-SYM'dir (§8.4): simetri, filtre olarak değil, doğrudan
+çağrılabilir fonksiyon kümesi (`callable`) olarak üretilir, çünkü bu daha ucuz.
 
 ### 8.1 Frontier türleri ve maliyet
 
@@ -446,6 +565,15 @@ zorunludur.
 
 `used + maliyet > budget` olan aday üretilmez. `OpenSlot`'ta bütçe dolduysa
 geriye sadece `END` kalır.
+
+- **P-STEPCUT:** `M.steps == MAX_STEPS` ise:
+  - `NeedAction` → dal açılmadan `NotFound`.
+  - `OpenSlot` → yalnızca `END` üretilir.
+
+  (*Kanıt:* Bir sonraki değerlendirilecek dolu hücre `MAX_STEPS + 1`. adım
+  olur ve R-STEP gereği `StepLimit` ile ölür. `END` adım saymaz, çalışan
+  frame'i bitirir ve dönüşteki çalıştırma ancak başka bir dolu hücreye
+  ulaşırsa ölür; o yüzden `END` yaşayabilir.)
 
 ### 8.2 Koşullar (P-COLOR)
 
@@ -463,6 +591,11 @@ geriye sadece `END` kalır.
 `Any` ile `Is(cur)` birleştirilmez: şu an aynı davranırlar, ama o slot ileride
 başka bir renkte tekrar çalışabilir.
 
+`config.lazy_conditions == false` ise ertelenen her `c` için `CondOnly{c}`
+yerine bütün `Resolved{Is(c), action}` hücreleri doğrudan (eager) üretilir
+(§8.7). Bu hücreler şu an atlanır, aksiyonları ileride tetiklendiklerinde
+anlam kazanır.
+
 ### 8.3 Aksiyonlar
 
 Hücrenin koşulu `cond` (`NeedAction`'da `Is(c)`) için aday aksiyonlar:
@@ -470,7 +603,7 @@ Hücrenin koşulu `cond` (`NeedAction`'da `Is(c)`) için aday aksiyonlar:
 ```text
 Forward, TurnLeft, TurnRight,
 Paint(x)  for x in allowed_paints,
-Call(g)   for g in callable(P)                       (§8.4)
+Call(g)   for g in callable(state)                   (§8.4)
 ```
 
 Filtreler:
@@ -486,14 +619,18 @@ Filtreler:
 
 - `introduced`: programda bir `Resolved{…, Call(g)}` hücresi **oluştuğu anda**
   `g` bu kümeye eklenir. Bu `OpenSlot`'ta da, `NeedAction` çözümünde de olur.
-  `CondOnly` bir fonksiyonu tanıtmaz. `F1` baştan tanıtılmış sayılır.
+  `CondOnly` bir fonksiyonu tanıtmaz. `F1` baştan tanıtılmış sayılır
+  (`introduced = 0b00001`).
 - Kapasite sınıfları: `F2..F5` arasında `cap > 0` olanlar kapasiteye göre
   gruplanır. `F1` hiçbir sınıfa girmez, çünkü giriş noktası olduğu için
   diğerleriyle yer değiştiremez.
-- `callable(P) = introduced ∪ { her sınıfta henüz tanıtılmamış en küçük indeksli fonksiyon }`.
+- `callable(state) = introduced ∪ { her sınıfta henüz tanıtılmamış en küçük indeksli fonksiyon }`.
 
-Örnek: `cap = [6, 6, 0, 6, 0]` (katalogdaki #2973) için başta çağrılabilenler
-`{F1, F2}`. `F2` tanıtıldıktan sonra `F4` de çağrılabilir hale gelir.
+Örnekler:
+- `cap = [6, 6, 0, 6, 0]` (katalogdaki #2973): başta `{F1, F2}`; `F2`
+  tanıtıldıktan sonra `F4` de çağrılabilir.
+- `cap = [7, 4, 2, 4, 2]`: sınıflar `4 → [F2, F4]`, `2 → [F3, F5]`. Başta
+  `{F1, F2, F3}`.
 
 *Kanıt:* Aynı kapasiteli iki fonksiyonun isimleri (ve bütün çağrıları)
 değiştirilirse, geçerli ve aynı maliyetli bir program elde edilir ve
@@ -503,11 +640,12 @@ tarafından belirlenir, dolayısıyla yeniden adlandırılmış program bu kural
 sağlar ve arama tarafından bulunur. Farklı kapasiteli fonksiyonlar için bu
 geçerli **değildir**: 4 slotluk bir gövde 2 slotluk bir fonksiyona sığmayabilir.
 
-### 8.5 Yerel eşdeğerlik budamaları
+### 8.5 Yerel eşdeğerlik budamaları (canonicalizer)
 
-Hücre `i` indeksine yerleştirildikten sonra, `i`'yi içeren pencereler
-kontrol edilir: `[i-2, i+2]`. `NeedAction`'da sağdaki komşular zaten dolu
-olabilir, bu yüzden iki yöne de bakılır.
+Hücre `i` indeksine yerleştirildikten ya da çözüldükten sonra
+`is_locally_canonical(fn, i)` çağrılır ve yalnızca `i`'yi içeren pencerelere
+bakar: `[i-2, i+2]`. `NeedAction`'da sağdaki komşular zaten dolu olabilir, bu
+yüzden iki yöne de bakılır.
 
 - **P-TURN:** Aynı fonksiyonda ardışık `Resolved` dönüş hücreleri **aynı
   koşula** sahipse şu kalıplar yasaktır:
@@ -534,13 +672,41 @@ olabilir, bu yüzden iki yöne de bakılır.
 ### 8.6 Sıralama (normatif değil)
 
 Sıralama doğruluğu etkilemez, sadece son bütçe turunda çözüme ne kadar hızlı
-ulaşıldığını etkiler. v1'de sabit bir sıra yeterli:
+ulaşıldığını etkiler: başarısız olan `1..K-1` bütçe turları her zaman tamamen
+taranır. v1'de sabit bir sıra yeterli:
 
 ```text
 OpenSlot:   Any:Forward, cur:Forward, Any:Call(tanıtılmış), Any:TurnLeft, Any:TurnRight,
             cur:(aynı sıra), Any:Call(yeni), Paint…, CondOnly…, END
 NeedAction: Forward, Call(tanıtılmış), TurnLeft, TurnRight, Call(yeni), Paint…
 ```
+
+### 8.7 `Config`: ablation bayrakları
+
+```rust
+struct Config {
+    lazy_conditions:   bool,   // CondOnly / NeedAction (§8.2)
+    function_symmetry: bool,   // P-SYM (§8.4)
+    peephole:          bool,   // P-TURN, P-PAINT, P-EMPTYFN (§8.3, §8.5)
+    cycle_detection:   bool,   // §7
+    step_cut:          bool,   // P-STEPCUT (§8.1)
+}   // varsayılan: hepsi true
+```
+
+**Kural:** Bir bayrağı kapatmak optimizasyonu kaldırır ve arama uzayını
+büyütür; **hiçbir zaman bir dalı yasaklamaz**. Her `Config` aynı en küçük
+maliyeti bulmalıdır (`t_config_equivalence`).
+
+| Bayrak `false` iken | Davranış |
+|---|---|
+| `lazy_conditions` | `CondOnly{c}` yerine her ertelenen `c` için bütün `Resolved{Is(c), action}` hücreleri üretilir (eager). `NeedAction` hiç oluşmaz. Bu hücreleri **yasaklamak** değil, **önceden açmak** demektir; yasaklamak çözüm kaybettirirdi. |
+| `function_symmetry` | `callable` = `cap > 0` olan bütün fonksiyonlar. |
+| `peephole` | P-TURN, P-PAINT ve P-EMPTYFN uygulanmaz. |
+| `cycle_detection` | Döngüler `StepLimit` ile ölür (yavaş ama doğru). |
+| `step_cut` | Aday üretimi normal devam eder; dallar bir sonraki adımda `StepLimit` ile ölür. |
+
+P-COLOR, P-DISABLED ve P-CONN bayrakla kapatılmaz. Bunlar temsilin kendisini
+tanımlar (olmayan bir renk, olmayan bir fonksiyon, ulaşılamayan bir yıldız).
 
 ---
 
@@ -549,58 +715,71 @@ NeedAction: Forward, Call(tanıtılmış), TurnLeft, TurnRight, Call(yeni), Pain
 ### 9.1 Dış döngü: bütçeye göre derinleştirme (IDDFS)
 
 ```text
-solve(level, limits):
+solve(level, config, limits):
     if P-CONN başarısız: return Unsolvable(Disconnected)
-    for budget in 1 ..= sum(cap):
-        root_program = boş (bütün fonksiyonlar açık, used = 0, introduced = {F1})
-        root_machine = başlangıç state'i, top = (F1, 0), rest = None
-        match search(root_program, root_machine, budget):
-            Found(p)  → return Solved(finalize(p))
+    for budget in 0 ..= sum(cap):
+        root = SearchState {
+            program: boş (bütün fonksiyonlar açık, len = 0, ended = false),
+            machine: başlangıç state'i, current = (F1, 0), callers = None, steps = 0,
+            used: 0, introduced: {F1},
+        }
+        arena.clear()
+        match search(root, budget):
+            Found(s)  → return Solved(finalize(s))
             Timeout   → return Timeout
             NotFound  → continue
     return Unsolvable(Exhausted)    # hiçbir bütçede çözüm yok (motor semantiği altında)
 ```
 
-`budget = 0` atlanır; her bulmacada en az bir yıldız olduğu için boş program
-hiçbir zaman çözüm değildir.
+`budget = 0` turu, yıldızı olmayan bulmacaları boş programla çözer. Yıldızlı
+bir bulmacada P-EMPTYFN gereği hemen biter.
 
 ### 9.2 İç döngü: DFS
 
 ```text
-search(P, M, budget):
-    limits.check()?                                  # zaman ve node sınırı → Timeout
-    seen = yeni cache
-    match normalize(P, &mut M, &mut seen):
-        Solved         → return Found(P)
-        Dead(_)        → return NotFound
+search(self, s: SearchState, budget) -> Result<Option<SearchState>, Timeout>:
+    self.limits.check()?                             # zaman ve node sınırı
+    self.stats.search_nodes += 1
+    let mut s = s
+    let mut cycles = CycleDetector::new()            # §7.2
+    match normalize(self, &mut s, &mut cycles):
+        Solved         → return Ok(Some(s))
+        Dead(reason)   → self.stats.dead(reason); return Ok(None)
         OpenSlot{f,pc} →
-            for cand in open_candidates(P, M, f, pc, budget):     # §8, sıralı
-                (P2, M2) = (P.clone(), M.clone())
-                apply(P2, cand)                      # cells.push / ended = true
-                if cand == END: S-REBUILD(M2, f, pc)
-                r = search(P2, M2, budget)?
-                if r is Found: return r
-            return NotFound
+            for cand in self.open_candidates(&s, f, pc, budget):   # §8, sıralı ve filtrelenmiş
+                mark = self.arena.mark()             # adaydan ÖNCE (END onarımı düğüm üretir)
+                child = s                            # Copy
+                apply(&mut child, cand)              # cells[len] = …, len += 1  |  ended = true
+                if cand == END: S-REBUILD(self.arena, &mut child.machine, f, pc)
+                r = self.search(child, budget)
+                self.arena.truncate(mark)
+                if r? is Some: return r
+            return Ok(None)
         NeedAction{f,pc,c} →
-            for act in need_candidates(P, M, f, pc, c):
-                (P2, M2) = (P.clone(), M.clone())
-                P2.fns[f].cells[pc] = Resolved{Is(c), act}
-                r = search(P2, M2, budget)?
-                if r is Found: return r
-            return NotFound
+            if P-STEPCUT uygulanıyorsa: return Ok(None)
+            for act in self.need_candidates(&s, f, pc, c):
+                mark = self.arena.mark()
+                child = s
+                child.program.fns[f].cells[pc] = Resolved{Is(c), act}
+                if act == Call(g): child.introduced |= bit(g)
+                r = self.search(child, budget)
+                self.arena.truncate(mark)
+                if r? is Some: return r
+            return Ok(None)
 ```
 
-Her `search` çağrısı bir **node** sayılır; istatistiklerde bütçe başına ayrı
-ayrı raporlanır.
+`apply` bir `Call(g)` hücresi eklediğinde `introduced |= bit(g)` ve
+`used += 1` yapar; `CondOnly` eklediğinde yalnızca `used += 1`.
 
 ### 9.3 `finalize`
 
 ```text
-finalize(P):
+finalize(s):
     assert (INV-FIN) bütün hücreler Resolved      # debug_assert
-    physical = her f için cells ++ null * (cap[f] - len(f))
-    assert REFERENCE_RUN(physical) == SUCCESS     # her zaman, release derlemede de
-    return (physical, P.used, steps)
+    physical = her f için cells[..len] ++ null * (cap[f] - len)
+    r = REFERENCE_RUN(physical)
+    assert r == SUCCESS                            # her zaman, release derlemede de
+    return Solution { physical, cost: s.used, steps: r.steps }
 ```
 
 **INV-FIN:** İlk bulunan çözümde `CondOnly` hücre kalamaz. (*Kanıt:* Hiç
@@ -612,6 +791,28 @@ Tetiklenirse bir bug var demektir.
 Açık kalmış fonksiyon sonları çıktıda `null` olur. Bunlar hiçbir zaman
 ulaşılmadığı için hiçbir etkileri yoktur ve maliyete sayılmazlar.
 
+Bu iki yorumlayıcı düzeni (arama için `normalize`, doğrulama için
+`REFERENCE_RUN`) solver'ın emniyet kemeridir: `normalize`'da bir bug olsa bile
+yanlış bir çözüm dışarı çıkmaz.
+
+### 9.4 `SearchStats`
+
+Her bulmaca için, bütçe turlarının toplamı olarak raporlanır. `Solver` içinde
+durur, `SearchState` içinde **değil**.
+
+| Sayaç | Ne zaman artar |
+|---|---|
+| `search_nodes` | Her `search` çağrısında. Ayrıca bütçe başına ayrı ayrı (`nodes_per_budget`). |
+| `normalize_calls` | Her `normalize` çağrısında. |
+| `instructions_evaluated` | Her `consume_step` çağrısında. **Node sayısı kadar önemli**: bir optimizasyon node'ları azaltıp normalize işini artırıyorsa duvar saati süresi beklendiği kadar düşmez. |
+| `open_frontiers`, `need_action_frontiers` | İlgili frontier döndüğünde. |
+| `candidates_generated`, `candidates_searched` | Üretilen ve özyinelemeye giren aday sayısı. |
+| `dead_crash`, `dead_step_limit`, `dead_out_of_instructions`, `dead_loop` | `normalize` ilgili sebeple öldüğünde. |
+| `prune_budget`, `prune_step_cut`, `prune_symmetry`, `prune_peephole` | İlgili kural bir adayı elediğinde. |
+| `ends_selected`, `condonly_created`, `condonly_resolved` | İlgili karar uygulandığında. |
+| `stack_pushes`, `tail_calls`, `returns`, `stack_rebuilds`, `stack_nodes_rebuilt` | Stack işlemlerinde. |
+| `max_search_depth`, `max_call_depth` | En büyük değer. |
+
 ---
 
 ## 10. Doğruluk özeti
@@ -622,20 +823,22 @@ L1–L5 gereği `normalize` motoru birebir simüle eder, ve buna ek olarak her
 doğrulanır.
 
 **Tamlık ve optimallik.** Maliyeti `K` olan bir çözüm varsa, `search(budget = K)`
-maliyeti `K` olan bir çözüm bulur (zaman sınırı olmadığı varsayımıyla).
-*İspat taslağı:* En küçük bir çözüm `Q` alınır. L1 ile sola sıkıştırılır,
-P-SYM ile fonksiyonları yeniden adlandırılır, P-TURN, P-COLOR ve P-PAINT
-yeniden yazımları uygulanır. Bu yeniden yazımlar maliyeti artırmaz ve
+maliyeti `K` olan bir çözüm bulur (zaman sınırı olmadığı varsayımıyla; her
+`Config` için). *İspat taslağı:* En küçük bir çözüm `Q` alınır. L1 ile sola
+sıkıştırılır, P-SYM ile fonksiyonları yeniden adlandırılır, P-TURN, P-COLOR ve
+P-PAINT yeniden yazımları uygulanır. Bu yeniden yazımlar maliyeti artırmaz ve
 davranışı korur. Sonra arama, `Q`'nun hücrelerini takip ederek ilerler:
 
 - Her `OpenSlot`'ta `Q`'nun o slottaki hücresi ya aktif bir koşulla adaydır,
   ya ertelenen bir koşulla `CondOnly` olarak aday olur (aksiyonu daha sonra
-  `NeedAction`'da seçilir), ya da `null`'dır ve bu `END` adayına karşılık gelir.
-- P-EMPTYFN ve INV-FIN, `Q`'nun en küçük olmasıyla uyumludur.
+  `NeedAction`'da seçilir; `lazy_conditions` kapalıysa doğrudan aday olur),
+  ya da `null`'dır ve bu `END` adayına karşılık gelir.
+- P-EMPTYFN, P-STEPCUT ve INV-FIN, `Q`'nun en küçük ve başarılı olmasıyla
+  uyumludur.
 - L7, `Q`'nun yolunu kesmez: `Q` başarıya ulaştığı için çalıştırmasında
   tekrar eden bir state yoktur.
 
-Bütçe `1..K-1` turları tamamen tarandığı için, bulunan ilk çözüm en küçüktür.
+Bütçe `0..K-1` turları tamamen tarandığı için, bulunan ilk çözüm en küçüktür.
 
 ---
 
@@ -643,16 +846,21 @@ Bütçe `1..K-1` turları tamamen tarandığı için, bulunan ilk çözüm en k�
 
 | Test | Neyi kilitler |
 |---|---|
+| `t_level_*` | Katalog yüklenir; sınır aşan, düzensiz satırlı ve başlangıcı boşlukta olan bulmacalar `Unsupported` döner, panic olmaz. |
 | `t_ref_*` | `REFERENCE_RUN`, tutorial bulmacalarında (`test/tutorial_levels_test.dart`'taki programlar) Dart ile aynı sonucu verir. |
-| `t_step_limit_boundary` | State doğrudan kurulur: `steps = 19999` iken son yıldızı alan `Forward` → `Solved`, `steps = 20000`. `steps = 20000` iken aynı komut → `Dead(StepLimit)`, robot hareket etmemiş, yıldız yerinde. Aynı test `CondOnly` atlaması için de yapılır. |
-| `t_tail_call` | R-TAIL: `F1: [Forward, Call F1]` stack'i büyütmez. |
+| `t_step_limit_boundary` | State doğrudan kurulur: `steps = 19999` iken son yıldızı alan `Forward` → `Solved`, `steps = 20000`. `steps = 20000` iken aynı komut → `Dead(StepLimit)`, robot hareket etmemiş, yıldız yerinde. Aynı test koşulu tutmayan bir komut ve atlanan bir `CondOnly` için de yapılır. |
+| `t_frontier_no_step` | `OpenSlot` ve eşleşen `NeedAction` döndüğünde `pc` ve `steps` değişmemiştir. |
+| `t_tail_call`, `t_non_tail_call` | R-TAIL: `F1: [Forward, Call F1]` arena'ya düğüm eklemez. Devamı olan çağrı çağıranı askıya alır. |
 | `t_diff_random` | **T-DIFF:** Rastgele, tamamen dolu fiziksel programlar (sabit tohum, ≥ 10⁵ adet) katalogdaki bulmacalarda hem `REFERENCE_RUN` hem `normalize` ile çalıştırılır. Sonuç, `steps` ve son state aynı olmalı (L4). |
-| `t_loop_*` | Tail recursion döngüsü `Dead(Loop)` olarak yakalanır. Non-tail recursion `Dead(StepLimit)` ile biter. Yıldız alan bir "döngü" döngü sayılmaz. |
-| `t_rebuild_middle` | `[B@k, C@j, B@k]` örneği (§6.3): END'den sonra ortadaki frame silinir, hash zinciri yeniden kurulur. |
-| `t_p_sym`, `t_p_turn`, `t_p_paint`, `t_p_color`, `t_p_emptyfn` | Her budama kuralı hem pozitif hem negatif örnekle. |
+| `t_loop_*` | Tail recursion döngüsü `Dead(Loop)` olarak yakalanır. Derin non-tail recursion yanlışlıkla budanmaz, `Dead(StepLimit)` ile biter. Yıldız alan bir "döngü" döngü sayılmaz. |
+| `t_cycle_exact_equality` | Aynı hash'e sahip ama farklı iki state (hash elle zorlanarak) döngü sayılmaz. |
+| `t_rebuild_middle` | §6.3'teki ulaşılabilir örnek: END'den sonra `[C@j]` kalır, hash zinciri ve `depth` yeniden hesaplanmıştır. |
+| `t_zobrist_*` | Boyama ve yıldız toplama `phys_hash`'i değiştirir; geri boyama eski hash'e döner. |
+| `t_p_sym`, `t_p_turn`, `t_p_paint`, `t_p_color`, `t_p_emptyfn`, `t_p_stepcut` | Her budama kuralı hem pozitif hem negatif örnekle. `t_p_sym` farklı kapasiteli fonksiyonların birleştirilmediğini de kontrol eder. |
 | `t_p_turn_needaction` | `Red:?, Red:R` durumunda `?` için `L` üretilmez. |
 | `t_e2e_tutorials` | Tutorial bulmacaları çözülür, maliyetleri beklenen en küçük değerlere eşit. |
 | `t_e2e_bruteforce` | Küçük, elle kurulmuş bulmacalarda (toplam kapasite ≤ 4) bütün fiziksel programları deneyen saf bir kaba kuvvet ile aynı en küçük maliyet bulunur. **Optimalliğin asıl testi.** |
+| `t_config_equivalence` | Küçük bir bulmaca setinde her `Config` kombinasyonu aynı en küçük maliyeti bulur. |
 | Dart: `solver_solutions_test.dart` | §12. |
 
 ---
@@ -665,6 +873,7 @@ Bütçe `1..K-1` turları tamamen tarandığı için, bulunan ilk çözüm en k�
 {
   "solver": "robozzle-solver 0.1.0",
   "maxSteps": 20000,
+  "config": { "lazyConditions": true, "functionSymmetry": true, "peephole": true, "cycleDetection": true, "stepCut": true },
   "results": [
     {
       "sourceId": 195,
@@ -678,9 +887,10 @@ Bütçe `1..K-1` turları tamamen tarandığı için, bulunan ilk çözüm en k�
         [],
         []
       ],
-      "stats": { "millis": 12, "nodes": 45678, "nodesPerBudget": [1, 5, 40] }
+      "stats": { "millis": 12, "searchNodes": 45678, "instructionsEvaluated": 912345, "nodesPerBudget": [1, 1, 5, 40] }
     },
-    { "sourceId": 53, "status": "timeout", "stats": { "millis": 60000, "nodes": 123456789 } }
+    { "sourceId": 53, "status": "timeout", "stats": { "millis": 60000, "searchNodes": 123456789 } },
+    { "sourceId": 999, "status": "unsupported", "reason": "function capacity 13 exceeds 12" }
   ]
 }
 ```
@@ -691,7 +901,8 @@ Bütçe `1..K-1` turları tamamen tarandığı için, bulunan ilk çözüm en k�
   isimleriyle birebir aynı: `forward`, `turnLeft`, `turnRight`, `paintRed`,
   `paintGreen`, `paintBlue`, `callF1` … `callF5`. Böylece Dart tarafında
   `ActionType.values.byName(...)` ile doğrudan parse edilebilir.
-- `status` değerleri: `solved | timeout | unsolvable`.
+- `status` değerleri: `solved | timeout | unsolvable | unsupported`.
+- `stats` alanları §9.4'teki sayaçların camelCase halidir.
 
 **Dart testi** (`test/solver_solutions_test.dart`): Katalog ve
 `solutions.json` dosyaları `dart:io` ile okunur. Her `solved` kayıt için
@@ -713,42 +924,42 @@ solver <catalog.json> [--id <sourceId>]... [--all]
        [--timeout-ms <ms>]   (bulmaca başına, varsayılan 10000)
        [--node-limit <n>]
        [--out <solutions.json>]
+       [--no-lazy-conditions] [--no-function-symmetry] [--no-peephole]
+       [--no-cycle-detection] [--no-step-cut]
 ```
 
 Her bulmaca için tek satır ilerleme çıktısı; sonunda zorluk seviyesine göre
-özet: çözülen sayısı, ortalama süre, toplam node sayısı.
+özet: çözülen sayısı, ortalama süre, toplam `search_nodes` ve
+`instructions_evaluated`.
 
 Paralellik: v1'de yok. v1.5'te bulmacalar arası paralellik (`rayon`) eklenir;
-bu kolay ve güvenli, çünkü bulmacalar birbirinden bağımsız.
+bu kolay ve güvenli, çünkü bulmacalar birbirinden bağımsız (her iş parçacığı
+kendi `Solver`'ını kullanır).
 
 ---
 
-## 14. Modül yapısı
+## 14. Modül yapısı ve uygulama sırası
 
-```text
-solver/src/
-  main.rs        CLI, rapor
-  level.rs       JSON → Level, ön işleme (§3)
-  program.rs     Cond, Action, Cell, FunctionDraft, PartialProgram, fiziksel program, serileştirme (§4.1–4.2, §12)
-  reference.rs   REFERENCE_RUN (§2): basit, optimize edilmemiş, motorun birebir aynası
-  machine.rs     Machine, stack arena, Zobrist (§4.3, §6, §7.3)
-  normalize.rs   normalize (§5), döngü cache'i (§7)
-  search.rs      aday üretimi (§8), IDDFS ve DFS (§9), finalize
-```
+Modül listesi, bağımlılıklar ve uygulama sırası artık
+[`SPEC.md`](SPEC.md) Ek B'de (Appendix B) tanımlıdır. Özeti: `types.rs`,
+`puzzle.rs`, `program.rs`, `machine.rs`, `stack.rs`, `reference.rs`,
+`normalize.rs`, `canonical.rs`, `search.rs`, `stats.rs`, `lib.rs`, `main.rs`.
 
-Bağımlılıklar: `serde`, `serde_json`, `clap` (derive). Testlerde ek bağımlılık
-yok; rastgelelik için `splitmix64` elle yazılır.
-
-**Uygulama sırası:** `level` → `program` → `reference` (+ `t_ref`,
-`t_step_limit`) → `machine` + `normalize` (+ `t_diff_random`) → `search`
-(+ e2e testleri) → CLI → Dart testi → benchmark.
+Sıranın mantığı değişmedi: önce kahin (`reference.rs`), sonra `normalize`
+(T-DIFF ile), sonra en basit arama (eager koşullar), ardından her
+optimizasyon ayrı bir adımda eklenir ve etkisi `BENCHMARKS.md`'ye yazılır.
 
 ---
 
 ## 15. v1 kapsamı dışında (ölçümden sonra karar verilecek)
 
-- Global transposition table. Gerekçe: bir kısmi programa arama ağacında tek bir yoldan ulaşılır, dolayısıyla tabloda eşleşme olmaz.
-- Arama yolu boyunca taşınan döngü cache'i (§7.2).
+- **Undo/trail (make/unmake).** Gerekçe §4.0. `SearchStats` kopyalamanın
+  gerçek bir darboğaz olduğunu gösterirse yeniden değerlendirilir.
+- **Global transposition table.** Gerekçe: bir kısmi programa arama ağacında
+  tek bir yoldan ulaşılır, dolayısıyla tabloda eşleşme olmaz.
+- **Yol kapsamlı döngü cache'i** (§7.2).
+- **`function_mask_below`:** Arena düğümlerinde "bu zincirde fonksiyon `f`
+  var mı?" bilgisini tutup S-REBUILD'i gerekmediğinde atlamak.
 - İstatistiğe dayalı sıralama (killer/history), `--any` modu (en kısa değil,
   herhangi bir çözüm).
 - Aynı bulmaca içinde paralel arama.
@@ -760,30 +971,35 @@ yok; rastgelelik için `splitmix64` elle yazılır.
 
 <a id="english"></a>
 
-# Robozzle Solver — Design Specification (v1) — English
+# Robozzle Solver — Design Specification (v1.1) — English
 
-This document defines **what the solver does and why it is correct**. The code
-is written against this document; if a rule changes, this document changes
-first.
+This document explains **what the solver does and why it is correct**: the
+rationale, proofs and alternatives behind each rule. **The normative
+contract is [`SPEC.md`](SPEC.md)**: type and function names, exact
+transition rules, test vectors and the output format live there. If the two
+documents disagree, SPEC.md wins and both are fixed in the same change.
+Names used here (`Level`, `Cond::Is`, …) are descriptive; code uses the
+names from SPEC.md.
 
-Rule IDs (`R-*`, `INV-*`, `P-*`, `T-*`) are referenced from code comments and
-test names. For example, the code implementing a pruning rule carries a
-`// P-TURN` comment and its tests are named `t_p_turn_*`.
+Rule IDs (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) are referenced from code
+comments and test names. For example, the code implementing a pruning rule
+carries a `// P-TURN` comment and its tests are named `t_p_turn_*`.
 
 ---
 
 ## 0. Goal and principles
 
-**Goal:** for every puzzle in `assets/levels_catalog.json`, find a program that
-succeeds in the app's engine ([`lib/engine/interpreter.dart`](../lib/engine/interpreter.dart))
-and uses the **fewest occupied slots**.
+**Goal:** for every puzzle in `assets/levels_catalog.json` (and every puzzle
+made in the editor), find a program that succeeds in the app's engine
+([`lib/engine/interpreter.dart`](../lib/engine/interpreter.dart)) and uses the
+**fewest occupied slots**.
 
 - **Primary objective:** minimize the number of non-empty slots.
 - **Constraint:** the real engine's 20000-step limit. It is a constraint, not
   an objective.
 - **Secondary objective (not in v1):** fewer steps at equal slot count.
 
-Three principles override everything else:
+Four principles override everything else:
 
 1. **Engine semantics are sacred.** Every program the solver reports as a
    solution MUST produce `RunStatus.success` in the Dart engine (§2, §10).
@@ -793,6 +1009,10 @@ Three principles override everything else:
    explored (§8.6).
 3. **Determinism.** The same input always yields the same output. Search
    decisions never depend on `HashMap` iteration order.
+4. **Measurability.** Every optimization can be switched off with a `Config`
+   flag, and its effect is measured with `SearchStats` (§8.7, §9.4).
+   Switching an optimization off never loses a solution; it only makes the
+   search bigger.
 
 ---
 
@@ -807,6 +1027,8 @@ Three principles override everything else:
 | Step | The engine's `stepsExecuted` counter. +1 for every **non-empty** slot evaluated (§2). |
 | Frontier | The point where execution reaches a part of the program that has not been decided yet, and stops. |
 | Cost | Number of occupied slots in the program. |
+| Current frame | The frame whose instructions are running (`current`). |
+| Suspended frame | A frame that made a call and is waiting for it to return (in the `callers` chain). |
 
 ---
 
@@ -866,7 +1088,8 @@ Critical points (each has a test, §11):
   frame is popped before the push. The only observable effect is stack depth;
   behavior is unchanged, because without it the frame would have popped on
   return without consuming a step.
-- Stack depth is unbounded. The solver does **not** add a limit either.
+- Stack depth is unbounded. The solver does **not** add a limit either. (In
+  practice depth is bounded by the step count, i.e. 20000.)
 - A star is collected only when the robot **enters** its tile. No catalog
   puzzle has a star on the start tile; if one did, that star would not count
   as collected until the robot re-entered the tile.
@@ -875,7 +1098,7 @@ Critical points (each has a test, §11):
 
 ## 3. Input and preprocessing
 
-### 3.1 Catalog
+### 3.1 Input and supported limits
 
 Each entry has `sourceId`, `rows` (list of strings), `startRow`, `startCol`,
 `startDirection` (`up|right|down|left`), `slotsPerFunction` (5 numbers) and
@@ -884,23 +1107,36 @@ Each entry has `sourceId`, `rows` (list of strings), `startRow`, `startCol`,
 Characters: `' '` or `'.'` is a gap; `r g b` is a colored tile; `R G B` is
 the same color with a star on it.
 
-Assumptions verified against the catalog (the loader asserts them): all rows
-have the same length; the grid is at most 12×16 (192 tiles); the start tile is
-never a gap; `cap[F1] > 0`; every puzzle has at least 1 star; `cap[f] ≤ 10`;
-total capacity ≤ 50.
+The solver's limits are chosen to cover both the catalog and the app's
+editor ([`editor_screen.dart:44-45`](../lib/screens/editor/editor_screen.dart)):
+
+| Constant | Value | Largest in catalog | Editor allows |
+|---|---|---|---|
+| `MAX_TILES` (`rows × cols`) | 256 | 192 (12×16) | 196 (14×14) |
+| `MAX_FUNCTION_SLOTS` | 12 | 10 | 12 |
+
+**Validation:** when loading each puzzle, the loader checks that all rows have
+the same length; the start tile is inside the grid and not a gap;
+`cap[F1] > 0`; there are no unknown characters; and the limits above are not
+exceeded. If a check fails, that puzzle returns `Unsupported(reason)`. **It
+never silently truncates and never panics**; the remaining puzzles keep
+being solved.
+
+A puzzle with no stars (possible in the editor) is valid: the empty program
+solves it (§9.1).
 
 ### 3.2 Precomputed static data (`Level`)
 
 | Field | Definition |
 |---|---|
-| `TileId` | `row * cols + col`, `u8` (≤ 191). Gaps also get a `TileId` but have `is_tile = false`. |
+| `TileId` | `row * cols + col`, `u8` (≤ 255). Gaps also get a `TileId` but have `is_tile = false`. |
 | `neighbor[tile][dir]` | `Option<TileId>`. `None` if off the grid or a gap. |
-| `init_color[tile]` | The tile's initial color. |
-| `init_stars` | Set of star tiles, a `[u64; 3]` bitset. |
+| `init_colors` | Initial colors, `PackedColors` (§4.3). |
+| `init_stars` | Set of star tiles, `StarSet = [u64; 4]` bitset. |
 | `allowed_paints` | Set of colors derived from the `allowedCommands` bitmask. |
 | `possible_colors` | `{colors initially on the grid} ∪ allowed_paints` (§8.2). |
 | `cap[0..5]` | Function capacities. |
-| `class_rep` | Capacity classes for F2..F5 (§8.4). |
+| `classes` | Capacity classes for F2..F5 (§8.4). |
 
 Direction encoding: `Up = 0, Right = 1, Down = 2, Left = 3`.
 `turn_left(d) = (d + 3) % 4`, `turn_right(d) = (d + 1) % 4`.
@@ -916,6 +1152,44 @@ Direction encoding: `Up = 0, Right = 1, Down = 2, Left = 3`.
 
 ## 4. Data structures
 
+### 4.0 Architecture: shared context vs. branch state
+
+There are two kinds of data, and they must not be mixed:
+
+```rust
+// One per search. Never copied into branches.
+struct Solver {
+    level: Level,          // static puzzle (§3.2)
+    config: Config,        // ablation flags (§8.7)
+    limits: Limits,        // time and node limits
+    arena: StackArena,     // suspended frames (§6)
+    stats: SearchStats,    // counters (§9.4)
+}
+
+// A branch's complete semantic state. Copy; copied for every child branch.
+#[derive(Clone, Copy)]
+struct SearchState {
+    program: PartialProgram,
+    machine: Machine,
+    used: u8,          // cost: number of Resolved + CondOnly cells
+    introduced: u8,    // bitmask: functions for which a call cell exists (§8.4)
+}
+```
+
+**Copy-make.** Opening a child branch means copying the `SearchState` (no
+heap, a few hundred bytes). No undo/trail log is kept. The one exception is
+the arena, which is rewound with `mark()` / `truncate(mark)` (§6.1).
+
+*Why not undo:* in a chess engine a move changes a few squares and the search
+moves straight to the next node. Here each node's `normalize()` may execute
+thousands of steps. A trail would have to log every paint and every star
+collection inside that hottest loop. Copying pays once per node instead. If
+`SearchStats` shows copying to be a bottleneck, this decision is revisited
+(§15).
+
+`Config` and `SearchStats` are never part of `SearchState`. If they were,
+every copy would also copy the counters and they would lose their meaning.
+
 ### 4.1 Instructions
 
 ```rust
@@ -927,30 +1201,33 @@ enum Action { Forward, TurnLeft, TurnRight, Paint(Color), Call(FnId) }
 ### 4.2 Partial program
 
 ```rust
+#[derive(Clone, Copy)]
 enum Cell {
     Resolved { cond: Cond, action: Action },
     CondOnly { cond: Color },          // condition chosen, action not yet
 }
 
+#[derive(Clone, Copy)]
 struct FunctionDraft {
-    cells: Vec<Cell>,   // decided cells, left-packed
-    ended: bool,        // true: everything after `cells` is definitely empty (END)
+    cells: [Cell; MAX_FUNCTION_SLOTS], // only cells[..len] is meaningful
+    len: u8,                           // number of decided cells (left-packed)
+    ended: bool,                       // true: everything after len is definitely empty (END)
 }
 
-struct PartialProgram {
-    fns: [FunctionDraft; 5],
-    introduced: u8,     // bitmask: functions for which a call cell exists (§8.4)
-    used: u8,           // cost: number of Resolved + CondOnly cells
-}
+#[derive(Clone, Copy)]
+struct PartialProgram { fns: [FunctionDraft; 5] }
 ```
+
+The representation has **no** `UNKNOWN` or `EMPTY` cell: if
+`len < cap && !ended`, the next slot is undecided; if `ended`, everything
+from that point on is empty.
 
 Definitions:
 
-- `len(f) = fns[f].cells.len()`.
-- **Closed function:** `closed(f) := fns[f].ended || len(f) == cap[f]`.
-- **Exhausted frame:** `exhausted(f, pc) := pc == len(f) && closed(f)`. Such a
-  frame definitely has no instruction left to run.
-- Physical form: `physical(f) = cells (all Resolved) ++ [null; cap[f] - len(f)]`.
+- **Closed function:** `closed(f) := fns[f].ended || fns[f].len == cap[f]`.
+- **Exhausted frame:** `exhausted(f, pc) := pc == fns[f].len && closed(f)`.
+  Such a frame definitely has no instruction left to run.
+- Physical form: `physical(f) = cells[..len] (all Resolved) ++ [null; cap[f] - len]`.
 
 **Lemma L1 (left packing).** Moving the `null` slots of a function to its end
 does not change behavior. `null` slots are skipped and do not count as steps
@@ -963,30 +1240,35 @@ searching only left-packed forms loses no solution.
 ### 4.3 Machine
 
 ```rust
+#[derive(Clone, Copy)]
 struct Machine {
     pos: TileId,
     dir: u8,
-    colors: [Color; 192],   // plain array in v1
-    stars: [u64; 3],
+    colors: PackedColors,       // 2 bits per tile → 64 bytes
+    stars: StarSet,             // [u64; 4] → 32 bytes
     star_count: u16,
     steps: u32,
-    top: Option<Frame>,     // the running frame (its pc changes)
-    rest: StackRef,         // suspended frames, persistent stack (§6)
-    phys_hash: u128,        // Zobrist hash of pos, dir, stars, colors (§7.3)
+    current: Option<Frame>,     // the running frame; its pc advances with every instruction
+    callers: Option<NodeId>,    // suspended frames, a persistent chain in the arena (§6)
+    phys_hash: u128,            // Zobrist hash of pos, dir, stars, colors (§7.3)
 }
 
+#[derive(Clone, Copy)]
 struct Frame { f: u8, pc: u8 }
 ```
 
-The machine is cloned at each frontier. It is about 250 bytes, so copying is
-cheap; v1 does not use make/unmake (apply a change, then undo it).
+The stack is **not copied**: `Machine` holds only the `current` frame and a
+`NodeId` pointing to the top of the `callers` chain. The chain itself lives,
+immutable, in the arena.
 
 ---
 
 ## 5. `normalize()`: the execution layer
 
-`normalize(P, M, seen) -> Outcome` advances machine `M` **in place** under
-partial program `P`. The program is fixed; this function makes no decisions.
+`normalize(solver, state, cycles) -> Outcome` advances the machine **in
+place** under the partial program. **It never changes the program and makes
+no decisions.** Synthesis (building the program) belongs to the search layer
+alone (§9); this boundary must not be broken.
 
 ```rust
 enum Outcome {
@@ -998,11 +1280,11 @@ enum Outcome {
 ```
 
 ```text
-normalize(P, M, seen):                                          # N-*
+normalize(P, M, cycles):                                        # N-*
     loop:
         if M.star_count == 0: return Solved                     # N-SOLVED
-        if M.top is None:     return Dead(OutOfInstructions)
-        (f, pc) = M.top
+        if M.current is None: return Dead(OutOfInstructions)
+        (f, pc) = M.current
 
         if pc == len(f):                                        # N-END
             if closed(f): pop(M); continue                      # same as R-POP
@@ -1013,13 +1295,13 @@ normalize(P, M, seen):                                          # N-*
             CondOnly{c}:                                        # N-CONDONLY
                 if M.colors[M.pos] == c:
                     return NeedAction{f, pc, c}                 # NO STEP, pc NOT ADVANCED
-                if !consume_step(M): return Dead(StepLimit)
-                M.top.pc += 1
+                consume_step(M)?                                # limit exceeded → Dead(StepLimit)
+                M.current.pc += 1
                 continue                                        # condition false, skip
 
             Resolved{cond, action}:                             # N-RESOLVED
-                if !consume_step(M): return Dead(StepLimit)     # R-STEP: limit FIRST
-                M.top.pc += 1
+                consume_step(M)?                                # R-STEP: limit FIRST
+                M.current.pc += 1
                 if cond == Is(c) and M.colors[M.pos] != c: continue
                 match action:
                     Forward:
@@ -1030,13 +1312,16 @@ normalize(P, M, seen):                                          # N-*
                     Paint(c): paint(M, c)
                     Call(g):
                         call(P, M, g)                           # §6.2, includes R-TAIL
-                        if seen.check_and_insert(M):            # §7
-                            return Dead(Loop)
+                        if config.cycle_detection and cycles.observe(M) == Repeated:
+                            return Dead(Loop)                   # §7
 
-consume_step(M):
+consume_step(M) -> Result<(), DeadReason>:                      # the only step counter
     M.steps += 1
-    return M.steps <= MAX_STEPS
+    if M.steps > MAX_STEPS: Err(StepLimit) else Ok(())
 ```
+
+**`consume_step` is the only function that touches the step counter.** No
+other place in the code writes `steps += 1`.
 
 Cells never call a function with `cap[g] == 0` (§8.3), so the branch at
 R-RUN (232) needs no counterpart.
@@ -1045,16 +1330,18 @@ R-RUN (232) needs no counterpart.
 machine is in the state **immediately before** the slot is evaluated: no step
 has been counted and `pc` has not advanced. Once the decision is made,
 `normalize` evaluates the same slot from scratch, exactly as the engine
-would. So every non-empty slot is counted exactly once.
+would. So every non-empty slot is counted exactly once. A `CondOnly` whose
+condition does not match needs no action, so it is counted and skipped
+right away.
 
 **Lemma L3 (resuming from a frontier).** Execution up to the frontier never
 read the cell being decided; if it had, it would have stopped there. So every
 child branch can resume from a copy of the frontier machine instead of
 re-running from the start.
 
-**Lemma L4 (equivalence).** If every cell of `P` is `Resolved` and `normalize`
-ends with `Solved`, `Crash`, `StepLimit` or `OutOfInstructions` without
-reaching a frontier, then `REFERENCE_RUN(physical(P))` gives the same
+**Lemma L4 (equivalence).** If every cell of a program is `Resolved` and
+`normalize` ends with `Solved`, `Crash`, `StepLimit` or `OutOfInstructions`
+without reaching a frontier, then `REFERENCE_RUN(physical(P))` gives the same
 outcome, the same `steps` and the same final state. When `normalize` returns
 `Loop`, the reference run either returns `STUCK` or never terminates. This
 lemma is checked by the T-DIFF test.
@@ -1063,54 +1350,69 @@ lemma is checked by the T-DIFF test.
 
 ## 6. Stack
 
-### 6.1 Representation
+### 6.1 Representation and arena
 
-The running frame (`M.top`) is mutable and its `pc` advances with every
-instruction. The `pc` of a suspended frame **never changes while it is
-suspended**, so suspended frames live in a persistent linked list:
+The current frame (`M.current`) lives inside `Machine` and its `pc` advances
+with every instruction, without touching the arena. The `pc` of a suspended
+frame **never changes while it is suspended**, so suspended frames are stored
+in the arena as a persistent linked list:
 
 ```rust
-struct StackNode { frame: Frame, parent: StackRef, depth: u32, hash: u128 }
-type StackRef = Option<NodeId>;          // NodeId = u32 index into the arena
+struct StackNode {
+    frame: Frame,
+    parent: Option<NodeId>,
+    depth: u16,      // number of frames in the chain (≤ 20000)
+    hash: u128,      // mix(parent.hash (0 if none), frame.f, frame.pc)
+}
+type NodeId = u32;   // index into StackArena
 
-node.hash = mix(parent.hash (0 if none), frame.f, frame.pc)
-stack_hash(M) = mix(hash(M.rest), M.top.f, M.top.pc)
+stack_hash(M) = mix(hash(M.callers), M.current.f, M.current.pc)     # O(1)
 ```
 
-- **Arena:** `Vec<StackNode>`. The search is depth-first, so allocation
-  follows a stack discipline: when a child branch returns,
-  `arena.truncate(mark)`. Nothing references the nodes that branch created
-  any more.
-- A cache entry does not copy the stack; it stores a single `NodeId`. So
-  each entry costs O(1) memory even with deep recursion.
+- **Arena:** `Vec<StackNode>`. Nodes are never modified.
+- **Rewinding:** the search is depth-first, so allocation follows a stack
+  discipline. For each child branch, `mark = arena.mark()` is taken **before
+  the candidate is applied** (END repair also creates nodes), and
+  `arena.truncate(mark)` is called when the branch returns. Nodes referenced
+  by the parent's state were created before the mark and are unaffected.
+- A cache entry does not copy the stack; it stores a single `NodeId`. So each
+  entry costs O(1) memory even with deep recursion.
 
 ### 6.2 Operations
 
 ```text
 call(P, M, g):                                                   # S-CALL
-    if exhausted(M.top.f, M.top.pc):      # R-TAIL: caller has definitely nothing left
-        M.top = (g, 0)                    # replace
+    # M.current.pc already points just past the call instruction
+    if exhausted(M.current.f, M.current.pc):   # R-TAIL: caller has definitely nothing left
+        M.current = (g, 0)                     # replace, arena untouched
     else:
-        M.rest = push_node(M.rest, M.top) # suspend
-        M.top  = (g, 0)
+        M.callers = arena.push(M.current, parent = M.callers)   # suspend
+        M.current = (g, 0)
 
 pop(M):                                                          # S-POP
-    if M.rest is None: M.top = None
-    else: M.top = node(M.rest).frame; M.rest = node(M.rest).parent
+    if M.callers is None: M.current = None
+    else:
+        node = arena[M.callers]
+        M.current = node.frame
+        M.callers = node.parent
 ```
+
+All three are O(1). A caller whose remainder still contains an undecided slot
+(the function is not closed) is suspended; that slot may later become an
+instruction.
 
 **Difference from the engine, and why it is equivalent.** For R-TAIL the
 engine asks "are all remaining physical slots `null`?". We ask
-`exhausted(...)`. If the caller's remainder still contains an undecided slot
-(the function is not closed), we keep the frame; the engine would drop it if
-that slot later turned out to be `null`. This difference does not change
-behavior (see the R-TAIL note); it only changes how the stack is
-represented. The rule in §6.3 restores the canonical representation.
+`exhausted(...)`. If the caller's remainder still contains an undecided
+slot, we keep the frame; the engine would drop it if that slot later turned
+out to be `null`. This difference does not change behavior (see the R-TAIL
+note); it only changes how the stack is represented. The rule in §6.3
+restores the canonical representation.
 
 ### 6.3 Canonical stack (INV-STACK)
 
-**INV-STACK:** No suspended frame is `exhausted`. The running frame (`top`)
-may be exhausted; it is then popped at the top of the loop.
+**INV-STACK:** No suspended frame is `exhausted`. The current frame may be
+exhausted; it is then popped at the top of the loop.
 
 **Lemma L5.** INV-STACK holds throughout a single `normalize` call. A frame is
 only suspended if it is not exhausted (S-CALL), and whether a frame is
@@ -1125,19 +1427,30 @@ program, so a suspended frame cannot become exhausted later in the same call.
 | Resolve a `NeedAction` | The cell already existed. No effect. |
 | **END (`f`, `k`)** | Suspended frames with `(f, pc == k)` become exhausted. |
 
-**S-REBUILD:** After an END decision, on **that child branch's** machine copy
-only:
+**S-REBUILD:** END is decided at an `OpenSlot{f, k}` frontier. At that moment
+the **current frame itself** is `(f, k)`; END is decided for its own slot.
+After the decision, on **that child branch's** state copy only:
 
 ```text
-frames = collect the M.rest chain, bottom to top
+frames = collect the M.callers chain, bottom to top
 frames = [fr for fr in frames if !(fr.f == f and fr.pc == k)]
-M.rest = push frames onto the arena again (hash chain recomputed)
+M.callers = push frames onto the arena again, in order   # parent, depth, hash recomputed
 ```
 
-This costs O(depth), paid once per END decision rather than once per call.
-Frames can be removed from the **middle** of the stack. Example: with
-`[B@k, C@j, B@k (top)]`, if slot k of B is decided as END, the top pops, C
-keeps running, and the lower `B@k` is removed.
+The current `(f, k)` frame is not part of the repair: it is popped as
+exhausted at the top of the normalize loop. This costs O(depth), paid once
+per END decision rather than once per call.
+
+**Reachable example** (`t_rebuild_middle`): function `B` calls itself through
+`C`. The stack, bottom to top:
+
+```text
+B@k (suspended),  C@j (suspended),  B@k (current, OpenSlot{B, k})
+```
+
+After the decision `B[k] = END`, the current `B@k` pops, `C@j` becomes the
+current frame, and the lower `B@k` is removed by the repair. Result:
+`[C@j (current)]`.
 
 ---
 
@@ -1148,7 +1461,7 @@ keeps running, and the lower `B@k` is removed.
 After a `Call` completes (after S-CALL), compute the machine's **loop key**:
 
 ```text
-key(M) = (pos, dir, stars, colors, [frames in rest], top)     # steps NOT included
+key(M) = (pos, dir, stars, colors, callers chain, current)     # steps NOT included
 ```
 
 If the key has been seen before, the outcome is `Dead(Loop)`.
@@ -1165,17 +1478,16 @@ this branch can never become `Solved`.
 
 ### 7.2 Cache lifetime
 
-`seen` **starts empty on every `normalize` call**: in v1 a fresh cache is
-opened after every synthesis decision.
+A new `CycleDetector` is **created on every `normalize` call**: in v1 a fresh
+cache is opened after every synthesis decision.
 
-*Rationale (to be copied into the code as-is):* Suppose a state `S` was seen
-before a decision and is seen again after it. At the second sighting, every
-cell read on the `S → … → S` path is now fixed in the program, and cells
-added later cannot affect that path. So carrying the cache along the current
-search path **would also** be safe. The only thing that is **not** safe is
-sharing the cache between sibling branches. v1 resets the cache on every
-decision because it is simpler; the cost is that a loop is detected at most
-one iteration later.
+*Rationale (to be copied into the code as-is):* A path-scoped cycle cache can
+safely survive synthesis decisions on the same DFS ancestry, because program
+cells are monotonically refined and a completed repeated execution path only
+depends on cells already fixed along that ancestry. V1 deliberately resets
+cycle detection at each normalization frontier for implementation
+simplicity; the cost is that a loop is detected at most one iteration later.
+**Cache entries must never be shared across sibling branches.**
 
 ### 7.3 Hashing and exact equality
 
@@ -1184,18 +1496,36 @@ one iteration later.
   Moving, turning, painting and collecting a star update the hash in O(1)
   with XOR.
 - `key_hash = mix(phys_hash, stack_hash(M))`.
-- `seen: HashMap<u128, Vec<SeenEntry>>`. On a hash match, **exact equality**
-  is checked: `pos`, `dir`, `stars`, `colors`, and the stack chain (frame by
-  frame until both reach the same `NodeId` or the root). `SeenEntry` stores a
-  copy of the color array (192 bytes).
+- `CycleDetector { buckets: HashMap<u128, Vec<CycleSnapshot>> }`, where
+  `CycleSnapshot = { pos, dir, stars, colors, current, callers }`. Because
+  `stars` and `colors` are packed, an entry is about 120 bytes; the stack is
+  not copied.
+- On a hash match, **exact equality** is checked. The stack comparison walks
+  both chains together: if the `NodeId`s are equal, the rest of the chains
+  are certainly identical (nodes are immutable), stop. If the `depth`s
+  differ, the stacks differ, stop. Otherwise compare the frames and move up
+  one node. Different `NodeId`s can still hold the same contents: the same
+  stack can be recreated by END repair or by a different push sequence.
 
-Note: a hash collision would cause a wrong *prune*, i.e. a missed solution;
-it could not produce a wrong solution. Exact equality is still mandatory in
-v1.
+**Why exact equality is mandatory:** a hash collision would cause a wrong
+*prune*, i.e. a solution that exists would be missed. The check in
+`finalize` (§9.3) cannot catch this: it only verifies that the solution that
+*was* found works, and cannot see the branches that were cut.
+Completeness depends on exact equality.
 
 ---
 
 ## 8. Candidate generation
+
+Candidate generation has two separate steps, kept separate in the code:
+
+- **Generator:** which cells are semantically possible?
+- **Canonicalizer:** which of them are redundant copies of an equivalent
+  already in the search space? (§8.5)
+
+The one exception is P-SYM (§8.4): symmetry is generated directly as the set
+of callable functions (`callable`) rather than applied as a filter, because
+that is cheaper.
 
 ### 8.1 Frontier kinds and cost
 
@@ -1208,6 +1538,15 @@ v1.
 
 Candidates with `used + cost > budget` are not generated. At an `OpenSlot`
 with the budget exhausted, only `END` remains.
+
+- **P-STEPCUT:** if `M.steps == MAX_STEPS`:
+  - `NeedAction` → `NotFound` without opening any branch.
+  - `OpenSlot` → only `END` is generated.
+
+  (*Proof:* the next non-empty cell evaluated would be step
+  `MAX_STEPS + 1`, and by R-STEP it dies with `StepLimit`. `END` consumes no
+  step and ends the current frame; the execution that returns dies only if
+  it reaches another non-empty cell, so `END` may survive.)
 
 ### 8.2 Conditions (P-COLOR)
 
@@ -1224,6 +1563,11 @@ with the budget exhausted, only `END` remains.
 `Any` and `Is(cur)` are not merged: they behave the same right now, but the
 slot may run again later on a different color.
 
+If `config.lazy_conditions == false`, then for each deferred `c`, every
+`Resolved{Is(c), action}` cell is generated directly (eagerly) instead of
+`CondOnly{c}` (§8.7). These cells are skipped for now; their actions matter
+when they fire later.
+
 ### 8.3 Actions
 
 Candidate actions for a cell with condition `cond` (`Is(c)` for `NeedAction`):
@@ -1231,7 +1575,7 @@ Candidate actions for a cell with condition `cond` (`Is(c)` for `NeedAction`):
 ```text
 Forward, TurnLeft, TurnRight,
 Paint(x)  for x in allowed_paints,
-Call(g)   for g in callable(P)                       (§8.4)
+Call(g)   for g in callable(state)                   (§8.4)
 ```
 
 Filters:
@@ -1249,14 +1593,17 @@ Filters:
 - `introduced`: `g` is added the moment a `Resolved{…, Call(g)}` cell is
   **created** in the program, whether at an `OpenSlot` or when resolving a
   `NeedAction`. `CondOnly` does not introduce a function. `F1` counts as
-  introduced from the start.
+  introduced from the start (`introduced = 0b00001`).
 - Capacity classes: among `F2..F5`, functions with `cap > 0` are grouped by
   capacity. `F1` is in no class: as the entry point it cannot be swapped with
   the others.
-- `callable(P) = introduced ∪ { the lowest-index not-yet-introduced function of each class }`.
+- `callable(state) = introduced ∪ { the lowest-index not-yet-introduced function of each class }`.
 
-Example: for `cap = [6, 6, 0, 6, 0]` (catalog puzzle #2973) the callable set
-starts as `{F1, F2}`. Once `F2` is introduced, `F4` becomes callable too.
+Examples:
+- `cap = [6, 6, 0, 6, 0]` (catalog puzzle #2973): initially `{F1, F2}`; once
+  `F2` is introduced, `F4` becomes callable too.
+- `cap = [7, 4, 2, 4, 2]`: classes `4 → [F2, F4]`, `2 → [F3, F5]`.
+  Initially `{F1, F2, F3}`.
 
 *Proof:* swapping the names of two functions with the same capacity (and all
 calls to them) gives a valid program with the same cost, and execution is
@@ -1266,11 +1613,12 @@ itself, so the renamed program satisfies this rule and the search finds it.
 This does **not** hold across different capacities: a 4-slot body may not
 fit into a 2-slot function.
 
-### 8.5 Local equivalence pruning
+### 8.5 Local equivalence pruning (canonicalizer)
 
-After a cell is placed at index `i`, the windows containing `i` are checked:
-`[i-2, i+2]`. At a `NeedAction`, cells to the right may already be filled, so
-both directions are checked.
+After a cell is placed or resolved at index `i`, `is_locally_canonical(fn, i)`
+is called; it only looks at the windows containing `i`: `[i-2, i+2]`. At a
+`NeedAction`, cells to the right may already be filled, so both directions
+are checked.
 
 - **P-TURN:** For consecutive `Resolved` turn cells in the same function with
   the **same condition**, these patterns are forbidden:
@@ -1297,13 +1645,42 @@ both directions are checked.
 ### 8.6 Ordering (non-normative)
 
 Ordering does not affect correctness; it only affects how quickly the final
-budget iteration reaches a solution. A fixed order is enough for v1:
+budget iteration reaches a solution. The failing budget iterations
+`1..K-1` are always searched exhaustively. A fixed order is enough for v1:
 
 ```text
 OpenSlot:   Any:Forward, cur:Forward, Any:Call(introduced), Any:TurnLeft, Any:TurnRight,
             cur:(same order), Any:Call(new), Paint…, CondOnly…, END
 NeedAction: Forward, Call(introduced), TurnLeft, TurnRight, Call(new), Paint…
 ```
+
+### 8.7 `Config`: ablation flags
+
+```rust
+struct Config {
+    lazy_conditions:   bool,   // CondOnly / NeedAction (§8.2)
+    function_symmetry: bool,   // P-SYM (§8.4)
+    peephole:          bool,   // P-TURN, P-PAINT, P-EMPTYFN (§8.3, §8.5)
+    cycle_detection:   bool,   // §7
+    step_cut:          bool,   // P-STEPCUT (§8.1)
+}   // default: all true
+```
+
+**Rule:** turning a flag off removes the optimization and makes the search
+space bigger; **it never forbids a branch**. Every `Config` must find the
+same minimal cost (`t_config_equivalence`).
+
+| When the flag is `false` | Behavior |
+|---|---|
+| `lazy_conditions` | Instead of `CondOnly{c}`, every `Resolved{Is(c), action}` cell is generated for each deferred `c` (eager). `NeedAction` never occurs. This means **expanding** these cells up front, not **forbidding** them; forbidding them would lose solutions. |
+| `function_symmetry` | `callable` = every function with `cap > 0`. |
+| `peephole` | P-TURN, P-PAINT and P-EMPTYFN are not applied. |
+| `cycle_detection` | Loops die with `StepLimit` (slow but correct). |
+| `step_cut` | Candidate generation continues as usual; branches die with `StepLimit` on the next step. |
+
+P-COLOR, P-DISABLED and P-CONN cannot be turned off by a flag. They define
+the representation itself (a color that cannot exist, a function that does
+not exist, a star that cannot be reached).
 
 ---
 
@@ -1312,58 +1689,71 @@ NeedAction: Forward, Call(introduced), TurnLeft, TurnRight, Call(new), Paint…
 ### 9.1 Outer loop: iterative deepening on budget (IDDFS)
 
 ```text
-solve(level, limits):
+solve(level, config, limits):
     if P-CONN fails: return Unsolvable(Disconnected)
-    for budget in 1 ..= sum(cap):
-        root_program = empty (all functions open, used = 0, introduced = {F1})
-        root_machine = initial state, top = (F1, 0), rest = None
-        match search(root_program, root_machine, budget):
-            Found(p)  → return Solved(finalize(p))
+    for budget in 0 ..= sum(cap):
+        root = SearchState {
+            program: empty (all functions open, len = 0, ended = false),
+            machine: initial state, current = (F1, 0), callers = None, steps = 0,
+            used: 0, introduced: {F1},
+        }
+        arena.clear()
+        match search(root, budget):
+            Found(s)  → return Solved(finalize(s))
             Timeout   → return Timeout
             NotFound  → continue
     return Unsolvable(Exhausted)    # no solution at any budget (under engine semantics)
 ```
 
-`budget = 0` is skipped: every puzzle has at least one star, so the empty
-program is never a solution.
+The `budget = 0` iteration solves star-less puzzles with the empty program.
+For a puzzle with stars it ends immediately because of P-EMPTYFN.
 
 ### 9.2 Inner loop: DFS
 
 ```text
-search(P, M, budget):
-    limits.check()?                                  # time and node limits → Timeout
-    seen = new cache
-    match normalize(P, &mut M, &mut seen):
-        Solved         → return Found(P)
-        Dead(_)        → return NotFound
+search(self, s: SearchState, budget) -> Result<Option<SearchState>, Timeout>:
+    self.limits.check()?                             # time and node limits
+    self.stats.search_nodes += 1
+    let mut s = s
+    let mut cycles = CycleDetector::new()            # §7.2
+    match normalize(self, &mut s, &mut cycles):
+        Solved         → return Ok(Some(s))
+        Dead(reason)   → self.stats.dead(reason); return Ok(None)
         OpenSlot{f,pc} →
-            for cand in open_candidates(P, M, f, pc, budget):     # §8, ordered
-                (P2, M2) = (P.clone(), M.clone())
-                apply(P2, cand)                      # cells.push / ended = true
-                if cand == END: S-REBUILD(M2, f, pc)
-                r = search(P2, M2, budget)?
-                if r is Found: return r
-            return NotFound
+            for cand in self.open_candidates(&s, f, pc, budget):   # §8, ordered and filtered
+                mark = self.arena.mark()             # BEFORE the candidate (END repair allocates nodes)
+                child = s                            # Copy
+                apply(&mut child, cand)              # cells[len] = …, len += 1  |  ended = true
+                if cand == END: S-REBUILD(self.arena, &mut child.machine, f, pc)
+                r = self.search(child, budget)
+                self.arena.truncate(mark)
+                if r? is Some: return r
+            return Ok(None)
         NeedAction{f,pc,c} →
-            for act in need_candidates(P, M, f, pc, c):
-                (P2, M2) = (P.clone(), M.clone())
-                P2.fns[f].cells[pc] = Resolved{Is(c), act}
-                r = search(P2, M2, budget)?
-                if r is Found: return r
-            return NotFound
+            if P-STEPCUT applies: return Ok(None)
+            for act in self.need_candidates(&s, f, pc, c):
+                mark = self.arena.mark()
+                child = s
+                child.program.fns[f].cells[pc] = Resolved{Is(c), act}
+                if act == Call(g): child.introduced |= bit(g)
+                r = self.search(child, budget)
+                self.arena.truncate(mark)
+                if r? is Some: return r
+            return Ok(None)
 ```
 
-Each `search` call counts as one **node**; statistics report nodes per
-budget.
+When `apply` adds a `Call(g)` cell it does `introduced |= bit(g)` and
+`used += 1`; when it adds a `CondOnly` it only does `used += 1`.
 
 ### 9.3 `finalize`
 
 ```text
-finalize(P):
+finalize(s):
     assert (INV-FIN) all cells are Resolved       # debug_assert
-    physical = for each f: cells ++ null * (cap[f] - len(f))
-    assert REFERENCE_RUN(physical) == SUCCESS     # always, release builds too
-    return (physical, P.used, steps)
+    physical = for each f: cells[..len] ++ null * (cap[f] - len)
+    r = REFERENCE_RUN(physical)
+    assert r == SUCCESS                            # always, release builds too
+    return Solution { physical, cost: s.used, steps: r.steps }
 ```
 
 **INV-FIN:** No `CondOnly` cell can remain in the first solution found.
@@ -1376,6 +1766,28 @@ a bug.
 Function tails left undecided become `null` in the output. They are never
 reached, so they have no effect and do not count toward the cost.
 
+This two-interpreter setup (`normalize` for searching, `REFERENCE_RUN` for
+verifying) is the solver's safety belt: even if `normalize` has a bug, a
+wrong solution cannot get out.
+
+### 9.4 `SearchStats`
+
+Reported per puzzle, summed over all budget iterations. Lives in `Solver`,
+**not** in `SearchState`.
+
+| Counter | Incremented when |
+|---|---|
+| `search_nodes` | On every `search` call. Also reported per budget (`nodes_per_budget`). |
+| `normalize_calls` | On every `normalize` call. |
+| `instructions_evaluated` | On every `consume_step` call. **As important as the node count**: if an optimization cuts nodes but increases normalize work, wall-clock time does not drop as much as expected. |
+| `open_frontiers`, `need_action_frontiers` | When the corresponding frontier is returned. |
+| `candidates_generated`, `candidates_searched` | Candidates produced, and candidates actually recursed into. |
+| `dead_crash`, `dead_step_limit`, `dead_out_of_instructions`, `dead_loop` | When `normalize` dies for that reason. |
+| `prune_budget`, `prune_step_cut`, `prune_symmetry`, `prune_peephole` | When that rule eliminates a candidate. |
+| `ends_selected`, `condonly_created`, `condonly_resolved` | When that decision is applied. |
+| `stack_pushes`, `tail_calls`, `returns`, `stack_rebuilds`, `stack_nodes_rebuilt` | On stack operations. |
+| `max_search_depth`, `max_call_depth` | Maximum observed value. |
+
 ---
 
 ## 10. Correctness summary
@@ -1385,21 +1797,23 @@ reached, so they have no effect and do not count toward the cost.
 is re-checked with `REFERENCE_RUN` (§9.3) and with the Dart engine (§12).
 
 **Completeness and optimality.** If a solution of cost `K` exists,
-`search(budget = K)` finds a solution of cost `K` (assuming no time limit).
-*Proof sketch:* take a minimal solution `Q`. Left-pack it (L1), rename its
-functions (P-SYM), and apply the P-TURN, P-COLOR and P-PAINT rewrites. None
-of these rewrites increases cost, and all preserve behavior. The search then
-follows `Q`'s cells:
+`search(budget = K)` finds a solution of cost `K` (assuming no time limit;
+for every `Config`). *Proof sketch:* take a minimal solution `Q`. Left-pack it
+(L1), rename its functions (P-SYM), and apply the P-TURN, P-COLOR and P-PAINT
+rewrites. None of these rewrites increases cost, and all preserve behavior.
+The search then follows `Q`'s cells:
 
 - At each `OpenSlot`, `Q`'s cell at that slot is either a candidate with an
   active condition, a `CondOnly` candidate with a deferred condition (its
-  action is chosen later at a `NeedAction`), or `null`, which corresponds to
-  the `END` candidate.
-- P-EMPTYFN and INV-FIN are consistent with `Q` being minimal.
+  action is chosen later at a `NeedAction`; with `lazy_conditions` off it is
+  a candidate directly), or `null`, which corresponds to the `END`
+  candidate.
+- P-EMPTYFN, P-STEPCUT and INV-FIN are consistent with `Q` being minimal and
+  successful.
 - L7 does not cut `Q`'s path: `Q` reaches success, so its execution has no
   repeating state.
 
-Budgets `1..K-1` are searched exhaustively, so the first solution found is
+Budgets `0..K-1` are searched exhaustively, so the first solution found is
 minimal.
 
 ---
@@ -1408,16 +1822,21 @@ minimal.
 
 | Test | What it locks down |
 |---|---|
+| `t_level_*` | The catalog loads; puzzles that exceed the limits, have ragged rows or start on a gap return `Unsupported` and do not panic. |
 | `t_ref_*` | `REFERENCE_RUN` matches Dart on the tutorial puzzles (the programs in `test/tutorial_levels_test.dart`). |
-| `t_step_limit_boundary` | Build the state directly: at `steps = 19999`, a `Forward` that collects the last star → `Solved`, `steps = 20000`. At `steps = 20000`, the same instruction → `Dead(StepLimit)`, the robot has not moved, the star is still there. The same test is repeated for a skipped `CondOnly`. |
-| `t_tail_call` | R-TAIL: `F1: [Forward, Call F1]` does not grow the stack. |
+| `t_step_limit_boundary` | Build the state directly: at `steps = 19999`, a `Forward` that collects the last star → `Solved`, `steps = 20000`. At `steps = 20000`, the same instruction → `Dead(StepLimit)`, the robot has not moved, the star is still there. The same test is repeated for a condition-mismatched instruction and for a skipped `CondOnly`. |
+| `t_frontier_no_step` | When `OpenSlot` or a matching `NeedAction` is returned, `pc` and `steps` are unchanged. |
+| `t_tail_call`, `t_non_tail_call` | R-TAIL: `F1: [Forward, Call F1]` adds no node to the arena. A call with a continuation suspends the caller. |
 | `t_diff_random` | **T-DIFF:** random fully-filled physical programs (fixed seed, ≥ 10⁵ of them) run on catalog puzzles through both `REFERENCE_RUN` and `normalize`. Outcome, `steps` and final state must match (L4). |
-| `t_loop_*` | A tail-recursive loop is caught as `Dead(Loop)`. Non-tail recursion ends in `Dead(StepLimit)`. A "loop" that collects a star is not a loop. |
-| `t_rebuild_middle` | The `[B@k, C@j, B@k]` example (§6.3): after END, the middle frame is removed and the hash chain is rebuilt. |
-| `t_p_sym`, `t_p_turn`, `t_p_paint`, `t_p_color`, `t_p_emptyfn` | Each pruning rule, with both positive and negative examples. |
+| `t_loop_*` | A tail-recursive loop is caught as `Dead(Loop)`. Deep non-tail recursion is not wrongly pruned and ends in `Dead(StepLimit)`. A "loop" that collects a star is not a loop. |
+| `t_cycle_exact_equality` | Two different states with the same hash (forced by hand) are not treated as a loop. |
+| `t_rebuild_middle` | The reachable example in §6.3: after END, `[C@j]` remains, with the hash chain and `depth` recomputed. |
+| `t_zobrist_*` | Painting and collecting a star change `phys_hash`; painting back restores the old hash. |
+| `t_p_sym`, `t_p_turn`, `t_p_paint`, `t_p_color`, `t_p_emptyfn`, `t_p_stepcut` | Each pruning rule, with both positive and negative examples. `t_p_sym` also checks that functions of different capacity are not merged. |
 | `t_p_turn_needaction` | With `Red:?, Red:R`, `L` is not generated for `?`. |
 | `t_e2e_tutorials` | The tutorial puzzles are solved at their expected minimal costs. |
 | `t_e2e_bruteforce` | On small hand-built puzzles (total capacity ≤ 4), the solver finds the same minimal cost as a naive brute force that tries every physical program. **The real optimality test.** |
+| `t_config_equivalence` | On a small puzzle set, every `Config` combination finds the same minimal cost. |
 | Dart: `solver_solutions_test.dart` | §12. |
 
 ---
@@ -1430,6 +1849,7 @@ minimal.
 {
   "solver": "robozzle-solver 0.1.0",
   "maxSteps": 20000,
+  "config": { "lazyConditions": true, "functionSymmetry": true, "peephole": true, "cycleDetection": true, "stepCut": true },
   "results": [
     {
       "sourceId": 195,
@@ -1443,9 +1863,10 @@ minimal.
         [],
         []
       ],
-      "stats": { "millis": 12, "nodes": 45678, "nodesPerBudget": [1, 5, 40] }
+      "stats": { "millis": 12, "searchNodes": 45678, "instructionsEvaluated": 912345, "nodesPerBudget": [1, 1, 5, 40] }
     },
-    { "sourceId": 53, "status": "timeout", "stats": { "millis": 60000, "nodes": 123456789 } }
+    { "sourceId": 53, "status": "timeout", "stats": { "millis": 60000, "searchNodes": 123456789 } },
+    { "sourceId": 999, "status": "unsupported", "reason": "function capacity 13 exceeds 12" }
   ]
 }
 ```
@@ -1456,7 +1877,8 @@ minimal.
   action names are exactly Dart's `ActionType` names: `forward`, `turnLeft`,
   `turnRight`, `paintRed`, `paintGreen`, `paintBlue`, `callF1` … `callF5`. So
   the Dart side can parse them directly with `ActionType.values.byName(...)`.
-- `status` values: `solved | timeout | unsolvable`.
+- `status` values: `solved | timeout | unsolvable | unsupported`.
+- The `stats` fields are the camelCase form of the counters in §9.4.
 
 **Dart test** (`test/solver_solutions_test.dart`): reads the catalog and
 `solutions.json` with `dart:io`. For each `solved` entry, it builds the
@@ -1478,43 +1900,42 @@ solver <catalog.json> [--id <sourceId>]... [--all]
        [--timeout-ms <ms>]   (per puzzle, default 10000)
        [--node-limit <n>]
        [--out <solutions.json>]
+       [--no-lazy-conditions] [--no-function-symmetry] [--no-peephole]
+       [--no-cycle-detection] [--no-step-cut]
 ```
 
 One progress line per puzzle; at the end, a summary by difficulty: puzzles
-solved, average time, total nodes.
+solved, average time, total `search_nodes` and `instructions_evaluated`.
 
 Parallelism: none in v1. v1.5 adds parallelism across puzzles (`rayon`),
-which is easy and safe because puzzles are independent.
+which is easy and safe because puzzles are independent (each thread uses its
+own `Solver`).
 
 ---
 
-## 14. Module layout
+## 14. Module layout and implementation order
 
-```text
-solver/src/
-  main.rs        CLI, report
-  level.rs       JSON → Level, preprocessing (§3)
-  program.rs     Cond, Action, Cell, FunctionDraft, PartialProgram, physical program, serialization (§4.1–4.2, §12)
-  reference.rs   REFERENCE_RUN (§2): simple, unoptimized, an exact mirror of the engine
-  machine.rs     Machine, stack arena, Zobrist (§4.3, §6, §7.3)
-  normalize.rs   normalize (§5), loop cache (§7)
-  search.rs      candidate generation (§8), IDDFS and DFS (§9), finalize
-```
+The module list, dependencies and implementation order are now defined in
+[`SPEC.md`](SPEC.md), Appendix B. In short: `types.rs`, `puzzle.rs`,
+`program.rs`, `machine.rs`, `stack.rs`, `reference.rs`, `normalize.rs`,
+`canonical.rs`, `search.rs`, `stats.rs`, `lib.rs`, `main.rs`.
 
-Dependencies: `serde`, `serde_json`, `clap` (derive). No extra test
-dependencies; `splitmix64` is written by hand for randomness.
-
-**Implementation order:** `level` → `program` → `reference` (+ `t_ref`,
-`t_step_limit`) → `machine` + `normalize` (+ `t_diff_random`) → `search`
-(+ e2e tests) → CLI → Dart test → benchmark.
+The reasoning behind the order is unchanged: the oracle first
+(`reference.rs`), then `normalize` (checked by T-DIFF), then the simplest
+search (eager conditions), and then one optimization per step, each with
+its effect recorded in `BENCHMARKS.md`.
 
 ---
 
 ## 15. Out of scope for v1 (to be decided after measuring)
 
-- Global transposition table. Rationale: a partial program is reached by
+- **Undo/trail (make/unmake).** Rationale in §4.0. Revisited if
+  `SearchStats` shows copying to be a real bottleneck.
+- **Global transposition table.** Rationale: a partial program is reached by
   exactly one path in the search tree, so the table would get no hits.
-- A loop cache carried along the search path (§7.2).
+- **Path-scoped loop cache** (§7.2).
+- **`function_mask_below`:** storing "does this chain contain function `f`?"
+  on arena nodes, to skip S-REBUILD when it is not needed.
 - Statistics-based ordering (killer/history), an `--any` mode (any solution
   rather than the shortest).
 - Parallel search within a single puzzle.
