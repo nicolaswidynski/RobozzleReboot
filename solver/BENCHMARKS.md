@@ -47,44 +47,55 @@ regression).
 ```
 
 Deterministic: the limit is 20 million search nodes per puzzle, not time.
-Exact search and the heuristic phase (LDS with the decaying history
-heuristic, plus local repair; SPEC.md §17.3, §17.5) alternate in equal,
-doubling slices and both resume where they stopped (SPEC.md §17.1). When
-the heuristic finds a solution, the rest of the budget goes to exact search
-below its cost. Wall time for the whole catalog: 34 minutes (v1.6; other
-jobs shared the machine for part of the run).
+v1.7 returns the **first** valid program it finds (FIND, SPEC.md §17.1):
+exact search gets 10 % of each doubling round and the heuristic phase (LDS
+with the decaying history heuristic, plus local repair; SPEC.md §17.3,
+§17.5) the rest, and both resume where they stopped. A program found by
+exact search is proven minimal; so is a heuristic program whose cost equals
+the budget exact search has reached. Wall time for the whole catalog: 27
+minutes (v1.6: 34).
 
 | Difficulty | Solved / total | Proven minimal |
 |---|---|---|
 | ★ | 7 / 7 | 7 |
-| ★★ | 194 / 223 | 170 |
-| ★★★ | 287 / 533 | 202 |
-| ★★★★ | 31 / 134 | 19 |
+| ★★ | 195 / 223 | 97 |
+| ★★★ | 306 / 533 | 80 |
+| ★★★★ | 34 / 134 | 2 |
 | ★★★★★ | 2 / 11 | 1 |
-| **All** | **521 / 908** | **399** |
+| **All** | **544 / 908** | **187** |
 
-- 186 solutions come from the heuristic phase: 137 from LDS (7 to 28
-  slots, median 11) and 49 from local repair (8 to 21 slots, median 13).
-  64 of them (54 and 10) were then proven minimal by the remaining exact
-  search.
-- For the 122 solutions not proven minimal, `cost − lowerBound` is 1 to 17
-  (median 5).
-- The 387 timeouts all have a proven lower bound: minimal cost ≥ 7 (47
-  puzzles), 8 (284), 9 (41), 10 (10), 11 (2), 12 (2), 13 (1).
-- By number of functions in the puzzle: 1 function 143 / 149, 2 functions
-  213 / 278, 3 functions 119 / 246, 4 functions 34 / 133, 5 functions
-  12 / 102. Multi-function puzzles remain the main open problem.
-- Against v1.5 (478 solved, 393 proven minimal): +61 / −18 solved. The 18
-  lost were all heuristic solutions in v1.5 (the search order changed, and
-  repair uses some of the heuristic phase's nodes). On the 460 puzzles both
-  versions solve, v1.6's program is shorter for 23 and longer for 11. The
-  proven lower bound is higher on 11 puzzles and lower on 4 (when the
-  heuristic finds a solution earlier or later, exact search gets a
-  different share of the budget).
-- Repair on known solutions (`t_repair_recovers_broken_solutions`): one
-  cell of each solution is replaced by `forward` (or deleted); of the 520
-  programs this breaks, repair restores a solution for 486 (485 with one
-  edit, 1 with two).
+- Time to the solution, on the 544 solved puzzles: median 178 ms (v1.6,
+  whose time includes the proof phase: 811 ms), 90th percentile 10.6 s;
+  234 are solved within 0.1 s, 366 within 1 s and 487 within 10 s. Nodes
+  to the solution: median 206 k, 90th percentile 6.8 M.
+- 170 solutions come from exact search (all proven minimal), 296 from LDS
+  (6 to 28 slots, median 10) and 78 from local repair (7 to 28 slots,
+  median 12); 17 of the heuristic ones are proven minimal because exact
+  search had already exhausted every smaller budget.
+- For the 357 solutions not proven minimal, `cost − lowerBound` is 1 to 22
+  (median 4).
+- By number of functions in the puzzle: 1 function 142 / 149, 2 functions
+  221 / 278, 3 functions 129 / 246, 4 functions 36 / 133, 5 functions
+  16 / 102.
+- Against v1.6 (521 solved): +28 / −5. The 5 lost were found by exact
+  search in v1.6 (cost 7 to 9). The price of not proving: on the 516
+  puzzles both versions solve, v1.7's program is longer for 122 (no phase
+  looks for a shorter one), and the lower bounds are lower (exact search
+  gets 10 % of the nodes instead of half). `--prove-minimal --exact-share
+  50` restores the v1.6 algorithm (v1.6: 521 solved, 399 proven minimal);
+  with `--no-repair` it reproduces v1.6 node for node, and with repair the
+  results can differ slightly because an interrupted repair is now resumed
+  (SPEC.md §17.5).
+- Seven puzzles are solved for the first time by any run; the union of all
+  runs is now 571.
+- The 17 rows proven minimal by the reached budget were rerun with the final
+  binary (the same programs, steps and node counts; only `optimal`
+  changed).
+- Slow puzzles: a few timeouts take minutes (e.g. #1877: 822 s for 20 M
+  nodes, already 496 s in v1.6). There, programs that run to the 20 000-step
+  limit without a detected loop account for half of all instructions, and
+  calls (with their loop checks) are frequent. This is the next performance
+  target.
 
 ### How the heuristic phase evolved (20 M nodes per puzzle, except the first row)
 
@@ -100,10 +111,11 @@ Each row is a full catalog run; puzzle-by-puzzle comparisons in the notes.
 | + anonymous auxiliary functions (first version) | 460 | 372 | Lower bound higher on 73 puzzles, lower on none; +4 / −5 solved (heuristic reordering). |
 | + review fixes, P-SINGLE, P-RESERVE, D-DEFER-SET (v1.5) | 478 | 393 | Against the history row: +38 / −21 solved, lower bound higher on 282 puzzles. |
 | + decaying history (v1.6 with `--no-repair`) | 513 | 399 | Against v1.5: +57 / −22 solved; 4-function puzzles 18 → 32. |
-| **+ local repair (v1.6 default)** | **521** | **399** | Against the previous row: +11 / −3 solved (all 11 found by repair); against v1.5: +61 / −18, 4-function puzzles 18 → 34. |
+| + local repair (v1.6 default) | 521 | 399 | Against the previous row: +11 / −3 solved (all 11 found by repair); against v1.5: +61 / −18, 4-function puzzles 18 → 34. |
+| **FIND first, exact share 10 %, no proof phase (v1.7 default)** | **544** | **187** | Against v1.6: +28 / −5; 5-function puzzles 12 → 16, 3-function 119 → 129. Time to the solution: median 178 ms. |
 
-The union of all these runs solves 558 puzzles (37 of them only in the
-v1.6 runs): changing the search order trades some puzzles for others (for
+The union of all these runs solves 571 puzzles (7 of them only in the
+v1.7 run): changing the search order trades some puzzles for others (for
 example #851 was proven minimal when an early heuristic solution handed
 exact search 19 M nodes, and timed out when the heuristic found nothing and
 exact search had 10 M). Running several orderings would therefore solve
@@ -167,6 +179,69 @@ Measured and not adopted (both trade puzzles rather than add them):
   search in which every `Forward` must bring the robot one tile closer to
   the nearest remaining star (with some slack for detours), as a share of
   the heuristic budget. FINDER 27 against 26 (+5 / −4).
+
+### v1.7: find first (measurements behind the new default)
+
+**FINDER alone against the v1.6 default.** On the first 559 puzzles of the
+catalog (a FINDER run at 20 M nodes, stopped there), FINDER alone solved
+345 against 325 for the v1.6 default mode: +24 / −4. The four it missed were
+all found by exact search, after 0.27, 0.73, 0.88 and 3.27 M exact nodes.
+Over the whole v1.6 run, exact search needed a median of 50 k nodes for the
+335 puzzles it solved, and 272 of them needed at most 1 M. Hence the v1.7
+default: exact search gets 10 % of each portfolio round (`exact_share`), and
+the first solution is returned without the proof phase (`--prove-minimal`
+restores it). With `--exact-share 50 --prove-minimal --no-repair`, v1.7
+reproduces v1.6 node for node (20 puzzles checked).
+
+**Where the LDS spends its discrepancies.** Each known solution
+(`oracle/known.json`: 1 342 verified programs for the 564 puzzles any run
+has solved) was replayed through the LDS tree with the static ranking (no
+history), recording the rank of the kid consistent with the program at
+every decision. 558 of the 564 puzzles replay (6 end at a sibling that
+solves the puzzle first). Minimum total discrepancy per puzzle:
+
+| Functions used | Puzzles | Median | 75th pct. | 90th pct. |
+|---|---|---|---|---|
+| 1 | 171 | 11 | 16 | 22 |
+| 2 | 231 | 14 | 21 | 27 |
+| 3 | 111 | 13 | 23 | 30 |
+| 4 | 32 | 20.5 | 36 | 45 |
+| 5 | 13 | 22 | 36 | 45 |
+
+Share of the total by decision type: deferred-condition cells 29.8 % (mean
+rank 4.4), turns 19.4 %, calls to new functions 15.1 % (mean rank 2.2),
+calls to introduced functions 10.0 %, condition choices 7.5 %, paints 6.1 %
+(mean rank 3.6), narrowing a deferred cell 5.7 % (mean rank 3.8), forward
+5.2 %, END 1.3 %.
+
+**Ranking variants, dev set, FINDER, 5 M nodes** (v1.6: 40 / 150, 11 hard):
+
+| Variant | Solved (hard) | Gained / lost | Nodes on puzzles both solve |
+|---|---|---|---|
+| New-function cost ≤ 1, ties cost ½ | 35 (8) | +4 / −9 | 0.48× |
+| + deferred-condition cost ≤ 1 | 37 (11) | +7 / −10 | 0.49× |
+| New-function cost ≤ 1, deferred cost ≤ 2 | 38 (12) | +8 / −10 | 0.54× |
+| No used-slots tie-break | 34 (8) | +4 / −10 | 1.35× |
+
+Capping the cost of the expensive decision types finds the puzzles it
+solves about twice as fast, but loses others, including some v1.6 solves
+in under 1 M nodes: a different order searches a different region. The
+used-slots tie-break (between siblings it means "prefer END when tied")
+helps. Running two orders side by side on half the budget each would solve
+36: the puzzles need their whole budget. The v1.6 ranking stays.
+
+**Near-solutions are far from solutions.** A FINDER run at 1 M nodes logged
+every program admitted to the repair pool and a sample of those it
+rejected, and their edit distance to the nearest known solution was
+computed (minimum over relabelings of the auxiliary functions, Levenshtein
+per function). On the 173 known puzzles FINDER did not solve within 1 M:
+admitted programs are a median of 8 edits away (10th–90th percentile 6–14),
+only 0.09 % are within 2 edits (what repair can reach), and the rejected
+lower-star programs are farther still (median 10). Per puzzle, the closest
+admitted program is within 2 edits for 7 % of the puzzles. A wider or more
+diverse repair pool would therefore not help much: the search does not get
+stuck one step short of a solution, it does not reach the right program
+structure.
 
 ### Exact-search tree size: anonymous auxiliary functions
 

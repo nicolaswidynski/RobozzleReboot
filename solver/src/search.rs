@@ -328,9 +328,11 @@ impl<'a> Solver<'a> {
     }
 
     /// The deterministic portfolio (SPEC §17.1). Exact and heuristic search
-    /// alternate in equal slices that double every round; both resume where
-    /// they stopped. Once the heuristic finds a solution, all remaining
-    /// nodes go to exact search below its cost, which either finds a shorter
+    /// alternate in rounds that double in size; exact search gets
+    /// `exact_share` percent of each round, and both resume where they
+    /// stopped. The first solution found is returned (FIND). With
+    /// `prove_minimal`, a heuristic solution instead hands all remaining
+    /// nodes to exact search below its cost, which either finds a shorter
     /// solution or proves this one minimal.
     fn run(&mut self) -> Outcome {
         if !self.puzzle.stars_connected() {
@@ -352,22 +354,28 @@ impl<'a> Solver<'a> {
                 Step::Paused => Outcome::Timeout,
             };
         }
-        let mut slice = self
+        // A round is two v1.6 slices (node_limit / 60 each); exact search
+        // gets `exact_share` percent of it (50 = the v1.6 equal slices).
+        let mut round = self
             .deadline
             .node_limit()
-            .map_or(1_000_000, |n| (n / 60).max(1));
+            .map_or(2_000_000, |n| (n / 60).max(1) * 2);
+        let share = u64::from(self.config.exact_share.min(100));
         let mut best = loop {
-            let cap = self.stats.search_nodes.saturating_add(slice);
-            self.deadline.set_phase_cap(Some(cap));
-            match self.exact_resume(max_budget) {
-                Step::Found(s) => return Outcome::Solved(s),
-                Step::Exhausted => return Outcome::Unsolvable(UnsolvableReason::Exhausted),
-                Step::Paused if self.deadline.limit_reached(self.stats.search_nodes) => {
-                    return Outcome::Timeout;
+            let exact_part = round.saturating_mul(share) / 100;
+            if exact_part > 0 {
+                let cap = self.stats.search_nodes.saturating_add(exact_part);
+                self.deadline.set_phase_cap(Some(cap));
+                match self.exact_resume(max_budget) {
+                    Step::Found(s) => return Outcome::Solved(s),
+                    Step::Exhausted => return Outcome::Unsolvable(UnsolvableReason::Exhausted),
+                    Step::Paused if self.deadline.limit_reached(self.stats.search_nodes) => {
+                        return Outcome::Timeout;
+                    }
+                    Step::Paused => {}
                 }
-                Step::Paused => {}
             }
-            let cap = self.stats.search_nodes.saturating_add(slice);
+            let cap = self.stats.search_nodes.saturating_add(round - exact_part);
             self.deadline.set_phase_cap(Some(cap));
             std::mem::swap(&mut self.arena, &mut self.parked_arena);
             let step = self.heuristic_resume();
@@ -380,10 +388,13 @@ impl<'a> Solver<'a> {
                 }
                 Step::Paused => {}
             }
-            slice = slice.saturating_mul(2);
+            round = round.saturating_mul(2);
         };
         self.deadline.set_phase_cap(None);
-        if best.cost > 0 {
+        if self.exact.budget >= best.cost {
+            // Exact search has already exhausted every budget below the cost.
+            best.optimal = true;
+        } else if self.config.prove_minimal && best.cost > 0 {
             match self.exact_resume(best.cost - 1) {
                 Step::Found(s) => return Outcome::Solved(s),
                 Step::Exhausted => best.optimal = true,

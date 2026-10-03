@@ -419,9 +419,9 @@ impl Solver<'_> {
             return None;
         }
         let entry = self.repair.entries.remove(0);
-        self.stats.repairs += 1;
         match self.repair_program(entry.prog) {
             Outcome::Found(p) => {
+                self.stats.repairs += 1;
                 let program = p.to_resolved();
                 // The simulator only proposes; REFERENCE_RUN decides (and
                 // `finalize_physical` verifies again, shrinks and checks the
@@ -433,7 +433,18 @@ impl Solver<'_> {
                 }
                 Some(self.finalize_physical(program, FoundBy::Repair))
             }
-            Outcome::NotFound | Outcome::Stopped => None,
+            Outcome::NotFound => {
+                self.stats.repairs += 1;
+                None
+            }
+            Outcome::Stopped => {
+                // Interrupted by a slice boundary or the node limit: put the
+                // program back so the next heuristic slice repairs it from
+                // the start (it stays in `seen`, so it could not come back
+                // through `repair_observe`).
+                self.repair.entries.insert(0, entry);
+                None
+            }
         }
     }
 

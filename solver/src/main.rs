@@ -74,6 +74,14 @@ struct Args {
     /// Largest share of the heuristic phase's nodes (percent) repair may use.
     #[arg(long, default_value_t = solver::stats::DEFAULT_REPAIR_SHARE)]
     repair_share: u8,
+    /// Percent of each portfolio round given to exact search (the
+    /// heuristic phase gets the rest).
+    #[arg(long, default_value_t = solver::stats::DEFAULT_EXACT_SHARE)]
+    exact_share: u8,
+    /// After a heuristic solution, use the remaining nodes to look for a
+    /// shorter one and to prove minimality (the v1.6 behaviour).
+    #[arg(long)]
+    prove_minimal: bool,
 }
 
 fn id_string(v: &Value) -> String {
@@ -187,6 +195,8 @@ fn main() {
         heuristic_only: args.heuristic_only,
         repair: !args.no_repair,
         repair_share: args.repair_share,
+        exact_share: args.exact_share,
+        prove_minimal: args.prove_minimal,
     };
     let limits = Limits {
         time: args.timeout_ms.map(Duration::from_millis),

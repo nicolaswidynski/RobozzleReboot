@@ -90,6 +90,32 @@ SPEC.md'deki isimler kullanılır.
 > FINDER 26 → 40, PRODUCT 20 → 29; tam katalogda (20 M node) çözülen
 > bulmaca 478 → 521, kanıtlı en kısa 393 → 399, 4 fonksiyonlu bulmacalar
 > 18 → 34.
+>
+> **v1.7 — önce bul, ispat isteğe bağlı.** Hedef değişti: mümkün olduğunca
+> çok bulmacaya, mümkün olduğunca az node'da geçerli bir çözüm bulmak.
+> Kısalık ispatı artık isteğe bağlı (`--prove-minimal`). v1.6'nın varsayılan
+> modu node bütçesini kesin arama ile yarı yarıya paylaşıyordu; katalogun
+> ilk 559 bulmacasında yalnızca sezgisel arama 20 M node'da 345 bulmaca
+> çözerken varsayılan mod 325 çözdü (+24 / −4; kaybedilen 4'ünü kesin arama
+> 0,3–3,3 M node'da buluyordu). Bu yüzden kesin arama artık her turun
+> %10'unu alıyor (`exact_share`): küçük programları yine ilk o buluyor ve
+> bedavaya kanıtlıyor. Bu sürümde ölçülüp **alınmayanlar** da en az
+> alınanlar kadar öğretici (BENCHMARKS.md): bilinen çözümler LDS ağacında
+> yeniden oynatıldığında 4–5 fonksiyonlu çözümlerin toplam sapma (rank)
+> maliyeti iki katı çıktı (medyan 22'ye karşı 10–14). En büyük pay yeni
+> fonksiyon çağrılarında değil, koşulu ertelenen hücrelerde (%30). Bu
+> maliyetleri sınırlayan sıralamalar ortak çözdükleri bulmacaları ~2 kat
+> hızlı buluyor ama başka bulmacaları kaybediyor (dev set'te 40 yerine
+> 35–38); `used_slots` eşitlik bozucusunu kaldırmak 34'e düşürdü. Onarım
+> havuzundaki "neredeyse çözümler" bilinen çözümlere medyan 8 düzenleme
+> uzaklıkta (yalnızca %0,09'u 2 düzenleme içinde): darboğaz son adımı
+> onarmak değil, doğru program yapısına ulaşmak. Ayrıca kesin arama ile
+> paylaşılan modda bir onarım dilim sınırında yarıda kalınca programı
+> havuzdan kalıcı olarak düşüyordu; artık havuza geri konuyor. Tam
+> katalogda (20 M node) çözülen bulmaca 521 → 544, 5 fonksiyonlu 12 → 16;
+> çözüme kadar geçen süre medyan 178 ms; tüm katalog 34 yerine 27 dakika.
+> Bedeli: kanıtlı en kısa 399 → 187 (`--prove-minimal` eski davranışı geri
+> getirir).
 
 Kimlik etiketleri (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) koddaki
 yorumlarda ve test isimlerinde referans olarak kullanılır. Örneğin bir budama
@@ -1138,6 +1164,31 @@ names from SPEC.md.
 > solution. On the dev set (5 M nodes): FINDER 26 → 40, PRODUCT 20 → 29;
 > on the full catalog (20 M nodes): 478 → 521 solved, 393 → 399 proven
 > minimal, 4-function puzzles 18 → 34.
+>
+> **v1.7 — find first, prove on request.** The goal changed: find a valid
+> solution for as many puzzles as possible, in as few nodes as possible.
+> Proving minimality is now optional (`--prove-minimal`). v1.6's default
+> mode split the node budget evenly with exact search; on the first 559
+> puzzles of the catalog, the heuristic phase alone solved 345 at 20 M nodes
+> against 325 for the default mode (+24 / −4; exact search found the 4 lost
+> ones in 0.3–3.3 M nodes). Exact search now gets 10 % of each round
+> (`exact_share`), which still lets it find small programs first and prove
+> them minimal for free. What was measured and **not** adopted in this
+> version is as instructive (BENCHMARKS.md): replaying the known solutions
+> through the LDS tree, 4–5-function solutions cost twice the summed
+> discrepancy (rank) of the others (median 22 against 10–14), and the
+> largest share comes from deferred-condition cells (30 %), not from calls
+> to new functions. Rankings that cap these costs find the puzzles they
+> solve ~2× faster but lose others (35–38 instead of 40 on the dev set);
+> removing the used-slots tie-break dropped it to 34. The repair pool's
+> near-solutions are a median of 8 edits from the known solutions (only
+> 0.09 % within 2 edits): the bottleneck is reaching the right program
+> structure, not repairing the last step. Also, in the shared mode a repair
+> interrupted at a slice boundary dropped its program for good; it now goes
+> back into the pool. On the full catalog (20 M nodes): 521 → 544 solved,
+> 5-function puzzles 12 → 16; median time to the solution 178 ms; the whole
+> catalog in 27 minutes instead of 34. The price: 399 → 187 proven minimal
+> (`--prove-minimal` restores the old behaviour).
 
 Rule IDs (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) are referenced from code
 comments and test names. For example, the code implementing a pruning rule

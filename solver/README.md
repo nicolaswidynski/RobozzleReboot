@@ -1,10 +1,12 @@
 # RoboZZle solver
 
 Finds, for a RoboZZle puzzle, a program that solves it in the app's engine
-([`lib/engine/interpreter.dart`](../lib/engine/interpreter.dart)). Easy and
-medium puzzles get a **proven shortest** program (fewest occupied slots);
-for harder ones a heuristic phase finds a valid, not necessarily shortest,
-program and reports a proven lower bound. Results are deterministic.
+([`lib/engine/interpreter.dart`](../lib/engine/interpreter.dart)), in as few
+search steps as possible. By default it returns the first valid program it
+finds (shrunk by deleting cells it does not need), with a proven lower bound
+on the shortest one; small programs found by the exact search are proven
+shortest. With `--prove-minimal` it keeps searching for a shorter program and
+for a proof that none exists. Results are deterministic.
 
 - [`SPEC.md`](SPEC.md): the normative specification (data model, transition
   rules, search, invariants, test vectors).
@@ -29,9 +31,10 @@ recently led to the most stars anywhere (a decaying history heuristic).
 Alongside it, local repair takes the best programs seen so far, which often
 die a cell or two away from a solution, and tries every single edit and
 some pairs of edits. A heuristic solution is shrunk by deleting cells that
-it does not need. The two phases alternate and resume where they stopped.
-Every solution is re-run on an independent reference interpreter before it
-is reported.
+it does not need. The two phases alternate and resume where they stopped;
+by default the exact phase gets 10 % of the nodes, because the heuristic
+phase finds far more solutions per node. Every solution is re-run on an
+independent reference interpreter before it is reported.
 
 ## Build and run
 
@@ -44,6 +47,9 @@ cargo build --release
 
 # The whole catalog (20 M nodes per puzzle, all CPUs), results to solutions.json
 ./target/release/solver ../assets/levels_catalog.json --all --out solutions.json
+
+# Also look for a shorter program and prove minimality (slower)
+./target/release/solver ../assets/levels_catalog.json --all --prove-minimal --exact-share 50 --out solutions.json
 
 # Exact search only (every reported solution is proven shortest)
 ./target/release/solver ../assets/levels_catalog.json --all --exact-only --out solutions.json

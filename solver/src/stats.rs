@@ -41,7 +41,17 @@ pub struct Config {
     /// Largest share of the heuristic phase's nodes (percent) that repair
     /// may use.
     pub repair_share: u8,
+    /// Percent of each portfolio round that exact search gets (SPEC §17.1);
+    /// the heuristic phase gets the rest. 50 = the v1.6 equal slices.
+    pub exact_share: u8,
+    /// After a heuristic solution, spend the remaining nodes on exact search
+    /// below its cost (a shorter solution or a minimality proof). Off: the
+    /// first solution found is returned (FIND).
+    pub prove_minimal: bool,
 }
+
+/// Default `Config::exact_share`.
+pub const DEFAULT_EXACT_SHARE: u8 = 10;
 
 /// Default `Config::repair_share`: repair may use a quarter of the heuristic
 /// phase's nodes.
@@ -68,6 +78,8 @@ impl Default for Config {
             heuristic_only: false,
             repair: true,
             repair_share: DEFAULT_REPAIR_SHARE,
+            exact_share: DEFAULT_EXACT_SHARE,
+            prove_minimal: false,
         }
     }
 }
@@ -91,6 +103,8 @@ impl Config {
             heuristic_only: false,
             repair: true,
             repair_share: DEFAULT_REPAIR_SHARE,
+            exact_share: 50,
+            prove_minimal: true,
         })
     }
 }

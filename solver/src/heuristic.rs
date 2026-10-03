@@ -441,6 +441,52 @@ mod tests {
         );
     }
 
+    /// FIND returns the first solution and claims no minimality it has not
+    /// proven; `prove_minimal` returns the proven shortest program.
+    #[test]
+    fn t_find_and_prove_modes() {
+        type Case = (
+            &'static [&'static str],
+            (i64, i64),
+            &'static str,
+            &'static [i64],
+            u8,
+        );
+        let cases: &[Case] = &[
+            (&["bbbB"], (0, 0), "right", &[3], 2),
+            (&["bbb", "b b", "bbB"], (0, 0), "right", &[4], 4),
+            (&["bbr", "  b", "  B"], (0, 0), "right", &[4], 3),
+            (&["bbbbB"], (0, 0), "right", &[1, 2], 3),
+        ];
+        for (rows, start, dir, caps, optimum) in cases {
+            let p = puzzle(rows, *start, dir, caps, 0);
+            let find = Config {
+                exact_share: 0,
+                ..Config::default()
+            };
+            match solve(&p, find, Limits::default()).outcome {
+                Outcome::Solved(s) => {
+                    assert!(s.cost >= *optimum);
+                    assert!(
+                        !s.optimal,
+                        "{rows:?}: FIND without exact search proved nothing"
+                    );
+                    assert_ne!(s.found_by, FoundBy::Exact);
+                }
+                other => panic!("{rows:?}: {other:?}"),
+            }
+            let prove = Config {
+                exact_share: 0,
+                prove_minimal: true,
+                ..Config::default()
+            };
+            match solve(&p, prove, Limits::default()).outcome {
+                Outcome::Solved(s) => assert!(s.optimal && s.cost == *optimum, "{rows:?}"),
+                other => panic!("{rows:?}: {other:?}"),
+            }
+        }
+    }
+
     /// Heuristic phase alone (exact phase given no nodes): finds a verified
     /// solution whenever one exists, proves exhaustion otherwise.
     #[test]

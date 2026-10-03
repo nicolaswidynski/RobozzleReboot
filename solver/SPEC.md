@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.6 |
+| **Version** | 1.7 |
 | **Status** | Normative implementation specification |
 | **Engine** | `lib/engine/interpreter.dart` at commit `37b5ede` |
 | **Rationale** | [`DESIGN.md`](DESIGN.md) (why each rule exists, alternatives considered) |
@@ -924,7 +924,10 @@ pub struct Config {
     pub heuristic_only: bool,     // FINDER benchmark mode: §17.3 only, no exact search
     pub repair: bool,             // local repair in the heuristic phase (§17.5)
     pub repair_share: u8,         // percent of the heuristic phase's nodes repair may use
-}   // Default: all true, except heuristic_only = false; repair_share = 25
+    pub exact_share: u8,          // percent of each portfolio round for exact search (§17.1)
+    pub prove_minimal: bool,      // after a heuristic solution, exact search below its cost (§17.1)
+}   // Default: all true, except heuristic_only = false, prove_minimal = false;
+    // repair_share = 25, exact_share = 10
 ```
 
 Disabling a flag MUST remove only the optimization; it MUST NOT forbid any
@@ -941,6 +944,10 @@ flag.
 
 ### 17.1 Outer loop: a deterministic portfolio
 
+The default goal is to **find** a valid solution in as few nodes as
+possible (FIND). Proving that it is minimal is optional
+(`config.prove_minimal`, CLI `--prove-minimal`).
+
 Exact search (§17.2) and heuristic search (§17.3) are both **resumable**:
 each keeps its search stack in an explicit cursor and its own stack arena,
 so it can be paused at a node cap and later continued exactly where it
@@ -952,27 +959,32 @@ SOLVE(puzzle, config, limits) -> SolveResult:
     if not config.heuristic:
         run EXACT to completion or to the node limit         # Found | Exhausted | Timeout
 
-    slice := node_limit / 60  (1 000 000 when unlimited)
+    round := 2 × (node_limit / 60)  (2 000 000 when unlimited)
     loop:                                                    # portfolio rounds
-        EXACT for slice more nodes:        Found -> return Solved(optimal = true)
+        e := round × exact_share / 100                       # integer division
+        if e > 0:
+            EXACT for e more nodes:        Found -> return Solved(optimal = true)
                                            Exhausted -> return Unsolvable(Exhausted)
-        HEURISTIC for slice more nodes:    Found(s) -> best := s; break
+        HEURISTIC for round − e more nodes: Found(s) -> best := s; break
                                            Exhausted -> return Unsolvable(Exhausted)
         if the node (or time) limit is reached: return Timeout(lower_bound)
-        slice := 2 × slice
+        round := 2 × round
 
-    # A heuristic solution exists: all remaining nodes go to exact search
-    # below its cost.
+    if not config.prove_minimal: return Solved(best)         # FIND
+    # PROVE: all remaining nodes go to exact search below the cost.
     EXACT up to budget best.cost − 1:      Found -> return Solved(optimal = true)
                                            Exhausted -> best.optimal := true
     return Solved(best)
 ```
 
-With the default 20 M node limit, exact and heuristic search each get about
-10 M nodes when neither finishes. The 1:1 ratio is measured, not guessed:
-with 2:1 (exact 15 M, heuristic 5 M) six more puzzles were solved by exact
-search but thirteen fewer by the heuristic, so a heuristic node was worth
-about twice an exact node at the margin (BENCHMARKS.md).
+`exact_share` defaults to 10: the heuristic phase finds far more solutions
+per node than exact search on all but the smallest programs, while a small
+exact share still finds the cheap programs first and proves them minimal
+for free. `exact_share = 50` with `prove_minimal` is the v1.6 algorithm
+(equal slices, then a proof), apart from the resumed repairs of §17.5. A
+heuristic solution whose cost equals the first budget exact search has not
+exhausted is reported as optimal: every smaller budget was searched. See
+BENCHMARKS.md for the measurements.
 
 `EXACT` searches budgets `next_budget, next_budget + 1, …` in order;
 `next_budget` (the smallest budget not yet exhausted) is the reported
@@ -1125,6 +1137,9 @@ REPAIR_TICK():                # after every LDS frame push
     if POOL is empty: return
     if 100 · repair_nodes > repair_share · (nodes of the heuristic phase so far): return
     REPAIR(POOL.pop_best())       # Found -> FINALIZE_PHYSICAL(p, found_by = repair)
+                                  # interrupted by a node cap -> the program goes back
+                                  # to the front of POOL and is repaired from the start
+                                  # in the next heuristic slice
 
 REPAIR(base):
     run base with SIMULATE from the start, recording for every slot its first
@@ -1226,7 +1241,7 @@ both in total and per budget iteration.
 | `stack_pushes`, `tail_calls`, `returns`, `stack_rebuilds`, `stack_nodes_rebuilt` | per stack operation |
 | `max_search_depth`, `max_call_depth` | maximum observed |
 | `heuristic_nodes`, `lds_iterations` | nodes used by §17.3 (repair included) / per LDS iteration started |
-| `repairs`, `repair_nodes`, `repair_simulations`, `repair_instructions` | per REPAIR / nodes charged / per SIMULATE / instructions simulated (§17.5) |
+| `repairs`, `repair_nodes`, `repair_simulations`, `repair_instructions` | per completed REPAIR / nodes charged / per SIMULATE / instructions simulated (§17.5) |
 | `repair_found_d0`, `repair_found_d1`, `repair_found_d2`, `repair_d1_nodes`, `repair_d2_nodes`, `repair_rejected` | per repair success by edit distance / nodes per distance / proposals `REFERENCE_RUN` rejected |
 
 `instructions_evaluated` matters as much as `search_nodes`: an optimization
@@ -1530,6 +1545,8 @@ solver <catalog.json> [--id <sourceId>]... [--all]
        [--no-history-decay]           history entries are plain maxima (§17.3)
        [--no-repair]                  heuristic phase without local repair (§17.5)
        [--repair-share <percent>]     share of the heuristic phase's nodes repair may use, default 25
+       [--exact-share <percent>]      share of each portfolio round for exact search, default 10
+       [--prove-minimal]              after a heuristic solution, look for a shorter one / prove minimality
        [--no-anonymous-functions]     keep auxiliary function identities (P-SYM only)
        [--no-condition-sets]          one deferred cell per color (no D-DEFER-SET)
        [--out <solutions.json>]
