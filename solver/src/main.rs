@@ -59,6 +59,9 @@ struct Args {
     /// Auxiliary functions keep their identities (P-SYM only).
     #[arg(long)]
     no_anonymous_functions: bool,
+    /// One deferred cell per non-current color instead of one color set.
+    #[arg(long)]
+    no_condition_sets: bool,
 }
 
 fn id_string(v: &Value) -> String {
@@ -166,6 +169,7 @@ fn main() {
         heuristic: !args.exact_only,
         history: !args.no_history,
         anonymous_functions: !args.no_anonymous_functions,
+        condition_sets: !args.no_condition_sets,
     };
     let limits = Limits {
         time: args.timeout_ms.map(Duration::from_millis),

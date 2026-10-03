@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.4 |
+| **Version** | 1.5 |
 | **Status** | Normative implementation specification |
 | **Engine** | `lib/engine/interpreter.dart` at commit `37b5ede` |
 | **Rationale** | [`DESIGN.md`](DESIGN.md) (why each rule exists, alternatives considered) |
@@ -161,6 +161,9 @@ pub enum Cell {
                             // an occupied slot whose action is chosen and
                             // whose condition is either Any or Color(color),
                             // not yet decided (§13, D-PENDING)
+    CondSet(ColorMask),     // an occupied slot whose condition is one of at
+                            // least two colors, not yet decided, and whose
+                            // action is not chosen (§13, D-DEFER-SET)
 }
 
 pub struct FunctionDraft {
@@ -175,7 +178,7 @@ pub struct PartialProgram { pub functions: [FunctionDraft; MAX_FUNCTIONS] }
 
 A `FunctionDraft` MUST satisfy, at all times:
 
-- every cell in `cells[0..len)` is `Resolved`, `CondOnly` or `Pending` (never `Unused`);
+- every cell in `cells[0..len)` is `Resolved`, `CondOnly`, `Pending` or `CondSet` (never `Unused`);
 - every cell in `cells[len..]` is `Unused`;
 - `len <= capacity`;
 - `capacity == 0` implies `ended == true` (an absent function is closed).
@@ -465,7 +468,8 @@ At each iteration, the **first** rule whose guard holds fires. Let
 | **N-RETURN** | `pc == D.len` and `closed(f)` | S-POP (§11.3) | 0 |
 | **N-OPEN** | `pc == D.len` and not `closed(f)` | return `OpenSlot{f, pc}` | 0 |
 | **N-NEED** | `D.cells[pc] = CondOnly(c)` and `tile == c` | return `NeedAction{f, pc, c}` | 0 |
-| **N-SKIP** | `D.cells[pc] = CondOnly(c)` and `tile ≠ c` | `consume_instruction()?`; `pc += 1` | 1 |
+| **N-SKIP** | `D.cells[pc] = CondOnly(c)` and `tile ≠ c`, or `D.cells[pc] = CondSet(M)` and `tile ∉ M` | `consume_instruction()?`; `pc += 1` | 1 |
+| **N-NEEDSET** | `D.cells[pc] = CondSet(M)` and `tile ∈ M` | return `NeedAction{f, pc, tile}` | 0 |
 | **N-NEEDCOND** | `D.cells[pc] = Pending{a, c}` and `tile ≠ c` | return `NeedCondition{f, pc}` | 0 |
 | **N-PAINTSAME** | `D.cells[pc] = Pending{Paint(x), c}`, `tile ≠ c`, `tile == x` | `consume_instruction()?`; `pc += 1`; the cell stays `Pending` (`Any` would repaint the tile with its own color, `Color(c)` skips: both consume one step and change nothing) | 1 |
 | **N-PENDING** | `D.cells[pc] = Pending{a, c}` and `tile == c` | `consume_instruction()?`; `pc += 1`; apply the X-rule for `a` (both possible conditions match) | 1 |
@@ -666,7 +670,9 @@ a child's copy of the state.
 | **D-END** | `OpenSlot{f, k}` | `functions[f].ended = true`; then S-REBUILD(f, k) | +0 | — |
 | **D-PLACE(i)** | `OpenSlot{f, k}` | `cells[k] = Resolved(i)`; `len += 1` | +1 | `|= bit(g)` if `i.action = Call(g)` |
 | **D-DEFER(c)** | `OpenSlot{f, k}` | `cells[k] = CondOnly(c)`; `len += 1` | +1 | — |
-| **D-RESOLVE(a)** | `NeedAction{f, k, c}` | `cells[k] = Resolved{Color(c), a}` | +0 | `|= bit(g)` if `a = Call(g)` |
+| **D-RESOLVE(a)** | `NeedAction{f, k, c}` (cell `CondOnly(c)` or `CondSet(M ∋ c)`) | `cells[k] = Resolved{Color(c), a}` | +0 | `|= bit(g)` if `a = Call(g)` |
+| **D-DEFER-SET(M)** | `OpenSlot{f, k}` | `cells[k] = CondSet(M)`; `len += 1` | +1 | — |
+| **D-NARROW** | `NeedAction{f, k, c}` with `cells[k] = CondSet(M)` | `cells[k] = CondOnly(d)` if `M \ {c} = {d}`, else `CondSet(M \ {c})` (the members that still skip) | +0 | — |
 | **D-PENDING(a)** | `OpenSlot{f, k}` | `cells[k] = Pending{a, colors[position]}`; `len += 1` | +1 | `|= bit(g)` if `a = Call(g)` |
 | **D-CHOOSE(cond)** | `NeedCondition{f, k}` with `cells[k] = Pending{a, c}` | `cells[k] = Resolved{cond, a}`, `cond ∈ {Any, Color(c)}` | +0 | — |
 
@@ -689,7 +695,8 @@ At `OpenSlot{f, k}`, let `cur = colors[position]` and
 | D-PLACE(`Any: a`) | for every action `a` (§14.3), if `|PC| = 1` or **not** `config.lazy_active_conditions` |
 | D-PLACE(`Color(cur): a`) | if `|PC| ≥ 2` (P-COLOR) and **not** `config.lazy_active_conditions`, for every action `a` |
 | D-PENDING(`a`) | if `|PC| ≥ 2` and `config.lazy_active_conditions`, for every action `a`, except that `Paint(cur)` becomes D-PLACE(`Any: Paint(cur)`) when `config.peephole` (P-PAINT forbids the other choice) |
-| D-DEFER(`d`) | if `|PC| ≥ 2` and `config.lazy_conditions`, for every `d ∈ PC`, `d ≠ cur` |
+| D-DEFER(`d`) | if `|PC| ≥ 2` and `config.lazy_conditions`, for every `d ∈ PC`, `d ≠ cur`, unless D-DEFER-SET applies |
+| D-DEFER-SET(`PC \ {cur}`) | instead of the D-DEFER candidates, if `config.lazy_conditions`, `config.condition_sets` and `|PC \ {cur}| ≥ 2` |
 | D-PLACE(`Color(d): a`) | if `|PC| ≥ 2` and **not** `config.lazy_conditions`, for every `d ∈ PC`, `d ≠ cur`, and every action `a` |
 
 - A candidate with cost 1 MUST NOT be generated if `used_slots + 1 > budget`
@@ -712,8 +719,16 @@ At `OpenSlot{f, k}`, let `cur = colors[position]` and
 ### 14.2 Need-action and need-condition frontiers
 
 At `NeedAction{f, k, c}`, the candidates are D-RESOLVE(`a`) for every action
-`a` (§14.3), subject to canonicalization (§15) and P-CRASH. The condition is
-fixed to `Color(c)`.
+`a` (§14.3), subject to canonicalization (§15), P-CRASH and P-RESERVE. The
+condition is fixed to `Color(c)`. If the cell is a `CondSet`, D-NARROW is
+also a candidate.
+
+*Proof (D-DEFER-SET, D-NARROW).* `CondSet(M)` stands for the set of programs
+`{Color(d):? : d ∈ M}`. Until the cell is evaluated on a color in `M`, every
+member skips with one step, so all members produce the same run. At the
+first evaluation on `c ∈ M`, the children split the set exactly: the member
+`d = c` fires (its action is chosen by D-RESOLVE), and the members
+`d ∈ M \ {c}` skip (D-NARROW). Every child keeps the occupied-slot cost.
 
 At `NeedCondition{f, k}` with `cells[k] = Pending{a, c}`, the candidates are
 D-CHOOSE(`Any`) (runs `a` now; subject to P-CRASH) and D-CHOOSE(`Color(c)`)
@@ -838,6 +853,23 @@ D-END MUST NOT be generated at `index = 0`. (*Proof:* for F1 the program
 does nothing; for any other function every call to it is a no-op that costs
 a slot and can be removed.)
 
+### 15.3b P-SINGLE
+
+With `config.peephole`, D-END MUST NOT be generated at `OpenSlot{g, 1}` for
+an auxiliary function `g ≠ F1`, and an auxiliary function of capacity 1 is
+treated as disabled (`cap = 0` for the search; the output still pads it to
+one `null`).
+
+*Proof.* Let `g = [c₂: X]` be called from sites `c₁: Call(g)`. Replace each
+site with `(c₁ ∧ c₂): X` (a conjunction of `Any` and colors is one condition
+or unsatisfiable; delete unsatisfiable sites) and delete `g`'s cell. A call
+does not move the robot, so `c₂` was always tested on the same tile as
+`c₁`; `X` keeps the call site's own tail-call status (R-TAIL), so the frame
+sequence is unchanged; each fired call saves a step. If `X = Call(g)`,
+firing it would loop forever, so in a successful run it never fires and the
+sites can be deleted. Either way the cost drops by at least 1, so no minimal
+solution contains a one-cell auxiliary function.
+
 ### 15.3a P-ENDDEAD
 
 With `config.peephole`, D-END at `OpenSlot{f, k}` MUST NOT be generated
@@ -845,6 +877,23 @@ when every suspended frame equals `(f, k)` (in particular when
 `callers = None`). (*Proof:* S-REBUILD removes all of them, the current
 frame becomes exhausted, N-RETURN pops it, and with no caller left
 N-NOFRAME ends the program while stars remain.)
+
+### 15.5 P-RESERVE (an admissible lower bound)
+
+With `config.peephole`, a child state `s` is discarded when
+
+```text
+used_slots(s) + Σ { max(0, 2 − len(g)) : g ∈ introduced(s), g ≠ F1, g not closed } > budget
+```
+
+*Proof.* In a minimal solution every call cell fires (else it is removable),
+every called auxiliary body is non-empty (P-EMPTYFN) and not a single cell
+(P-SINGLE), so it has at least 2 cells. The sum is therefore a lower bound on
+the cells still to be added, and a state that exceeds the budget with it
+has no minimal completion within the budget. This is the first sound
+lower bound on the remaining program size in the solver; it applies at
+every node, including D-RESOLVE children and calls to new functions (which
+reserve 2 more slots at once).
 
 ### 15.4 P-STEPCUT
 
@@ -864,12 +913,13 @@ pub struct Config {
     pub lazy_conditions: bool,    // D-DEFER / NeedAction (§14.1)
     pub lazy_active_conditions: bool, // D-PENDING / NeedCondition (§14.1)
     pub function_symmetry: bool,  // P-SYM (§14.4)
-    pub peephole: bool,           // P-PAINT, P-TURN, P-EMPTYFN, P-ENDDEAD, P-CRASH
+    pub peephole: bool,           // P-PAINT, P-TURN, P-EMPTYFN, P-SINGLE, P-RESERVE, P-ENDDEAD, P-CRASH
     pub cycle_detection: bool,    // C-OBSERVE and C-PUMP (§12)
     pub step_cut: bool,           // P-STEPCUT (§15.4)
     pub heuristic: bool,          // phases 2–3 of SOLVE (§17.3); off = exact only
     pub history: bool,            // history heuristic in §17.3 (ordering only)
     pub anonymous_functions: bool, // D-NEWFN / INV-FIT (§14.5)
+    pub condition_sets: bool,     // D-DEFER-SET / D-NARROW (§13, §14.1)
 }   // Default: all true
 ```
 
@@ -877,7 +927,7 @@ Disabling a flag MUST remove only the optimization; it MUST NOT forbid any
 program. In particular, disabling `lazy_conditions` MUST expand dormant
 conditions eagerly (the last row of §14.1), not drop them, and disabling
 `lazy_active_conditions` MUST generate both `Any: a` and `Color(cur): a`.
-Every `Config` (all 128 combinations of the flags that shape exact search)
+Every `Config` (all 256 combinations of the flags that shape exact search)
 MUST yield the same minimal cost.
 
 P-CONN, P-COLOR and P-DISABLED are part of the representation and have no
@@ -1107,7 +1157,7 @@ time.
 | **INV-PURE** | `normalize` never modifies the program. | code structure (`&PartialProgram`) |
 | **INV-STACK** | No suspended frame is exhausted (§11.2). | TV-10, `t_rebuild_middle` |
 | **INV-FIT** | With anonymous functions, the auxiliary bodies can always be matched to distinct real functions of sufficient capacity (§14.5). | `t_anonymous_functions_fit_and_realize`, assert in Realize |
-| **INV-FIN** | The first solution found contains no `CondOnly`. | `debug_assert` in FINALIZE |
+| **INV-FIN** | The first solution found contains no `CondOnly` or `CondSet`. | `debug_assert` in FINALIZE |
 | **INV-VERIFY** | Every returned solution succeeds in `REFERENCE_RUN`. | `assert` in FINALIZE |
 | **INV-ORDER-ONLY** | Heuristics reorder candidates and never remove them. | code review |
 | **INV-DETERMINISM** | Same input and `Config` give the same result and statistics. | run twice, compare |
@@ -1320,7 +1370,8 @@ Test names are those of the implementation (`cargo test` in `solver/`).
 | `t_candidates` | TV-14a … TV-14i. |
 | `t_p_sym_callable_sets` | TV-15. |
 | `t_p_turn`, `t_p_paint` | TV-16, P-PAINT. |
-| `t_e2e_min_cost_all_configs` | §24.5 under all 128 `Config` combinations (this is also `t_config_equivalence`). |
+| `t_e2e_min_cost_all_configs` | §24.5 under all 256 `Config` combinations (this is also `t_config_equivalence`). |
+| `t_condition_sets_bruteforce` | 30 random tiny three-color puzzles (capacities `[3]` or `[2, 2]`): with and without D-DEFER-SET, exact search matches exhaustive enumeration. |
 | `t_anonymous_functions_fit_and_realize` | INV-FIT on capacities 1, 3, 2; Realize maps bodies and renames calls in `Resolved` and `Pending` cells; output slot counts equal real capacities. |
 | `t_anonymous_functions_bruteforce` | 25 random tiny puzzles with auxiliary capacities `[2, 1]` or `[1, 2]`: anonymous and labelled exact search both match exhaustive enumeration. |
 | `t_e2e_bruteforce` | 60 random tiny puzzles: `SOLVE` matches exhaustive enumeration under three configurations, including unsolvable cases. |
@@ -1385,6 +1436,7 @@ solver <catalog.json> [--id <sourceId>]... [--all]
        [--exact-only]                 phase 1 only (config.heuristic = false)
        [--no-history]                 heuristic phase without the history heuristic
        [--no-anonymous-functions]     keep auxiliary function identities (P-SYM only)
+       [--no-condition-sets]          one deferred cell per color (no D-DEFER-SET)
        [--out <solutions.json>]
        [--jobs <n>]                    puzzles solved in parallel, default: all CPUs
        [--no-lazy-conditions] [--no-lazy-active-conditions]
@@ -1462,6 +1514,8 @@ heuristic (unsound) pruning (the heuristic phase only reorders); pushdown analys
 | P-CRASH, P-ENDDEAD | §14.1, §15.3a | `t_candidates` (TV-14i), `t_e2e_min_cost_all_configs` |
 | D-PENDING, D-CHOOSE, N-NEEDCOND | §10, §13, §14 | `t_candidates` (TV-14g/h), `t_frontier_no_step`, `t_e2e_min_cost_all_configs`, `t_e2e_bruteforce` |
 | P-STEPCUT | §15.4 | `t_e2e_min_cost_all_configs` |
+| D-DEFER-SET, D-NARROW, N-NEEDSET | §10, §13, §14 | `t_candidates`, `t_frontier_no_step`, `t_condition_sets_bruteforce` |
+| P-SINGLE, P-RESERVE | §15.3b, §15.5 | `t_anonymous_functions_fit_and_realize`, `t_e2e_bruteforce`, `t_anonymous_functions_bruteforce`, `t_e2e_min_cost_all_configs` |
 | D-NEWFN, INV-FIT, Realize | §14.5 | `t_anonymous_functions_fit_and_realize`, `t_anonymous_functions_bruteforce`, `t_e2e_min_cost_all_configs` |
 | Phases, LDS, shrink | §17.1, §17.3 | `t_heuristic_phase_alone`, `t_shrink_removes_redundant_cells`, `t_node_limited_solve_is_deterministic`, Dart test |
 | INV-* | §21 | see §21; INV-PREFIX, INV-COST, INV-FIN as `debug_assert` in every test run |

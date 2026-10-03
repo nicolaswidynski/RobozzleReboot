@@ -48,6 +48,20 @@ SPEC.md'deki isimler kullanılır.
 > (satranç motorlarındaki gibi) her kararın altında görülen en iyi ilerlemeyi,
 > ölü dallar dahil, hatırlar ve o kararları önce dener. Sadece sıralamayı
 > değiştirir; 444 → 461.
+>
+> **v1.4 — çatışmadan öğrenme neden yok, yerine ne var.** SAT çözücülerdeki
+> gibi nogood öğrenme + geri sıçrama önerisi muhalif bir incelemeyle
+> ölçüldü: tembel sentezde her karar verilen hücre hatadan önce çalışır ve
+> RoboZZle'da çalışan her komut robotun pozunu ya da kontrol akışını
+> etkiler. 1,82 milyon ölü yaprakta sağlam sebep kümesi yolun %98,7–99,6'sı
+> çıktı; boyasız bulmacalarda %100. Geri sıçrama kronolojik geri dönüşe
+> dönüşüyor (%0,1–1,8 kazanç). Onun yerine aynı ilkenin ("gözlemlenene kadar
+> karar verme", "en kısa çözümde olamayacak şeyi üretme") yeni örnekleri
+> eklendi: **anonim yardımcı fonksiyonlar** (kapasite sınıfları arasındaki
+> isim simetrisi, INV-FIT eşleştirmesiyle), **D-DEFER-SET** (ertelenen
+> rengin kendisi de ertelenir), **P-SINGLE** (yardımcı fonksiyon tek hücreli
+> olamaz) ve **P-RESERVE** (çağrılan her yardımcı fonksiyona en az 2 slot
+> ayrılır: ilk kanıtlı alt sınır).
 
 Kimlik etiketleri (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) koddaki
 yorumlarda ve test isimlerinde referans olarak kullanılır. Örneğin bir budama
@@ -1053,6 +1067,21 @@ names from SPEC.md.
 > engines) remembers the best progress seen below each decision, dead
 > branches included, and tries those decisions first. It only reorders;
 > 444 → 461.
+>
+> **v1.4 — why no conflict learning, and what replaced it.** The proposal
+> to add SAT-style nogood learning and backjumping was measured by an
+> adversarial review: in lazy synthesis every decided cell executes before
+> the failure, and every executed RoboZZle instruction affects the robot's
+> pose or the control flow. Over 1.82 M dead leaves, sound reason sets held
+> 98.7–99.6 % of the path's decisions, 100 % in paint-free puzzles;
+> backjumping degenerates to chronological backtracking (0.1–1.8 % saved).
+> Instead, new instances of the same principles ("do not decide until it is
+> observable", "do not generate what a minimal solution cannot contain")
+> were added: **anonymous auxiliary functions** (name symmetry across
+> capacity classes, with the INV-FIT matching), **D-DEFER-SET** (the
+> deferred color itself is deferred), **P-SINGLE** (an auxiliary function
+> never has exactly one cell) and **P-RESERVE** (every called auxiliary
+> function reserves at least 2 slots: the first sound lower bound).
 
 Rule IDs (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) are referenced from code
 comments and test names. For example, the code implementing a pruning rule

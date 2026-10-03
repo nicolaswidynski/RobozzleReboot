@@ -59,6 +59,7 @@ fn decision_code(kid: &SearchState, f: FnId, index: u8) -> usize {
         }
         Cell::CondOnly(c) => 45 + c as usize,
         Cell::Pending { action, color } => 48 + color as usize * 11 + action_code(action),
+        Cell::CondSet(mask) => 81 + mask.0 as usize, // 84, 86 or 87
         Cell::Unused => unreachable!(),
     }
 }
@@ -295,7 +296,9 @@ impl Solver<'_> {
     }
 
     fn finalize_heuristic(&mut self, state: &SearchState) -> Solution {
-        let program = self.realize(&state.program).to_physical_dropping_cond_only();
+        let program = self
+            .realize(&state.program)
+            .to_physical_dropping_cond_only();
         let run = reference_run(self.puzzle, &program);
         assert_eq!(
             run.status,

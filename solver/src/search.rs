@@ -12,7 +12,9 @@ use crate::puzzle::StaticPuzzle;
 use crate::reference::{RunStatus, reference_run};
 use crate::stack::{self, StackArena};
 use crate::stats::{Config, Deadline, Limits, SearchStats};
-use crate::types::{Action, Color, Condition, FnId, Instruction, MAX_FUNCTIONS, MAX_STEPS};
+use crate::types::{
+    Action, Color, ColorMask, Condition, FnId, Instruction, MAX_FUNCTIONS, MAX_STEPS,
+};
 
 /// A branch's complete semantic state (SPEC §6). `Copy`, no heap.
 #[derive(Debug, Clone, Copy)]
@@ -37,6 +39,8 @@ pub enum Candidate {
     Defer(Color),
     /// `Pending { action, color: current tile color }` (D-PENDING).
     Pending(Action, Color),
+    /// `CondSet(colors)` (D-DEFER-SET).
+    DeferSet(ColorMask),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -168,7 +172,11 @@ impl<'a> Solver<'a> {
                 self.capacities[f] = 0;
             }
         }
-        let mut aux: ArrayVec<u8, 4> = self.capacities[1..].iter().copied().filter(|&c| c > 0).collect();
+        let mut aux: ArrayVec<u8, 4> = self.capacities[1..]
+            .iter()
+            .copied()
+            .filter(|&c| c > 0)
+            .collect();
         aux.sort_unstable_by(|a, b| b.cmp(a));
         if self.config.anonymous_functions {
             let largest = aux.first().copied().unwrap_or(0);
@@ -211,8 +219,8 @@ impl<'a> Solver<'a> {
             if cap == 0 || introduced & (1 << f) != 0 {
                 continue;
             }
-            let lower_fresh_same_class = (1..f)
-                .any(|g| self.capacities[g] == cap && introduced & (1 << g) == 0);
+            let lower_fresh_same_class =
+                (1..f).any(|g| self.capacities[g] == cap && introduced & (1 << g) == 0);
             if !lower_fresh_same_class {
                 callable |= 1 << f;
             }
@@ -247,7 +255,13 @@ impl<'a> Solver<'a> {
     /// capacity (sorted greedy matching is exact for threshold constraints).
     fn aux_fits(&self, program: &PartialProgram, f: FnId, len: u8) -> bool {
         let mut lens: ArrayVec<u8, 4> = (1..=self.aux_capacities.len())
-            .map(|g| if g == f as usize { len } else { program.functions[g].len })
+            .map(|g| {
+                if g == f as usize {
+                    len
+                } else {
+                    program.functions[g].len
+                }
+            })
             .collect();
         lens.sort_unstable_by(|a, b| b.cmp(a));
         lens.iter().zip(&self.aux_capacities).all(|(l, c)| l <= c)
@@ -281,17 +295,24 @@ impl<'a> Solver<'a> {
             other => other,
         };
         let mut out = PartialProgram::new(self.puzzle.capacities);
-        for g in 0..=n {
-            let src = &program.functions[g];
+        for (src, &target) in program.functions.iter().zip(&name).take(n + 1) {
             if src.len == 0 {
                 continue;
             }
-            let dst = &mut out.functions[name[g] as usize];
-            assert!(src.len <= dst.capacity, "INV-FIT violated: body does not fit");
+            let dst = &mut out.functions[target as usize];
+            assert!(
+                src.len <= dst.capacity,
+                "INV-FIT violated: body does not fit"
+            );
             for (k, cell) in src.decided().iter().enumerate() {
                 dst.cells[k] = match *cell {
-                    Cell::Resolved(i) => Cell::Resolved(Instruction::new(i.condition, rename(i.action))),
-                    Cell::Pending { action, color } => Cell::Pending { action: rename(action), color },
+                    Cell::Resolved(i) => {
+                        Cell::Resolved(Instruction::new(i.condition, rename(i.action)))
+                    }
+                    Cell::Pending { action, color } => Cell::Pending {
+                        action: rename(action),
+                        color,
+                    },
                     other => other,
                 };
             }
@@ -506,12 +527,13 @@ impl<'a> Solver<'a> {
                     self.stats.prune_step_cut += 1;
                     return out;
                 }
+                // D-RESOLVE: the member conditioned on `condition` runs now.
                 for action in self.need_candidates(state, function, index, condition) {
                     let mut child = *state;
                     child
                         .program
                         .function_mut(function)
-                        .resolve_cond_only(index, action);
+                        .resolve_deferred(index, condition, action);
                     if let Action::Call(g) = action {
                         child.introduced_functions |= 1 << g;
                     }
@@ -519,6 +541,20 @@ impl<'a> Solver<'a> {
                     if self.over_reserve(&child, budget) {
                         continue;
                     }
+                    out.push(child);
+                }
+                // D-NARROW: the members of a CondSet that still skip on
+                // `condition`; normalize then skips the cell (one step).
+                if let Cell::CondSet(mask) = state.program.function(function).cell(index) {
+                    let rest = ColorMask(mask.0 & !(1 << condition as u8));
+                    let mut child = *state;
+                    child.program.function_mut(function).cells[index as usize] =
+                        if rest.count() == 1 {
+                            Cell::CondOnly(rest.iter().next().expect("one color"))
+                        } else {
+                            Cell::CondSet(rest)
+                        };
+                    self.stats.condset_narrowed += 1;
                     out.push(child);
                 }
             }
@@ -551,6 +587,11 @@ impl<'a> Solver<'a> {
                 s.program.function_mut(f).push(Cell::CondOnly(c));
                 s.used_slots += 1;
                 self.stats.condonly_created += 1;
+            }
+            Candidate::DeferSet(mask) => {
+                s.program.function_mut(f).push(Cell::CondSet(mask));
+                s.used_slots += 1;
+                self.stats.condset_created += 1;
             }
             Candidate::Pending(action, color) => {
                 s.program
@@ -611,11 +652,22 @@ impl<'a> Solver<'a> {
     /// checked separately.
     pub(crate) fn assert_shape(&self, program: &ResolvedProgram) {
         for (f, slots) in program.functions.iter().enumerate() {
-            assert_eq!(slots.len(), self.puzzle.capacities[f] as usize, "F{} slot count", f + 1);
+            assert_eq!(
+                slots.len(),
+                self.puzzle.capacities[f] as usize,
+                "F{} slot count",
+                f + 1
+            );
             for i in slots.iter().flatten() {
                 match i.action {
-                    Action::Call(g) => assert!(self.puzzle.capacities[g as usize] > 0, "call to disabled F{}", g + 1),
-                    Action::Paint(c) => assert!(self.puzzle.allowed_paints.contains(c), "paint not allowed"),
+                    Action::Call(g) => assert!(
+                        self.puzzle.capacities[g as usize] > 0,
+                        "call to disabled F{}",
+                        g + 1
+                    ),
+                    Action::Paint(c) => {
+                        assert!(self.puzzle.allowed_paints.contains(c), "paint not allowed")
+                    }
                     _ => {}
                 }
             }
@@ -730,7 +782,8 @@ impl<'a> Solver<'a> {
         let mut out = Candidates::new();
         // INV-FIT: with anonymous functions, appending to an auxiliary body
         // must keep the bodies matchable to the real capacities.
-        let fits = !self.config.anonymous_functions || f == 0 || self.aux_fits(&state.program, f, k + 1);
+        let fits =
+            !self.config.anonymous_functions || f == 0 || self.aux_fits(&state.program, f, k + 1);
         if !fits {
             self.stats.prune_capacity += 1;
         }
@@ -771,7 +824,17 @@ impl<'a> Solver<'a> {
                 }
             }
             if pc.count() >= 2 {
-                for d in pc.iter().filter(|&d| d != cur) {
+                let deferred = ColorMask(pc.0 & !(1 << cur as u8));
+                let as_set = self.config.lazy_conditions
+                    && self.config.condition_sets
+                    && deferred.count() >= 2;
+                if as_set {
+                    out.push(Candidate::DeferSet(deferred)); // D-DEFER-SET
+                }
+                for d in deferred.iter() {
+                    if as_set {
+                        continue;
+                    }
                     if self.config.lazy_conditions {
                         out.push(Candidate::Defer(d));
                     } else {
@@ -870,6 +933,10 @@ mod tests {
                 Candidate::End => "END".to_string(),
                 Candidate::Place(i) => instruction_token(i),
                 Candidate::Defer(c) => format!("{}:?", c.name()),
+                Candidate::DeferSet(m) => format!(
+                    "{{{}}}:?",
+                    m.iter().map(Color::name).collect::<Vec<_>>().join(",")
+                ),
                 Candidate::Pending(a, c) => format!(
                     "{}|any:{}",
                     c.name(),
@@ -954,6 +1021,24 @@ mod tests {
                 "blue:?"
             ])
         );
+        // D-DEFER-SET: with three possible colors, one deferred set instead
+        // of one CondOnly per other color.
+        let three = puzzle(&["rgbB"], (0, 0), "right", &[2], 0);
+        let c = root_candidates(&three, lazy, 1);
+        assert!(c.contains(&"{green,blue}:?".to_string()), "{c:?}");
+        assert!(!c.iter().any(|x| x == "green:?" || x == "blue:?"));
+        let per_color = root_candidates(
+            &three,
+            Config {
+                condition_sets: false,
+                ..lazy
+            },
+            1,
+        );
+        assert!(
+            per_color.contains(&"green:?".to_string()) && per_color.contains(&"blue:?".to_string())
+        );
+        assert_eq!(per_color.len(), c.len() + 1);
         // P-CRASH: facing a gap, no Forward is generated.
         let wall = puzzle(&["rbB"], (0, 0), "left", &[2], 0);
         assert!(
@@ -1237,7 +1322,16 @@ mod tests {
     fn t_anonymous_functions_fit_and_realize() {
         // Real auxiliary capacities: F2 = 1, F3 = 3, F5 = 2 (F4 disabled).
         let p = puzzle(&["bbbbB"], (0, 0), "right", &[2, 1, 3, 0, 2], 0);
-        let solver = Solver::new(&p, Config::default(), Limits::default());
+        // With peephole on, P-SINGLE disables the capacity-1 function.
+        let pruned = Solver::new(&p, Config::default(), Limits::default());
+        assert_eq!(pruned.capacities, [2, 3, 3, 0, 0]);
+        assert_eq!(pruned.aux_capacities.as_slice(), &[3, 2]);
+        // The rest of this test exercises INV-FIT with three capacities.
+        let config = Config {
+            peephole: false,
+            ..Config::default()
+        };
+        let solver = Solver::new(&p, config, Limits::default());
         assert_eq!(solver.capacities, [2, 3, 3, 3, 0]);
         assert_eq!(solver.aux_capacities.as_slice(), &[3, 2, 1]);
         let mut prog = solver.root().program;
@@ -1255,8 +1349,12 @@ mod tests {
 
         // Realize: the longest body goes to F3, the next to F5, the shortest
         // to F2, and calls follow.
-        prog.function_mut(0).push(Cell::Resolved(Instruction::any(Action::Call(2))));
-        prog.function_mut(0).push(Cell::Pending { action: Action::Call(3), color: Color::Blue });
+        prog.function_mut(0)
+            .push(Cell::Resolved(Instruction::any(Action::Call(2))));
+        prog.function_mut(0).push(Cell::Pending {
+            action: Action::Call(3),
+            color: Color::Blue,
+        });
         let real = solver.realize(&prog);
         assert_eq!(real.functions[2].len, 3); // internal 1 -> F3
         assert_eq!(real.functions[4].len, 2); // internal 2 -> F5
@@ -1266,11 +1364,17 @@ mod tests {
             real.functions[0].decided(),
             &[
                 Cell::Resolved(Instruction::any(Action::Call(4))),
-                Cell::Pending { action: Action::Call(1), color: Color::Blue },
+                Cell::Pending {
+                    action: Action::Call(1),
+                    color: Color::Blue
+                },
             ]
         );
         let tokens = real.to_physical().to_tokens();
-        assert_eq!(tokens.iter().map(Vec::len).collect::<Vec<_>>(), vec![2, 1, 3, 0, 2]);
+        assert_eq!(
+            tokens.iter().map(Vec::len).collect::<Vec<_>>(),
+            vec![2, 1, 3, 0, 2]
+        );
     }
 
     /// Anonymous functions against exhaustive enumeration on tiny puzzles
@@ -1283,8 +1387,13 @@ mod tests {
         let mut solved = 0;
         while checked < 25 {
             let (rows, cols) = (1 + rng.below(3) as usize, 2 + rng.below(3) as usize);
-            let mut grid: Vec<Vec<char>> =
-                (0..rows).map(|_| (0..cols).map(|_| if rng.below(4) == 0 { ' ' } else { 'b' }).collect()).collect();
+            let mut grid: Vec<Vec<char>> = (0..rows)
+                .map(|_| {
+                    (0..cols)
+                        .map(|_| if rng.below(4) == 0 { ' ' } else { 'b' })
+                        .collect()
+                })
+                .collect();
             grid[0][0] = 'b';
             let tiles: Vec<(usize, usize)> = (0..rows)
                 .flat_map(|r| (0..cols).map(move |c| (r, c)))
@@ -1297,7 +1406,11 @@ mod tests {
                 let (r, c) = tiles[rng.below(tiles.len() as u64) as usize];
                 grid[r][c] = 'B';
             }
-            let caps: &[i64] = if rng.below(2) == 0 { &[1, 2, 1] } else { &[1, 1, 2] };
+            let caps: &[i64] = if rng.below(2) == 0 {
+                &[1, 2, 1]
+            } else {
+                &[1, 1, 2]
+            };
             let rows_s: Vec<String> = grid.iter().map(|r| r.iter().collect()).collect();
             let rows_ref: Vec<&str> = rows_s.iter().map(|s| s.as_str()).collect();
             let dirs = ["up", "right", "down", "left"];
@@ -1308,13 +1421,85 @@ mod tests {
             checked += 1;
             let expected = brute_force_min(&p);
             for anonymous_functions in [true, false] {
-                let config = Config { anonymous_functions, heuristic: false, ..Config::default() };
+                let config = Config {
+                    anonymous_functions,
+                    heuristic: false,
+                    ..Config::default()
+                };
                 let got = match solve_default(&p, config).outcome {
                     Outcome::Solved(s) => Some(s.cost),
                     Outcome::Unsolvable(UnsolvableReason::Exhausted) => None,
                     other => panic!("{other:?}"),
                 };
-                assert_eq!(got, expected, "{rows_s:?} caps {caps:?} anonymous={anonymous_functions}");
+                assert_eq!(
+                    got, expected,
+                    "{rows_s:?} caps {caps:?} anonymous={anonymous_functions}"
+                );
+            }
+            solved += expected.is_some() as u32;
+        }
+        assert!(solved >= 5, "only {solved} solvable cases");
+    }
+
+    /// D-DEFER-SET against exhaustive enumeration on tiny three-color
+    /// puzzles (the other brute-force tests use at most two colors).
+    #[test]
+    fn t_condition_sets_bruteforce() {
+        let mut rng = Rng(99);
+        let palette = ['r', 'g', 'b'];
+        let (mut checked, mut solved) = (0, 0);
+        while checked < 30 {
+            let (rows, cols) = (1 + rng.below(3) as usize, 2 + rng.below(3) as usize);
+            let mut grid: Vec<Vec<char>> = (0..rows)
+                .map(|_| {
+                    (0..cols)
+                        .map(|_| {
+                            if rng.below(5) == 0 {
+                                ' '
+                            } else {
+                                palette[rng.below(3) as usize]
+                            }
+                        })
+                        .collect()
+                })
+                .collect();
+            grid[0][0] = palette[rng.below(3) as usize];
+            let tiles: Vec<(usize, usize)> = (0..rows)
+                .flat_map(|r| (0..cols).map(move |c| (r, c)))
+                .filter(|&(r, c)| grid[r][c] != ' ' && (r, c) != (0, 0))
+                .collect();
+            if tiles.is_empty() {
+                continue;
+            }
+            for _ in 0..1 + rng.below(2) {
+                let (r, c) = tiles[rng.below(tiles.len() as u64) as usize];
+                grid[r][c] = grid[r][c].to_ascii_uppercase();
+            }
+            let rows_s: Vec<String> = grid.iter().map(|r| r.iter().collect()).collect();
+            let rows_ref: Vec<&str> = rows_s.iter().map(|s| s.as_str()).collect();
+            let dirs = ["up", "right", "down", "left"];
+            let caps: &[i64] = if rng.below(2) == 0 { &[3] } else { &[2, 2] };
+            let p = puzzle(&rows_ref, (0, 0), dirs[rng.below(4) as usize], caps, 0);
+            if !p.stars_connected() || p.possible_colors.count() < 3 {
+                continue;
+            }
+            checked += 1;
+            let expected = brute_force_min(&p);
+            for condition_sets in [true, false] {
+                let config = Config {
+                    condition_sets,
+                    heuristic: false,
+                    ..Config::default()
+                };
+                let got = match solve_default(&p, config).outcome {
+                    Outcome::Solved(s) => Some(s.cost),
+                    Outcome::Unsolvable(UnsolvableReason::Exhausted) => None,
+                    other => panic!("{other:?}"),
+                };
+                assert_eq!(
+                    got, expected,
+                    "{rows_s:?} caps {caps:?} condition_sets={condition_sets}"
+                );
             }
             solved += expected.is_some() as u32;
         }

@@ -1,7 +1,7 @@
 //! Program model (SPEC §3) and the instruction syntax of the output (SPEC §26).
 
 use crate::types::{
-    Action, Color, Condition, FnId, Instruction, MAX_FUNCTION_SLOTS, MAX_FUNCTIONS,
+    Action, Color, ColorMask, Condition, FnId, Instruction, MAX_FUNCTION_SLOTS, MAX_FUNCTIONS,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -19,6 +19,10 @@ pub enum Cell {
         action: Action,
         color: Color,
     },
+    /// An occupied slot whose condition is one of the colors in the set
+    /// (at least two) and whose action is not chosen: every member skips
+    /// until the cell runs on one of these colors (D-DEFER-SET).
+    CondSet(ColorMask),
 }
 
 /// A left-packed function prefix (SPEC §3.1). `cells[0..len)` are decided;
@@ -86,6 +90,19 @@ impl FunctionDraft {
         }
     }
 
+    /// Resolves a deferred cell that has just run on `color`: a `CondOnly`
+    /// of that color, or a `CondSet` containing it, becomes
+    /// `Resolved{Color(color), action}`.
+    pub fn resolve_deferred(&mut self, index: u8, color: Color, action: Action) {
+        match self.cells[index as usize] {
+            Cell::CondOnly(c) => debug_assert_eq!(c, color),
+            Cell::CondSet(mask) => debug_assert!(mask.contains(color)),
+            other => panic!("slot {index} is {other:?}, not deferred"),
+        }
+        self.cells[index as usize] =
+            Cell::Resolved(Instruction::new(Condition::Color(color), action));
+    }
+
     pub fn resolve_pending(&mut self, index: u8, condition: Condition) {
         match self.cells[index as usize] {
             Cell::Pending { action, color } => {
@@ -125,9 +142,11 @@ impl PartialProgram {
     }
 
     pub fn has_cond_only(&self) -> bool {
-        self.functions
-            .iter()
-            .any(|f| f.decided().iter().any(|c| matches!(c, Cell::CondOnly(_))))
+        self.functions.iter().any(|f| {
+            f.decided()
+                .iter()
+                .any(|c| matches!(c, Cell::CondOnly(_) | Cell::CondSet(_)))
+        })
     }
 
     /// INV-PREFIX (SPEC §3.1).
@@ -151,6 +170,10 @@ impl PartialProgram {
                     .map(|c| match c {
                         Cell::Resolved(i) => instruction_token(*i),
                         Cell::CondOnly(color) => format!("{}:?", color.name()),
+                        Cell::CondSet(mask) => format!(
+                            "{{{}}}:?",
+                            mask.iter().map(Color::name).collect::<Vec<_>>().join(",")
+                        ),
                         Cell::Pending { action, color } => format!(
                             "{}|any:{}",
                             color.name(),
@@ -174,7 +197,7 @@ impl PartialProgram {
                 .decided()
                 .iter()
                 .copied()
-                .filter(|c| !matches!(c, Cell::CondOnly(_)))
+                .filter(|c| !matches!(c, Cell::CondOnly(_) | Cell::CondSet(_)))
                 .collect();
             d.cells = [Cell::Unused; MAX_FUNCTION_SLOTS];
             d.cells[..kept.len()].copy_from_slice(&kept);

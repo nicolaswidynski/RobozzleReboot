@@ -29,26 +29,26 @@ Exact search and the heuristic phase (LDS with the history heuristic,
 SPEC.md §17.3) alternate in equal, doubling slices and both resume where
 they stopped (SPEC.md §17.1). When the heuristic finds a solution, the rest
 of the budget goes to exact search below its cost. Wall time for the whole
-catalog: about 25 minutes (4.4 CPU-hours).
+catalog: 29 minutes.
 
 | Difficulty | Solved / total | Proven minimal |
 |---|---|---|
 | ★ | 7 / 7 | 7 |
-| ★★ | 182 / 223 | 166 |
-| ★★★ | 240 / 533 | 175 |
-| ★★★★ | 31 / 134 | 18 |
+| ★★ | 184 / 223 | 170 |
+| ★★★ | 257 / 533 | 198 |
+| ★★★★ | 29 / 134 | 17 |
 | ★★★★★ | 1 / 11 | 1 |
-| **All** | **461 / 908** | **367** |
+| **All** | **478 / 908** | **393** |
 
-- 147 solutions come from the heuristic phase (6 to 25 slots, median 11);
-  53 of them were then proven minimal by the remaining exact search.
-- For the 94 solutions not proven minimal, `cost − lowerBound` is 1 to 17
-  (median 5).
-- The 447 timeouts all have a proven lower bound: minimal cost ≥ 6 (7
-  puzzles), 7 (231), 8 (179), 9 (18), 10 (8), 11 (3), 12 (1).
-- By number of functions in the puzzle: 1 function 138 / 149, 2 functions
-  199 / 278, 3 functions 98 / 246, 4 functions 19 / 133, 5 functions
-  7 / 102. Multi-function puzzles are the main open problem.
+- 133 solutions come from the heuristic phase (7 to 25 slots, median 11);
+  48 of them were then proven minimal by the remaining exact search.
+- For the 85 solutions not proven minimal, `cost − lowerBound` is 1 to 16
+  (median 4).
+- The 430 timeouts all have a proven lower bound: minimal cost ≥ 7 (51
+  puzzles), 8 (318), 9 (42), 10 (11), 11 (2), 12 (4), 13 (1), 14 (1).
+- By number of functions in the puzzle: 1 function 140 / 149, 2 functions
+  206 / 278, 3 functions 105 / 246, 4 functions 18 / 133, 5 functions
+  9 / 102. Multi-function puzzles remain the main open problem.
 
 ### How the heuristic phase evolved (20 M nodes per puzzle, except the first row)
 
@@ -60,11 +60,41 @@ Each row is a full catalog run; puzzle-by-puzzle comparisons in the notes.
 | Exact first (10 M), then heuristic (10 M) | 443 | 353 | +95 new, −10 that exact needed 10–18 M nodes for. |
 | Portfolio, exact : heuristic = 2 : 1, resumable | 436 | 365 | Recovered 6 of those 10, but lost 13 heuristic solutions that needed 5–9 M heuristic nodes: a heuristic node was worth ~2× an exact node at the margin. |
 | Portfolio 1 : 1 | 444 | 362 | |
-| **Portfolio 1 : 1 + history heuristic** | **461** | **367** | +41 / −24 against the previous row; ★★★★ 24 → 31, 3-function puzzles 84 → 98. |
+| Portfolio 1 : 1 + history heuristic | 461 | 367 | +41 / −24 against the previous row; ★★★★ 24 → 31, 3-function puzzles 84 → 98. |
+| + anonymous auxiliary functions (first version) | 460 | 372 | Lower bound higher on 73 puzzles, lower on none; +4 / −5 solved (heuristic reordering). |
+| **+ review fixes, P-SINGLE, P-RESERVE, D-DEFER-SET** | **478** | **393** | Against the history row: +38 / −21 solved, lower bound higher on 282 puzzles. |
 
-The union of all these runs solves 490 puzzles: changing the search order
-trades some puzzles for others. Running several orderings would therefore
-solve more, at a proportional cost in nodes.
+The union of all these runs solves 502 puzzles: changing the search order
+trades some puzzles for others (for example #851 was proven minimal when an
+early heuristic solution handed exact search 19 M nodes, and timed out when
+the heuristic found nothing and exact search had 10 M). Running several
+orderings would therefore solve more, at a proportional cost in nodes.
+
+### Exact-search tree size: anonymous auxiliary functions
+
+On the 250 puzzles whose auxiliary functions have at least two distinct
+capacities (exact search only, 5 M nodes each, first version without the
+review fixes), the number of nodes needed to exhaust a budget fell by a
+median factor of 1.84 (10th–90th percentile 1.49–2.81, max 7.8, 604
+budgets), and the proven lower bound rose on 58 puzzles. An adversarial
+review then showed that the first version could be up to 2 % larger on
+some budgets (nodes whose only child is END, lost tail calls); after its two
+fixes (close a body as soon as INV-FIT forbids growth; stronger P-ENDDEAD)
+every reported case is smaller than or equal to the labelled search, for
+example #1191 at budget 7: 933 530 nodes against 946 948.
+
+### Conflict learning, measured and rejected
+
+SAT-style nogood learning with backjumping was evaluated before building
+it. On 1.82 M dead leaves of 16 exactly solved puzzles, a sound reason set
+contained 99.6 % (crash), 99.1 % (program ended) and 98.7 % (loop) of the
+path's decisions, and 100 % on paint-free hard puzzles; classic
+conflict-directed backjumping saved 1.8 % and 0.1 % of nodes. In lazy
+synthesis every decided cell executes before the failure and every
+executed instruction affects the pose or the control flow, so learned
+clauses are nearly whole paths that never recur. The only real
+generalization (between deferred color siblings) is obtained more cheaply
+by D-DEFER-SET.
 
 ### Failure analysis that led to the history heuristic
 

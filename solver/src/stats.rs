@@ -26,6 +26,9 @@ pub struct Config {
     /// whatever their capacities; bodies are matched to real functions at
     /// the end, subject to INV-FIT.
     pub anonymous_functions: bool,
+    /// D-DEFER-SET: one deferred cell over all non-current colors instead
+    /// of one per color (needs `lazy_conditions`).
+    pub condition_sets: bool,
 }
 
 impl Default for Config {
@@ -40,15 +43,16 @@ impl Default for Config {
             heuristic: true,
             history: true,
             anonymous_functions: true,
+            condition_sets: true,
         }
     }
 }
 
 impl Config {
-    /// All 128 combinations of the flags that shape the exact search, for
+    /// All 256 combinations of the flags that shape the exact search, for
     /// `t_config_equivalence`.
     pub fn all_combinations() -> impl Iterator<Item = Config> {
-        (0u8..128).map(|b| Config {
+        (0u16..256).map(|b| Config {
             lazy_conditions: b & 1 != 0,
             function_symmetry: b & 2 != 0,
             peephole: b & 4 != 0,
@@ -58,6 +62,7 @@ impl Config {
             heuristic: true,
             history: true,
             anonymous_functions: b & 64 != 0,
+            condition_sets: b & 128 != 0,
         })
     }
 }
@@ -155,6 +160,9 @@ pub struct SearchStats {
     pub ends_selected: u64,
     pub condonly_created: u64,
     pub condonly_resolved: u64,
+    pub condset_created: u64,
+    /// `CondSet` cells narrowed to the colors that still skip.
+    pub condset_narrowed: u64,
     pub pending_created: u64,
     pub pending_resolved: u64,
     pub prune_crash: u64,

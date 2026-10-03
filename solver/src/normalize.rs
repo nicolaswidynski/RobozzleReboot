@@ -248,6 +248,25 @@ fn normalize_inner(
             })
         };
         match d.cells[frame.pc as usize] {
+            Cell::CondSet(mask) => {
+                let tile = machine.tile_color();
+                if mask.contains(tile) {
+                    // N-NEEDSET: the member conditioned on `tile` would run;
+                    // no step consumed, pc not advanced.
+                    stats.need_action_frontiers += 1;
+                    return NormalizeResult::NeedAction {
+                        function: frame.function,
+                        index: frame.pc,
+                        condition: tile,
+                    };
+                }
+                // Every member skips.
+                stats.instructions_evaluated += 1;
+                if let Err(e) = machine.consume_instruction() {
+                    return NormalizeResult::Dead(e);
+                }
+                advance(machine);
+            }
             Cell::CondOnly(c) => {
                 if machine.tile_color() == c {
                     // N-NEED
@@ -540,6 +559,34 @@ mod tests {
             (m.steps, m.current),
             (0, Some(Frame { function: 0, pc: 0 }))
         );
+
+        // CondSet: stops on a member color without consuming anything,
+        // skips (one step) on a color outside the set.
+        let set = |m: u8| {
+            let mut prog = PartialProgram::new(caps(&[2]));
+            prog.function_mut(0)
+                .push(Cell::CondSet(crate::types::ColorMask(m)));
+            prog
+        };
+        let (r, m, _) = run(&red, &set(0b011), 0, true); // {red, green} on red
+        assert_eq!(
+            r,
+            NormalizeResult::NeedAction {
+                function: 0,
+                index: 0,
+                condition: Color::Red
+            }
+        );
+        assert_eq!(m.steps, 0);
+        let (r, m, _) = run(&p, &set(0b011), 0, true); // {red, green} on blue
+        assert_eq!(
+            r,
+            NormalizeResult::OpenSlot {
+                function: 0,
+                index: 1
+            }
+        );
+        assert_eq!(m.steps, 1);
 
         // Pending on another color: NeedCondition, nothing consumed.
         let mut pend = PartialProgram::new(caps(&[2]));
