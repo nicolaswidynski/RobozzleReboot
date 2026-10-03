@@ -24,10 +24,14 @@ are cut only by rules with a proof in SPEC.md: exact loop and stack-pumping
 detection, function symmetry, local equivalences, and the engine's
 20 000-step limit. If that runs out of its share of the node budget, a
 heuristic phase (limited discrepancy search) explores the same tree,
-trying first the children that collect more stars, or whose decision led
-to the most stars anywhere so far (a history heuristic), and shrinks the
-program it finds. The two phases alternate and resume where they stopped. Every solution is re-run on an independent reference interpreter
-before it is reported.
+trying first the children that collect more stars, or whose decision has
+recently led to the most stars anywhere (a decaying history heuristic).
+Alongside it, local repair takes the best programs seen so far, which often
+die a cell or two away from a solution, and tries every single edit and
+some pairs of edits. A heuristic solution is shrunk by deleting cells that
+it does not need. The two phases alternate and resume where they stopped.
+Every solution is re-run on an independent reference interpreter before it
+is reported.
 
 ## Build and run
 
@@ -47,6 +51,8 @@ cargo build --release
 
 `--node-limit N` sets the per-puzzle budget; the result depends only on it,
 not on machine speed. `--timeout-ms` adds an optional wall-clock limit.
+`--exact-only` and `--heuristic-only` run the EXACT and FINDER benchmarks
+(BENCHMARKS.md).
 
 Progress and a per-difficulty summary go to stderr; the JSON result
 (SPEC.md §26) goes to `--out` or stdout. `--jobs N` limits parallelism. The

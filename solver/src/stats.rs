@@ -22,6 +22,9 @@ pub struct Config {
     /// best progress seen anywhere in its subtrees so far (dead branches
     /// included). Ordering only.
     pub history: bool,
+    /// The history entries are decaying maxima (a worse subtree pulls an
+    /// entry down) instead of plain maxima. Ordering only.
+    pub history_decay: bool,
     /// Anonymous auxiliary functions (D-NEWFN): F2..F5 are interchangeable
     /// whatever their capacities; bodies are matched to real functions at
     /// the end, subject to INV-FIT.
@@ -29,6 +32,23 @@ pub struct Config {
     /// D-DEFER-SET: one deferred cell over all non-current colors instead
     /// of one per color (needs `lazy_conditions`).
     pub condition_sets: bool,
+    /// FINDER benchmark mode: heuristic phase only, no exact search (so no
+    /// optimality proofs and no lower bounds).
+    pub heuristic_only: bool,
+    /// Local repair in the heuristic phase (`repair.rs`): search the edit
+    /// neighbourhood of the best programs seen. Uses nodes, never prunes.
+    pub repair: bool,
+    /// Largest share of the heuristic phase's nodes (percent) that repair
+    /// may use.
+    pub repair_share: u8,
+}
+
+/// Default `Config::repair_share`: repair may use a quarter of the heuristic
+/// phase's nodes.
+pub const DEFAULT_REPAIR_SHARE: u8 = 25;
+
+fn is_zero(n: &u64) -> bool {
+    *n == 0
 }
 
 impl Default for Config {
@@ -42,8 +62,12 @@ impl Default for Config {
             step_cut: true,
             heuristic: true,
             history: true,
+            history_decay: true,
             anonymous_functions: true,
             condition_sets: true,
+            heuristic_only: false,
+            repair: true,
+            repair_share: DEFAULT_REPAIR_SHARE,
         }
     }
 }
@@ -61,8 +85,12 @@ impl Config {
             lazy_active_conditions: b & 32 != 0,
             heuristic: true,
             history: true,
+            history_decay: true,
             anonymous_functions: b & 64 != 0,
             condition_sets: b & 128 != 0,
+            heuristic_only: false,
+            repair: true,
+            repair_share: DEFAULT_REPAIR_SHARE,
         })
     }
 }
@@ -204,4 +232,31 @@ pub struct SearchStats {
     pub heuristic_best_program: Option<Vec<Vec<String>>>,
     pub heuristic_best_position: Option<(usize, usize)>,
     pub heuristic_best_remaining: Option<Vec<(usize, usize)>>,
+    /// Repair telemetry (`Config::repair`; omitted when zero). Programs
+    /// repaired, nodes charged for their simulations (included in
+    /// `search_nodes`), simulations and instructions simulated.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub repairs: u64,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub repair_nodes: u64,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub repair_simulations: u64,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub repair_instructions: u64,
+    /// Repairs that succeeded with the completed program itself, at edit
+    /// distance 1, at edit distance 2.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub repair_found_d0: u64,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub repair_found_d1: u64,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub repair_found_d2: u64,
+    /// Nodes spent on distance-1 and distance-2 neighbourhoods.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub repair_d1_nodes: u64,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub repair_d2_nodes: u64,
+    /// Repaired programs that REFERENCE_RUN rejected (a simulator bug).
+    #[serde(skip_serializing_if = "is_zero")]
+    pub repair_rejected: u64,
 }

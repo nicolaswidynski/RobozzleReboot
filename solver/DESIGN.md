@@ -62,6 +62,34 @@ SPEC.md'deki isimler kullanılır.
 > rengin kendisi de ertelenir), **P-SINGLE** (yardımcı fonksiyon tek hücreli
 > olamaz) ve **P-RESERVE** (çağrılan her yardımcı fonksiyona en az 2 slot
 > ayrılır: ilk kanıtlı alt sınır).
+>
+> **v1.5 — ölçüm disiplini.** Ürün modu tek bir node bütçesini kesin ve
+> sezgisel arama arasında paylaştırır; bir değişiklik birini iyileştirip
+> diğerini kötüleştirebilir ve toplam neredeyse kıpırdamaz. Bu yüzden her
+> değişiklik hedeflediği benchmark'ta ölçülür: **EXACT** (`--exact-only`:
+> kanıtlanan optimumlar ve alt sınırlar), **FINDER** (`--heuristic-only`:
+> bulunan çözümler) ve **PRODUCT** (varsayılan mod: kullanıcının aldığı).
+> Geliştirme 150 bulmacalık sabit bir dev set üzerinde 5 M node ile yapılır;
+> tam katalog yalnızca bir değişikliği doğrulamak için koşulur.
+>
+> **v1.6 — azalan history ve yerel onarım.** Dev set'teki telemetri iki şey
+> gösterdi. (1) History heuristic'in düz maksimumu, bir kez uzağa gidip sonra
+> hep hayal kırıklığı yaratan bir kararı sonsuza kadar öne çeker. **Azalan
+> history** (SPEC §17.3): alt ağaç girdiyi geçerse girdi hemen yükselir
+> (bonus), geçemezse ona doğru dörtte bir iner (malus). Stockfish tarzı
+> "gravity" tabloları, önceki karara ya da robotun durumuna göre anahtarlanan
+> bağlamsal tablolar ve farklı azalma hızları da ölçüldü; en basiti kazandı
+> (BENCHMARKS.md). (2) LDS çoğu zaman bir çözüme bir-iki hücre uzaklıkta
+> ölen programlara ulaşır, ama o çözüme ancak çok daha fazla sapmayla
+> varabilir. **Yerel onarım** (SPEC §17.5) en iyi programların düzenleme
+> komşuluğunu doğrudan arar: bir hücreyi değiştirmek, silmek ya da araya
+> eklemek, ve iki düzenleme. Her aday, ortak önek yeniden çalıştırılmadan,
+> ilk farklılaştığı noktadan simüle edilir. Onarım node harcar ama hiçbir
+> şeyi budamaz ve sıralamayı değiştirmez; bulduğu her program sezgisel
+> çözümler gibi referans yorumlayıcıda doğrulanır. Dev set'te (5 M node)
+> FINDER 26 → 40, PRODUCT 20 → 29; tam katalogda (20 M node) çözülen
+> bulmaca 478 → 521, kanıtlı en kısa 393 → 399, 4 fonksiyonlu bulmacalar
+> 18 → 34.
 
 Kimlik etiketleri (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) koddaki
 yorumlarda ve test isimlerinde referans olarak kullanılır. Örneğin bir budama
@@ -1082,6 +1110,34 @@ names from SPEC.md.
 > deferred color itself is deferred), **P-SINGLE** (an auxiliary function
 > never has exactly one cell) and **P-RESERVE** (every called auxiliary
 > function reserves at least 2 slots: the first sound lower bound).
+>
+> **v1.5 — measurement discipline.** The product mode shares one node
+> budget between exact and heuristic search, so a change can help one and
+> hurt the other while the total barely moves. Every change is therefore
+> measured on the benchmark it targets: **EXACT** (`--exact-only`: proven
+> optima and lower bounds), **FINDER** (`--heuristic-only`: solutions found)
+> and **PRODUCT** (the default mode: what users get). Development uses a
+> fixed dev set of 150 puzzles at 5 M nodes; the full catalog only confirms
+> a change.
+>
+> **v1.6 — decaying history and local repair.** Telemetry on the dev set
+> showed two things. (1) The history heuristic's plain maximum keeps pulling
+> forward a decision that once led far and has disappointed ever since.
+> **Decaying history** (SPEC §17.3): a subtree that beats the entry raises
+> it at once (a bonus), one that does worse pulls it a quarter of the way
+> down (a malus). Stockfish-style gravity tables, contextual tables keyed by
+> the previous decision or the robot's situation, and other decay rates were
+> measured too; the simplest won (BENCHMARKS.md). (2) LDS often reaches
+> programs that die one or two cells away from a solution it would reach
+> only after many more discrepancies. **Local repair** (SPEC §17.5) searches
+> the edit neighbourhood of the best programs directly: replace, delete or
+> insert one cell, and pairs of edits. Each candidate is simulated from the
+> point where it first diverges, without re-running the shared prefix.
+> Repair uses nodes but never prunes or reorders, and every program it
+> finds is verified on the reference interpreter like any heuristic
+> solution. On the dev set (5 M nodes): FINDER 26 → 40, PRODUCT 20 → 29;
+> on the full catalog (20 M nodes): 478 → 521 solved, 393 → 399 proven
+> minimal, 4-function puzzles 18 → 34.
 
 Rule IDs (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) are referenced from code
 comments and test names. For example, the code implementing a pruning rule

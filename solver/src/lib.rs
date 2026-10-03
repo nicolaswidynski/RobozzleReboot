@@ -8,6 +8,7 @@ pub mod normalize;
 pub mod program;
 pub mod puzzle;
 pub mod reference;
+pub mod repair;
 pub mod search;
 pub mod stack;
 pub mod stats;

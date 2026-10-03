@@ -15,6 +15,16 @@
 //! analogue of a chess engine's history heuristic: a near-solution that died
 //! late keeps pulling the search back to its prefix. It only reorders.
 //!
+//! With `config.history_decay`, a history entry is a decaying maximum
+//! instead of a plain one: a subtree that does better than the entry raises
+//! it at once (a bonus), a subtree that does worse pulls it a quarter of the
+//! way down (a malus). A decision that once led far but keeps failing
+//! slowly loses its pull, so the search moves on to other prefixes.
+//!
+//! With `config.repair`, local repair (`repair.rs`) runs after every frame
+//! push: it tries small edits of the best programs seen so far, within a
+//! share of this phase's nodes.
+//!
 //! The first solution found is not necessarily minimal. It is verified on
 //! the reference interpreter, then shrunk by deleting cells while it still
 //! solves the puzzle.
@@ -27,7 +37,25 @@ use crate::reference::{RunStatus, reference_run};
 use crate::search::{FoundBy, SearchState, Solution, Solver, Step};
 use crate::types::{Action, Condition, FnId, MAX_FUNCTION_SLOTS, MAX_FUNCTIONS};
 
+/// (stars left × 16, walking distance, used slots, generation order).
 type Score = (u32, u16, u8, usize);
+
+/// History entries count stars × 16, so that a decaying entry keeps a
+/// fraction of a star.
+const HISTORY_SCALE: u32 = 16;
+/// A worse subtree pulls a decaying entry `1 / 2^DECAY_SHIFT` of the way
+/// down.
+const DECAY_SHIFT: u32 = 2;
+
+/// One decaying history entry: a better result is taken at once (bonus), a
+/// worse one pulls the entry toward it (malus).
+fn decay_toward(h: &mut u32, v: u32) {
+    if v > *h {
+        *h = v;
+    } else {
+        *h -= (*h - v) >> DECAY_SHIFT;
+    }
+}
 
 /// Distinct decision codes per slot (see `decision_code`).
 const CODES: usize = 128;
@@ -87,9 +115,13 @@ pub(crate) struct HeuristicCursor {
     allowance: u32,
     /// Whether the current iteration skipped a kid because of the allowance.
     cut: bool,
+    /// `search_nodes` when the current slice started.
+    slice_start: u64,
     started: bool,
     stack: Vec<HeuristicFrame>,
-    /// Best stars collected anywhere below each decision (history heuristic).
+    /// Best stars collected anywhere below each decision (history
+    /// heuristic), × `HISTORY_SCALE`; a decaying maximum with
+    /// `config.history_decay`.
     history: Vec<u32>,
 }
 
@@ -109,10 +141,16 @@ impl Solver<'_> {
     /// Continues LDS until a solution, until an iteration finishes without
     /// cutting anything (the whole space is searched), or until the node cap.
     pub(crate) fn heuristic_resume(&mut self) -> Step {
-        let before = self.stats.search_nodes;
+        self.heuristic.slice_start = self.stats.search_nodes;
         let step = self.heuristic_steps();
-        self.stats.heuristic_nodes += self.stats.search_nodes - before;
+        self.stats.heuristic_nodes += self.stats.search_nodes - self.heuristic.slice_start;
         step
+    }
+
+    /// Nodes used by the heuristic phase so far (repair included), also in
+    /// the middle of a slice.
+    pub(crate) fn heuristic_nodes_so_far(&self) -> u64 {
+        self.stats.heuristic_nodes + self.stats.search_nodes - self.heuristic.slice_start
     }
 
     fn heuristic_steps(&mut self) -> Step {
@@ -204,7 +242,10 @@ impl Solver<'_> {
             let collected = total - kid.machine.stars.len();
             best = best.max(collected);
             let h = &mut self.heuristic.history[key as usize];
-            *h = (*h).max(collected);
+            *h = (*h).max(collected * HISTORY_SCALE);
+            if self.config.repair && r != NormalizeResult::Solved {
+                self.repair_observe(&kid, collected);
+            }
             match r {
                 NormalizeResult::Solved => return Some(self.finalize_heuristic(&kid)),
                 NormalizeResult::Dead(_) => self.record_progress(&kid, false),
@@ -227,6 +268,11 @@ impl Solver<'_> {
             best,
             parent_key,
         });
+        if self.config.repair
+            && let Some(s) = self.repair_tick()
+        {
+            return Some(s);
+        }
         None
     }
 
@@ -239,7 +285,12 @@ impl Solver<'_> {
         }
         if let Some(key) = frame.parent_key {
             let h = &mut self.heuristic.history[key as usize];
-            *h = (*h).max(frame.best);
+            let v = frame.best * HISTORY_SCALE;
+            if self.config.history_decay {
+                decay_toward(h, v);
+            } else {
+                *h = (*h).max(v);
+            }
         }
     }
 
@@ -282,8 +333,8 @@ impl Solver<'_> {
 
     fn score(&self, kid: &SearchState, index: usize, key: u16) -> Score {
         let m = &kid.machine;
-        let total = self.puzzle.initial_stars.len();
-        let mut collected = total - m.stars.len();
+        let total = self.puzzle.initial_stars.len() * HISTORY_SCALE;
+        let mut collected = total - m.stars.len() * HISTORY_SCALE;
         if self.config.history {
             collected = collected.max(self.heuristic.history[key as usize]);
         }
@@ -299,6 +350,16 @@ impl Solver<'_> {
         let program = self
             .realize(&state.program)
             .to_physical_dropping_cond_only();
+        self.finalize_physical(program, FoundBy::Heuristic)
+    }
+
+    /// Verifies a complete physical program with `REFERENCE_RUN` (MUST
+    /// succeed), shrinks it, checks its shape and verifies it again.
+    pub(crate) fn finalize_physical(
+        &mut self,
+        program: ResolvedProgram,
+        found_by: FoundBy,
+    ) -> Solution {
         let run = reference_run(self.puzzle, &program);
         assert_eq!(
             run.status,
@@ -316,7 +377,7 @@ impl Solver<'_> {
             steps: run.steps,
             program,
             optimal: false,
-            found_by: FoundBy::Heuristic,
+            found_by,
         }
     }
 }
@@ -405,7 +466,7 @@ mod tests {
             match (solver.heuristic_resume(), optimum) {
                 (Step::Found(s), Some(opt)) => {
                     assert!(s.cost >= *opt);
-                    assert_eq!(s.found_by, FoundBy::Heuristic);
+                    assert!(matches!(s.found_by, FoundBy::Heuristic | FoundBy::Repair));
                 }
                 (Step::Exhausted, None) => {}
                 _ => panic!("{rows:?}: unexpected heuristic outcome"),
@@ -429,6 +490,53 @@ mod tests {
                 | (Outcome::Timeout, _) => {}
                 (other, _) => panic!("{rows:?}: {other:?}"),
             }
+        }
+    }
+
+    /// The history heuristic only reorders: with a decaying, a plain or no
+    /// history, LDS still finds a valid solution when one exists and proves
+    /// exhaustion otherwise, and a node-limited run is deterministic.
+    #[test]
+    fn t_history_variants() {
+        type Mc = (
+            &'static [&'static str],
+            (i64, i64),
+            &'static str,
+            &'static [i64],
+            Option<u8>,
+        );
+        let cases: &[Mc] = &[
+            (&["bbbB"], (0, 0), "right", &[3], Some(2)),
+            (&["Bbbb"], (0, 3), "right", &[4], None),
+            (&["bbb", "b b", "bbB"], (0, 0), "right", &[4], Some(4)),
+            (&["bbr", "  b", "  B"], (0, 0), "right", &[4], Some(3)),
+            (&["bbbbB"], (0, 0), "right", &[1, 2], Some(3)),
+            (&["BbbbB"], (0, 2), "left", &[3, 1], None),
+        ];
+        for (history, history_decay) in [(true, true), (true, false), (false, false)] {
+            let config = Config {
+                history,
+                history_decay,
+                ..Config::default()
+            };
+            for (rows, start, dir, caps, optimum) in cases {
+                let p = puzzle(rows, *start, dir, caps, 0);
+                let mut solver = Solver::new(&p, config, Limits::default());
+                match (solver.heuristic_resume(), optimum) {
+                    (Step::Found(s), Some(opt)) => assert!(s.cost >= *opt),
+                    (Step::Exhausted, None) => {}
+                    _ => panic!("{rows:?} {history} {history_decay}: unexpected outcome"),
+                }
+            }
+            let p = puzzle(&["bbr", "  b", "rbB"], (0, 0), "right", &[3, 2], 1);
+            let limits = Limits {
+                nodes: Some(500),
+                time: None,
+            };
+            let a = solve(&p, config, limits);
+            let b = solve(&p, config, limits);
+            assert_eq!(a.outcome, b.outcome);
+            assert_eq!(a.stats.search_nodes, b.stats.search_nodes);
         }
     }
 

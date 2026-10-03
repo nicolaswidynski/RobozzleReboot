@@ -10,6 +10,7 @@ use crate::normalize::{CycleDetector, NormalizeResult, normalize};
 use crate::program::{Cell, PartialProgram, ResolvedProgram};
 use crate::puzzle::StaticPuzzle;
 use crate::reference::{RunStatus, reference_run};
+use crate::repair::RepairPool;
 use crate::stack::{self, StackArena};
 use crate::stats::{Config, Deadline, Limits, SearchStats};
 use crate::types::{
@@ -47,6 +48,8 @@ pub enum Candidate {
 pub enum FoundBy {
     Exact,
     Heuristic,
+    /// Local repair of a near-solution (`Config::repair`).
+    Repair,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -93,6 +96,7 @@ pub struct Solver<'a> {
     pub(crate) deadline: Deadline,
     exact: ExactCursor,
     pub(crate) heuristic: HeuristicCursor,
+    pub(crate) repair: RepairPool,
     /// Capacities the search uses. With anonymous functions, every enabled
     /// auxiliary function gets the largest auxiliary capacity, at indices
     /// 1..=n in order of introduction; otherwise the real capacities.
@@ -157,6 +161,7 @@ impl<'a> Solver<'a> {
             deadline: Deadline::new(limits),
             exact: ExactCursor::default(),
             heuristic: HeuristicCursor::default(),
+            repair: RepairPool::default(),
             capacities: puzzle.capacities,
             aux_capacities: ArrayVec::new(),
         }
@@ -332,6 +337,14 @@ impl<'a> Solver<'a> {
             return Outcome::Unsolvable(UnsolvableReason::Disconnected); // P-CONN
         }
         let max_budget = self.puzzle.total_capacity() as u8;
+        if self.config.heuristic_only {
+            // FINDER benchmark mode (BENCHMARKS.md): no exact search at all.
+            return match self.heuristic_resume() {
+                Step::Found(s) => Outcome::Solved(s),
+                Step::Exhausted => Outcome::Unsolvable(UnsolvableReason::Exhausted),
+                Step::Paused => Outcome::Timeout,
+            };
+        }
         if !self.config.heuristic {
             return match self.exact_resume(max_budget) {
                 Step::Found(s) => Outcome::Solved(s),

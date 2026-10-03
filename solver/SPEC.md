@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.5 |
+| **Version** | 1.6 |
 | **Status** | Normative implementation specification |
 | **Engine** | `lib/engine/interpreter.dart` at commit `37b5ede` |
 | **Rationale** | [`DESIGN.md`](DESIGN.md) (why each rule exists, alternatives considered) |
@@ -918,9 +918,13 @@ pub struct Config {
     pub step_cut: bool,           // P-STEPCUT (§15.4)
     pub heuristic: bool,          // phases 2–3 of SOLVE (§17.3); off = exact only
     pub history: bool,            // history heuristic in §17.3 (ordering only)
+    pub history_decay: bool,      // decaying history entries in §17.3 (ordering only)
     pub anonymous_functions: bool, // D-NEWFN / INV-FIT (§14.5)
     pub condition_sets: bool,     // D-DEFER-SET / D-NARROW (§13, §14.1)
-}   // Default: all true
+    pub heuristic_only: bool,     // FINDER benchmark mode: §17.3 only, no exact search
+    pub repair: bool,             // local repair in the heuristic phase (§17.5)
+    pub repair_share: u8,         // percent of the heuristic phase's nodes repair may use
+}   // Default: all true, except heuristic_only = false; repair_share = 25
 ```
 
 Disabling a flag MUST remove only the optimization; it MUST NOT forbid any
@@ -1057,6 +1061,7 @@ LDS(state, allowance):                       # state is already normalized
                 rank kids by (stars left, walking distance to the nearest star,
                               used_slots, generation order)    # ascending
                     # with config.history: stars collected := max(own, HISTORY[decision])
+                with config.repair: REPAIR_TICK()           # §17.5, may return Found
                 for kid of rank r:
                     if r > allowance: cut := true; break
                     mark := arena.mark(); LDS(kid, allowance - r); arena.truncate(mark)
@@ -1072,7 +1077,15 @@ LDS(state, allowance):                       # state is already normalized
   best to the decision that created it when it is popped. A decision whose
   subtree once nearly solved the puzzle and then crashed keeps being tried
   first in later iterations. It only reorders, so completeness and
-  determinism are unaffected.
+  determinism are unaffected. Entries count stars × 16 (an integer with a
+  fraction of a star), so a kid's own progress `s` ranks as `16·s`.
+- **Decaying history** (`config.history_decay`): a kid's lookahead still
+  raises its entry to `16·s`, but when the frame a decision created is
+  popped with subtree best `b`, the entry `h` becomes `16·b` if that is
+  larger (a bonus) and otherwise `h − ((h − 16·b) >> 2)` (a malus: a quarter
+  of the way down). A decision whose subtrees keep disappointing therefore
+  stops being tried first. Without `history_decay`, the entry becomes
+  `max(h, 16·b)`. Both only reorder.
 - **FINALIZE_HEURISTIC:** drop `CondOnly` cells (they never ran on their
   color, so they were always skipped), turn `Pending` into `Any`, verify with
   `REFERENCE_RUN` (MUST succeed), then **shrink**: repeatedly delete the first
@@ -1087,6 +1100,81 @@ order, and the phase budgets are node counts. For a given puzzle, `Config`
 and node limit, the result and statistics are identical on every machine.
 The optional wall-clock limit is a safety net; if it triggers, the result
 depends on machine speed.
+
+### 17.5 Local repair (`config.repair`)
+
+LDS often reaches a program that collects most stars and then dies, one or
+two cells away from a solution that LDS itself would reach only after many
+more discrepancies. Local repair searches that edit neighbourhood directly.
+It uses nodes but never prunes or reorders LDS, so §17.3 stays complete.
+
+```text
+POOL: at most 4 distinct complete programs, best first by
+      (stars collected desc, walking distance to the nearest star asc), then arrival
+SEEN: hashes of the programs admitted to POOL (a dropped program leaves SEEN)
+
+OBSERVE(kid):                 # every normalized LDS kid except Solved, alive or dead
+    if collected(kid) < most stars collected by any earlier OBSERVE: return
+    if POOL is full and its worst entry is not worse: return
+    p := COMPLETE(kid.program)    # REALIZE (§14.5); undecided tails stay empty;
+                                  # Pending -> Any; CondOnly and CondSet dropped
+    if hash(p) in SEEN: return
+    insert p into POOL and SEEN; if POOL has 5 entries, drop the worst
+
+REPAIR_TICK():                # after every LDS frame push
+    if POOL is empty: return
+    if 100 · repair_nodes > repair_share · (nodes of the heuristic phase so far): return
+    REPAIR(POOL.pop_best())       # Found -> FINALIZE_PHYSICAL(p, found_by = repair)
+
+REPAIR(base):
+    run base with SIMULATE from the start, recording for every slot its first
+    and last fetch and the machine state just before its first fetch
+    if it succeeds: return Found(base)
+    D1 := for every occupied slot fetched in that run: replace its cell by
+          every other instruction of the alphabet, or delete it; for every
+          function with a free slot: insert every instruction of the alphabet
+          at every index 0..=len whose anchor slot was fetched (the anchor is
+          the slot at that index, except that an append after a final call is
+          anchored at the call); ordered by the anchor's last fetch, latest
+          first, ties in generation order
+    for e in D1:            if SIMULATE(base + e) succeeds: return Found(base + e)
+    T  := the 3 slots fetched last among the occupied ones and the first
+          empty one of each function
+    D2 := pairs (e1, e2) of D1 edits whose slot (function, index) is in T,
+          in D1 order, with at least one insertion
+    for (e1, e2) in D2:     if SIMULATE(base + e1 + e2) succeeds: return Found(...)
+    return NotFound
+```
+
+- **Alphabet:** conditions `Any`, plus every possible color when there are
+  at least two; actions `Forward`, the turns, allowed paints and calls to
+  functions of capacity ≥ 2 (P-SINGLE); `c: Paint(c)` is excluded (P-PAINT).
+- **Edits** apply highest slot first; deleting shifts the function's later
+  cells left, inserting shifts them right and needs a free last slot. Every
+  function stays left-packed, which keeps its meaning (R-NULL consumes no
+  step; the last occupied slot is unchanged).
+- **SIMULATE** implements §8 exactly and adds one way to give up: a
+  candidate fails after `max(2g, g + 256)` steps without a new star, where
+  `g` is the longest gap between consecutive pickups of the base run,
+  counted from step 0 (`min(steps, 1000)` if it collected none). Giving up
+  only loses candidates.
+- **Divergence:** a candidate is simulated from the state recorded before
+  the first fetch of the earliest slot (over all functions) whose cell
+  differs from `base` or whose call changes tail-call status. A function's
+  slots are fetched in order, so no later slot of that function ran before
+  it. If no such slot was fetched, the candidate fails exactly like `base`
+  and is skipped. Candidates already simulated for this base (by hash) are
+  skipped.
+- **Accounting:** each simulation of `n` instructions costs `max(1, n / 8)`
+  search nodes (`repair_nodes`, included in `search_nodes`), and the
+  deadline is checked before each simulation.
+- **Verification:** `SIMULATE` only proposes. A proposed program MUST
+  succeed in `REFERENCE_RUN` (a failure is a simulator bug: a debug
+  assertion, and the program is ignored), then `FINALIZE_PHYSICAL` verifies
+  it again, shrinks it, checks `ASSERT_SHAPE` and verifies the result: the
+  same steps as `FINALIZE_HEURISTIC` after its program is built.
+- Every order is fixed and sets are ordered (`BTreeSet`), so repair is
+  deterministic for a given node limit.
 
 ## 18. Finalization and verification
 
@@ -1137,6 +1225,9 @@ both in total and per budget iteration.
 | `ends_selected`, `condonly_created`, `condonly_resolved`, `pending_created`, `pending_resolved` | per decision applied |
 | `stack_pushes`, `tail_calls`, `returns`, `stack_rebuilds`, `stack_nodes_rebuilt` | per stack operation |
 | `max_search_depth`, `max_call_depth` | maximum observed |
+| `heuristic_nodes`, `lds_iterations` | nodes used by §17.3 (repair included) / per LDS iteration started |
+| `repairs`, `repair_nodes`, `repair_simulations`, `repair_instructions` | per REPAIR / nodes charged / per SIMULATE / instructions simulated (§17.5) |
+| `repair_found_d0`, `repair_found_d1`, `repair_found_d2`, `repair_d1_nodes`, `repair_d2_nodes`, `repair_rejected` | per repair success by edit distance / nodes per distance / proposals `REFERENCE_RUN` rejected |
 
 `instructions_evaluated` matters as much as `search_nodes`: an optimization
 that removes nodes but adds normalization work may not reduce wall-clock
@@ -1158,7 +1249,7 @@ time.
 | **INV-STACK** | No suspended frame is exhausted (§11.2). | TV-10, `t_rebuild_middle` |
 | **INV-FIT** | With anonymous functions, the auxiliary bodies can always be matched to distinct real functions of sufficient capacity (§14.5). | `t_anonymous_functions_fit_and_realize`, assert in Realize |
 | **INV-FIN** | The first solution found contains no `CondOnly` or `CondSet`. | `debug_assert` in FINALIZE |
-| **INV-VERIFY** | Every returned solution succeeds in `REFERENCE_RUN`. | `assert` in FINALIZE |
+| **INV-VERIFY** | Every returned solution succeeds in `REFERENCE_RUN`. | `assert` in FINALIZE and FINALIZE_PHYSICAL |
 | **INV-ORDER-ONLY** | Heuristics reorder candidates and never remove them. | code review |
 | **INV-DETERMINISM** | Same input and `Config` give the same result and statistics. | run twice, compare |
 
@@ -1413,7 +1504,7 @@ The CLI writes `solutions.json`:
 - `status` is one of `solved | unsolvable | timeout | unsupported`;
   `unsolvable` entries carry `"reason": "disconnected" | "exhausted"`.
 - `solved` entries carry `optimal`, `lowerBound` and `foundBy`
-  (`"exact" | "heuristic"`); `timeout` entries carry `lowerBound`.
+  (`"exact" | "heuristic" | "repair"`); `timeout` entries carry `lowerBound`.
 - `stats` keys are the camelCase names of §20.
 
 **Dart verification** (`test/solver_solutions_test.dart`): for every
@@ -1433,8 +1524,12 @@ MUST be skipped when `solutions.json` is absent.
 solver <catalog.json> [--id <sourceId>]... [--all]
        [--node-limit <n>]             per puzzle, default 20 000 000 (deterministic)
        [--timeout-ms <ms>]            optional wall-clock safety limit
-       [--exact-only]                 phase 1 only (config.heuristic = false)
+       [--exact-only]                 EXACT benchmark: exact search only (config.heuristic = false)
+       [--heuristic-only]             FINDER benchmark: heuristic phase only, no proofs
        [--no-history]                 heuristic phase without the history heuristic
+       [--no-history-decay]           history entries are plain maxima (§17.3)
+       [--no-repair]                  heuristic phase without local repair (§17.5)
+       [--repair-share <percent>]     share of the heuristic phase's nodes repair may use, default 25
        [--no-anonymous-functions]     keep auxiliary function identities (P-SYM only)
        [--no-condition-sets]          one deferred cell per color (no D-DEFER-SET)
        [--out <solutions.json>]
@@ -1466,7 +1561,8 @@ solver/src/
   normalize.rs   normalize, CycleDetector (§10, §12)
   canonical.rs   P-PAINT, P-TURN, P-EMPTYFN (§15)
   search.rs      Solver, SearchState, candidates, SOLVE/SEARCH, FINALIZE (§6, §13–§18)
-  heuristic.rs   heuristic phase: LDS, FINALIZE_HEURISTIC, shrink (§17.3)
+  heuristic.rs   heuristic phase: LDS, history, FINALIZE_HEURISTIC, shrink (§17.3)
+  repair.rs      local repair: pool, edit neighbourhood, simulator (§17.5)
   stats.rs       Config, Limits, SearchStats (§16, §20)
 ```
 
@@ -1517,5 +1613,7 @@ heuristic (unsound) pruning (the heuristic phase only reorders); pushdown analys
 | D-DEFER-SET, D-NARROW, N-NEEDSET | §10, §13, §14 | `t_candidates`, `t_frontier_no_step`, `t_condition_sets_bruteforce` |
 | P-SINGLE, P-RESERVE | §15.3b, §15.5 | `t_anonymous_functions_fit_and_realize`, `t_e2e_bruteforce`, `t_anonymous_functions_bruteforce`, `t_e2e_min_cost_all_configs` |
 | D-NEWFN, INV-FIT, Realize | §14.5 | `t_anonymous_functions_fit_and_realize`, `t_anonymous_functions_bruteforce`, `t_e2e_min_cost_all_configs` |
+| History, decaying history | §17.3 | `t_history_variants`, `t_heuristic_phase_alone` |
+| Local repair, SIMULATE, divergence | §17.5 | `t_simulate_diff_random`, `t_simulate_matches_reference`, `t_repair_only_adds_valid_solutions`, `t_repair_recovers_broken_solutions` (ignored: needs `solutions.json`) |
 | Phases, LDS, shrink | §17.1, §17.3 | `t_heuristic_phase_alone`, `t_shrink_removes_redundant_cells`, `t_node_limited_solve_is_deterministic`, Dart test |
 | INV-* | §21 | see §21; INV-PREFIX, INV-COST, INV-FIN as `debug_assert` in every test run |

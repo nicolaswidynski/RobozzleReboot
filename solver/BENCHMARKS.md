@@ -18,6 +18,28 @@ heuristic solutions are valid but may be longer than necessary.
 
 Difficulty is the catalog's player rating, rounded half away from zero.
 
+## Three benchmarks, kept separate
+
+The product mode shares one node budget between exact search and the
+heuristic, so a change can help one and hurt the other while the total
+barely moves (puzzle #851 below is an example). Changes are therefore
+judged on the benchmark they target:
+
+| Benchmark | Command | Measures |
+|---|---|---|
+| **EXACT** | `--exact-only` | proof coverage: proven optima, lower bounds, nodes per budget |
+| **FINDER** | `--heuristic-only` | solutions found (any cost), nodes to first solution |
+| **PRODUCT** | default | what users get |
+
+Development runs use a fixed **dev set** of 150 puzzles (120 puzzles the
+product mode does not solve at 20 M nodes, sampled evenly by number of
+functions and difficulty, then 30 it solves with the heuristic, as a
+regression check) at 5 M nodes; the full catalog is used only to confirm a
+change. At 5 M nodes on the dev set, v1.5 solved FINDER 26 / 150 (0 hard,
+26 regression) and PRODUCT 20 / 150 (0 hard, 20 regression); v1.6 solves
+FINDER 40 / 150 (11 hard, 29 regression) and PRODUCT 29 / 150 (6 hard, 23
+regression).
+
 ## Default mode (20 M nodes per puzzle)
 
 ```sh
@@ -25,30 +47,44 @@ Difficulty is the catalog's player rating, rounded half away from zero.
 ```
 
 Deterministic: the limit is 20 million search nodes per puzzle, not time.
-Exact search and the heuristic phase (LDS with the history heuristic,
-SPEC.md §17.3) alternate in equal, doubling slices and both resume where
-they stopped (SPEC.md §17.1). When the heuristic finds a solution, the rest
-of the budget goes to exact search below its cost. Wall time for the whole
-catalog: 29 minutes.
+Exact search and the heuristic phase (LDS with the decaying history
+heuristic, plus local repair; SPEC.md §17.3, §17.5) alternate in equal,
+doubling slices and both resume where they stopped (SPEC.md §17.1). When
+the heuristic finds a solution, the rest of the budget goes to exact search
+below its cost. Wall time for the whole catalog: 34 minutes (v1.6; other
+jobs shared the machine for part of the run).
 
 | Difficulty | Solved / total | Proven minimal |
 |---|---|---|
 | ★ | 7 / 7 | 7 |
-| ★★ | 184 / 223 | 170 |
-| ★★★ | 257 / 533 | 198 |
-| ★★★★ | 29 / 134 | 17 |
-| ★★★★★ | 1 / 11 | 1 |
-| **All** | **478 / 908** | **393** |
+| ★★ | 194 / 223 | 170 |
+| ★★★ | 287 / 533 | 202 |
+| ★★★★ | 31 / 134 | 19 |
+| ★★★★★ | 2 / 11 | 1 |
+| **All** | **521 / 908** | **399** |
 
-- 133 solutions come from the heuristic phase (7 to 25 slots, median 11);
-  48 of them were then proven minimal by the remaining exact search.
-- For the 85 solutions not proven minimal, `cost − lowerBound` is 1 to 16
-  (median 4).
-- The 430 timeouts all have a proven lower bound: minimal cost ≥ 7 (51
-  puzzles), 8 (318), 9 (42), 10 (11), 11 (2), 12 (4), 13 (1), 14 (1).
-- By number of functions in the puzzle: 1 function 140 / 149, 2 functions
-  206 / 278, 3 functions 105 / 246, 4 functions 18 / 133, 5 functions
-  9 / 102. Multi-function puzzles remain the main open problem.
+- 186 solutions come from the heuristic phase: 137 from LDS (7 to 28
+  slots, median 11) and 49 from local repair (8 to 21 slots, median 13).
+  64 of them (54 and 10) were then proven minimal by the remaining exact
+  search.
+- For the 122 solutions not proven minimal, `cost − lowerBound` is 1 to 17
+  (median 5).
+- The 387 timeouts all have a proven lower bound: minimal cost ≥ 7 (47
+  puzzles), 8 (284), 9 (41), 10 (10), 11 (2), 12 (2), 13 (1).
+- By number of functions in the puzzle: 1 function 143 / 149, 2 functions
+  213 / 278, 3 functions 119 / 246, 4 functions 34 / 133, 5 functions
+  12 / 102. Multi-function puzzles remain the main open problem.
+- Against v1.5 (478 solved, 393 proven minimal): +61 / −18 solved. The 18
+  lost were all heuristic solutions in v1.5 (the search order changed, and
+  repair uses some of the heuristic phase's nodes). On the 460 puzzles both
+  versions solve, v1.6's program is shorter for 23 and longer for 11. The
+  proven lower bound is higher on 11 puzzles and lower on 4 (when the
+  heuristic finds a solution earlier or later, exact search gets a
+  different share of the budget).
+- Repair on known solutions (`t_repair_recovers_broken_solutions`): one
+  cell of each solution is replaced by `forward` (or deleted); of the 520
+  programs this breaks, repair restores a solution for 486 (485 with one
+  edit, 1 with two).
 
 ### How the heuristic phase evolved (20 M nodes per puzzle, except the first row)
 
@@ -62,13 +98,75 @@ Each row is a full catalog run; puzzle-by-puzzle comparisons in the notes.
 | Portfolio 1 : 1 | 444 | 362 | |
 | Portfolio 1 : 1 + history heuristic | 461 | 367 | +41 / −24 against the previous row; ★★★★ 24 → 31, 3-function puzzles 84 → 98. |
 | + anonymous auxiliary functions (first version) | 460 | 372 | Lower bound higher on 73 puzzles, lower on none; +4 / −5 solved (heuristic reordering). |
-| **+ review fixes, P-SINGLE, P-RESERVE, D-DEFER-SET** | **478** | **393** | Against the history row: +38 / −21 solved, lower bound higher on 282 puzzles. |
+| + review fixes, P-SINGLE, P-RESERVE, D-DEFER-SET (v1.5) | 478 | 393 | Against the history row: +38 / −21 solved, lower bound higher on 282 puzzles. |
+| + decaying history (v1.6 with `--no-repair`) | 513 | 399 | Against v1.5: +57 / −22 solved; 4-function puzzles 18 → 32. |
+| **+ local repair (v1.6 default)** | **521** | **399** | Against the previous row: +11 / −3 solved (all 11 found by repair); against v1.5: +61 / −18, 4-function puzzles 18 → 34. |
 
-The union of all these runs solves 502 puzzles: changing the search order
-trades some puzzles for others (for example #851 was proven minimal when an
-early heuristic solution handed exact search 19 M nodes, and timed out when
-the heuristic found nothing and exact search had 10 M). Running several
-orderings would therefore solve more, at a proportional cost in nodes.
+The union of all these runs solves 558 puzzles (37 of them only in the
+v1.6 runs): changing the search order trades some puzzles for others (for
+example #851 was proven minimal when an early heuristic solution handed
+exact search 19 M nodes, and timed out when the heuristic found nothing and
+exact search had 10 M). Running several orderings would therefore solve
+more, at a proportional cost in nodes.
+
+### Finder improvements in v1.6 (dev set, 5 M nodes)
+
+| Change | FINDER (hard + regression) | PRODUCT (hard + regression) |
+|---|---|---|
+| v1.5 | 26 (0 + 26) | 20 (0 + 20) |
+| Decaying history | 37 (9 + 28) | 29 (5 + 24) |
+| Local repair | 29 (1 + 28) | 24 (0 + 24) |
+| **Both (v1.6 default)** | **40 (11 + 29)** | **29 (6 + 23)** |
+
+- **Decaying history** (SPEC.md §17.3): +13 / −2 against v1.5 in FINDER,
+  +11 / −2 in PRODUCT. It changes only the order of the search, at no cost
+  in nodes.
+- **Local repair** (SPEC.md §17.5): +3 / −0 in FINDER and +4 / −0 in
+  PRODUCT on its own; on top of the decaying history +3 / −0 in FINDER and
+  +2 / −2 in PRODUCT. The two PRODUCT losses (#4725, #4605) needed 1.9 M
+  and 2.3 M LDS nodes; with repair on, LDS got 1.8 M of the heuristic
+  phase's 2.4 M. They are at the edge of the 5 M budget.
+  Repair found 13 of the 40 FINDER solutions. On the 37 puzzles solved
+  with and without repair, the cost is the same for 35, one shorter and
+  one longer.
+- The repair share was first counted against all nodes, so in PRODUCT
+  repair could take half of the heuristic phase's nodes; it is now counted
+  against the heuristic phase's nodes, as in FINDER (no change on the dev
+  set).
+
+History variants, FINDER on the 30 regression puzzles of the dev set:
+
+| History variant | Solved |
+|---|---|
+| Plain maximum (v1.5) | 26 |
+| Stockfish-style gravity table (bonus / malus) by (function, slot, decision) | 20 |
+| Gravity table keyed by the previous decision (continuation history) | 22 |
+| Gravity table keyed by the robot's tile color and the tile ahead | 22 |
+| All three gravity tables / ranked after the walking distance | 21 / 24 |
+| Maximum keyed by the previous decision | 27 |
+| **Decaying maximum, ¼ per update** | **28** |
+| Decaying maximum, ½ / ⅛ per update | 24 / 27 |
+| Decaying maximum keyed by the tile color and the tile ahead | 28 |
+| Decaying maximum keyed by the previous decision | 27 |
+| Decaying maximum, dead kids decay their entry too | 26 |
+
+On the whole dev set the two best variants tied (FINDER 37, PRODUCT 29);
+the simpler one was kept. The gravity tables, which work well for move
+ordering in chess, lose here, probably because a bonus / malus records how
+often a decision helped and not how far it got, while the star count of
+the best subtree is the signal that matters in RoboZZle.
+
+Measured and not adopted (both trade puzzles rather than add them):
+
+- **A portfolio of LDS orderings**, run round robin (different ranking
+  keys, history on and off). Each ordering alone solved fewer than the
+  default (FINDER 18–25 against 26); the best pair solved 30 against 26 on
+  a 35-puzzle validation subset, +9 / −5, at a proportional cost in nodes.
+  Measured on v1.5, before the decaying history.
+- **Trace first, compress second** (for multi-function puzzles): a guided
+  search in which every `Forward` must bring the robot one tile closer to
+  the nearest remaining star (with some slack for detours), as a share of
+  the heuristic budget. FINDER 27 against 26 (+5 / −4).
 
 ### Exact-search tree size: anonymous auxiliary functions
 

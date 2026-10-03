@@ -56,12 +56,24 @@ struct Args {
     /// Heuristic phase without the history heuristic.
     #[arg(long)]
     no_history: bool,
+    /// History heuristic with plain instead of decaying maxima.
+    #[arg(long)]
+    no_history_decay: bool,
     /// Auxiliary functions keep their identities (P-SYM only).
     #[arg(long)]
     no_anonymous_functions: bool,
     /// One deferred cell per non-current color instead of one color set.
     #[arg(long)]
     no_condition_sets: bool,
+    /// FINDER mode: heuristic phase only (no exact search, no proofs).
+    #[arg(long)]
+    heuristic_only: bool,
+    /// Heuristic phase without local repair.
+    #[arg(long)]
+    no_repair: bool,
+    /// Largest share of the heuristic phase's nodes (percent) repair may use.
+    #[arg(long, default_value_t = solver::stats::DEFAULT_REPAIR_SHARE)]
+    repair_share: u8,
 }
 
 fn id_string(v: &Value) -> String {
@@ -91,6 +103,7 @@ fn solve_one(raw: &RawPuzzle, config: Config, limits: Limits) -> (Value, String)
             let found_by = match s.found_by {
                 FoundBy::Exact => "exact",
                 FoundBy::Heuristic => "heuristic",
+                FoundBy::Repair => "repair",
             };
             let line = format!(
                 "{:>6}  solved       cost {:>2}{}  steps {:>5}  {:>7} ms  {found_by}",
@@ -168,8 +181,12 @@ fn main() {
         step_cut: !args.no_step_cut,
         heuristic: !args.exact_only,
         history: !args.no_history,
+        history_decay: !args.no_history_decay,
         anonymous_functions: !args.no_anonymous_functions,
         condition_sets: !args.no_condition_sets,
+        heuristic_only: args.heuristic_only,
+        repair: !args.no_repair,
+        repair_share: args.repair_share,
     };
     let limits = Limits {
         time: args.timeout_ms.map(Duration::from_millis),
