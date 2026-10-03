@@ -13,6 +13,21 @@ isimleri, kesin geçiş kuralları, test vektörleri ve çıktı formatı oradad
 Bu belgedeki isimler (`Level`, `Cond::Is` gibi) açıklama amaçlıdır; kodda
 SPEC.md'deki isimler kullanılır.
 
+> **v1.2 — ölçümden doğan eklemeler.** İlk katalog ölçümü iki şeyi gösterdi.
+> (1) Arama süresinin neredeyse tamamı, stack'i durmadan büyüten kuyruk
+> olmayan özyinelemeyi 20 000 adım boyunca çalıştırmaya gidiyordu; bu tür
+> bir çalışma hiçbir state'i birebir tekrarlamadığı için döngü tespiti onu
+> yakalayamıyordu. **C-PUMP** (SPEC §12): aynı fiziksel durum ve aynı çalışan
+> frame tekrar görüldüğünde, önceki caller zincirinin tepe düğümü hâlâ
+> zincirdeyse aradaki çalışma sonsuza kadar tekrar eder. Hız ~1 200 kat arttı.
+> (2) `Any:X` ile `<mevcut renk>:X` bir slota yazıldığı anda aynı davranır;
+> farkları ancak slot başka renkte çalışınca ortaya çıkar. **D-PENDING /
+> D-CHOOSE** (SPEC §13) bu kararı `CondOnly` gibi gözlemlenebilir olana kadar
+> erteler; aktif aday sayısı yarıya iner. Yanında iki ucuz kural: **P-CRASH**
+> (hemen boşluğa çıkacak `Forward` üretilmez) ve **P-ENDDEAD** (askıda frame
+> yokken `END` programı bitirir). Hepsi `Config` ile kapatılabilir ve
+> sonuçları [`BENCHMARKS.md`](BENCHMARKS.md)'de.
+
 Kimlik etiketleri (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) koddaki
 yorumlarda ve test isimlerinde referans olarak kullanılır. Örneğin bir budama
 kuralının kodu `// P-TURN` yorumu taşır, testi `t_p_turn_*` diye adlandırılır.
@@ -980,6 +995,21 @@ transition rules, test vectors and the output format live there. If the two
 documents disagree, SPEC.md wins and both are fixed in the same change.
 Names used here (`Level`, `Cond::Is`, …) are descriptive; code uses the
 names from SPEC.md.
+
+> **v1.2 — additions driven by measurement.** The first catalog run showed
+> two things. (1) Nearly all search time went into running non-tail
+> recursion that only grows the stack for 20 000 steps; such a run never
+> repeats a state exactly, so loop detection could not catch it. **C-PUMP**
+> (SPEC §12): when the same physical state and current frame recur and the
+> earlier caller chain's top node is still on the chain, everything in
+> between repeats forever. Speed went up ~1 200×. (2) `Any:X` and
+> `<current color>:X` behave identically when placed; they differ only once
+> the slot runs on another color. **D-PENDING / D-CHOOSE** (SPEC §13) defer
+> that choice until it is observable, like `CondOnly`, halving the active
+> candidates. Two cheap rules come with it: **P-CRASH** (no `Forward` that
+> would immediately leave the board) and **P-ENDDEAD** (`END` with no
+> suspended caller ends the program). All of them can be switched off with
+> `Config`; results are in [`BENCHMARKS.md`](BENCHMARKS.md).
 
 Rule IDs (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) are referenced from code
 comments and test names. For example, the code implementing a pruning rule

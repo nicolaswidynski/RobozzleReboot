@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.0-draft |
+| **Version** | 1.1 |
 | **Status** | Normative implementation specification |
 | **Engine** | `lib/engine/interpreter.dart` at commit `37b5ede` |
 | **Rationale** | [`DESIGN.md`](DESIGN.md) (why each rule exists, alternatives considered) |
@@ -71,7 +71,7 @@ puzzle with the same fields:
 
 | Field | Meaning |
 |---|---|
-| `sourceId` | Integer id. |
+| `sourceId` | An integer in the catalog, a string for editor puzzles. Echoed unchanged in the output. |
 | `rows` | List of strings. `' '` or `'.'` = gap; `r g b` = tile of that color; `R G B` = tile of that color with a star. |
 | `startRow`, `startCol` | Start tile. |
 | `startDirection` | `up`, `right`, `down` or `left`. |
@@ -101,7 +101,7 @@ The loader MUST compile a valid puzzle once into an immutable
 
 ```rust
 pub struct StaticPuzzle {
-    pub source_id: u32,
+    pub source_id: serde_json::Value,         // echoed unchanged in the output
     pub tile_count: u16,                       // rows × cols, gaps included
     pub is_tile: [bool; MAX_TILES],
     pub neighbors: [[Option<TileId>; 4]; MAX_TILES], // None: off grid or gap
@@ -157,6 +157,10 @@ pub enum Cell {
     Resolved(Instruction),  // a complete instruction
     CondOnly(Color),        // an occupied slot whose condition is chosen
                             // and whose action is not yet chosen
+    Pending { action: Action, color: Color },
+                            // an occupied slot whose action is chosen and
+                            // whose condition is either Any or Color(color),
+                            // not yet decided (§13, D-PENDING)
 }
 
 pub struct FunctionDraft {
@@ -171,7 +175,7 @@ pub struct PartialProgram { pub functions: [FunctionDraft; MAX_FUNCTIONS] }
 
 A `FunctionDraft` MUST satisfy, at all times:
 
-- every cell in `cells[0..len)` is `Resolved` or `CondOnly` (never `Unused`);
+- every cell in `cells[0..len)` is `Resolved`, `CondOnly` or `Pending` (never `Unused`);
 - every cell in `cells[len..]` is `Unused`;
 - `len <= capacity`;
 - `capacity == 0` implies `ended == true` (an absent function is closed).
@@ -203,8 +207,14 @@ pub struct ResolvedProgram { pub functions: [Vec<Option<Instruction>>; MAX_FUNCT
 For a partial program with no `CondOnly` cells:
 
 ```text
-physical(f) = [Some(i) for Resolved(i) in cells[0..len)] ++ [None; capacity - len]
+physical(f) = [physical(cell) for cell in cells[0..len)] ++ [None; capacity - len]
+physical(Resolved(i))                 = Some(i)
+physical(Pending { action, color })   = Some(Instruction { condition: Any, action })
 ```
+
+A `Pending` cell that is still undecided never ran on a tile of a color other
+than `color`, so `Any` and `Color(color)` behaved identically; `Any` is the
+canonical choice.
 
 **Lemma L1 (left packing).** Moving the `None` slots of a physical function
 to its end does not change execution: `None` slots are skipped for free
@@ -428,6 +438,7 @@ pub enum NormalizeResult {
     Dead(DeadReason),
     OpenSlot   { function: FnId, index: u8 },
     NeedAction { function: FnId, index: u8, condition: Color },
+    NeedCondition { function: FnId, index: u8 },
 }
 ```
 
@@ -437,8 +448,8 @@ pub enum NormalizeResult {
 **Postconditions.**
 
 - `normalize` MUST NOT modify `state.program` (INV-PURE).
-- On `OpenSlot` or `NeedAction`, `current` points at the frontier cell, and
-  that cell has consumed no step (INV-FRONTIER).
+- On `OpenSlot`, `NeedAction` or `NeedCondition`, `current` points at the
+  frontier cell, and that cell has consumed no step (INV-FRONTIER).
 - On `Dead`, only `steps`, `position`, `direction`, `colors` and `stars` are
   meaningful; the stack is unspecified.
 
@@ -455,6 +466,8 @@ At each iteration, the **first** rule whose guard holds fires. Let
 | **N-OPEN** | `pc == D.len` and not `closed(f)` | return `OpenSlot{f, pc}` | 0 |
 | **N-NEED** | `D.cells[pc] = CondOnly(c)` and `tile == c` | return `NeedAction{f, pc, c}` | 0 |
 | **N-SKIP** | `D.cells[pc] = CondOnly(c)` and `tile ≠ c` | `consume_instruction()?`; `pc += 1` | 1 |
+| **N-NEEDCOND** | `D.cells[pc] = Pending{a, c}` and `tile ≠ c` | return `NeedCondition{f, pc}` | 0 |
+| **N-PENDING** | `D.cells[pc] = Pending{a, c}` and `tile == c` | `consume_instruction()?`; `pc += 1`; apply the X-rule for `a` (both possible conditions match) | 1 |
 | **N-EXEC** | `D.cells[pc] = Resolved(i)` | `consume_instruction()?`; `pc += 1`; if `i.condition` matches `tile`, apply the X-rule for `i.action` | 1 |
 
 `consume_instruction()?` means: on `Err(StepLimit)`, return
@@ -462,20 +475,20 @@ At each iteration, the **first** rule whose guard holds fires. Let
 
 ### 10.2 Action rules
 
-Applied by N-EXEC after the step is consumed, `pc` has advanced, and the
-condition has matched.
+Applied by N-EXEC and N-PENDING after the step is consumed, `pc` has
+advanced, and the condition has matched.
 
 | Rule | Action | Effect |
 |---|---|---|
 | **X-FORWARD** | `Forward` | `n = neighbors[position][direction]`; if `None`, return `Dead(Crash)`; else `position = n`, and if `n ∈ stars`, remove it. Update `physical_hash`. |
 | **X-TURN** | `TurnLeft` / `TurnRight` | `direction = left/right(direction)`. Update `physical_hash`. |
 | **X-PAINT** | `Paint(c)` | `colors[position] = c`. Update `physical_hash`. |
-| **X-CALL** | `Call(g)` | S-CALL (§11.1), then C-OBSERVE (§12) if `config.cycle_detection`. |
+| **X-CALL** | `Call(g)` | S-CALL (§11.1), then C-OBSERVE / C-PUMP (§12) if `config.cycle_detection`. |
 
 The solver never creates `Call(g)` with `cap[g] == 0` (P-DISABLED), so R-CALL0
 has no counterpart in `normalize`. `REFERENCE_RUN` MUST still implement it.
 
-**Lemma L2 (frontier).** On `OpenSlot` / `NeedAction`, the machine is in
+**Lemma L2 (frontier).** On `OpenSlot` / `NeedAction` / `NeedCondition`, the machine is in
 the state immediately before the frontier cell would be evaluated. After the
 search decides the cell, `normalize` evaluates it exactly as the engine
 would, so each occupied cell is counted exactly once.
@@ -531,8 +544,8 @@ INV-STACK:
 
 | Decision | Effect on suspended frames |
 |---|---|
-| D-PLACE, D-DEFER (`len += 1`) | A frame with `pc == old len` gains an instruction. No frame has `pc > len`. Creates no exhausted frame. |
-| D-RESOLVE | The cell already existed. No effect. |
+| D-PLACE, D-DEFER, D-PENDING (`len += 1`) | A frame with `pc == old len` gains an instruction. No frame has `pc > len`. Creates no exhausted frame. |
+| D-RESOLVE, D-CHOOSE | The cell already existed. No effect. |
 | D-END on `(f, k)` | Every suspended frame `(f, k)` becomes exhausted. |
 
 ### 11.3 S-POP
@@ -575,17 +588,33 @@ stack at `OpenSlot{B, k}` can be `[B@k, C@j, B@k (current)]`. After D-END,
 S-REBUILD leaves `callers = [C@j]` and `current = B@k`; N-RETURN then makes
 `C@j` current.
 
-## 12. Cycle observation (C-OBSERVE)
+## 12. Cycle observation (C-OBSERVE, C-PUMP)
 
-A `CycleDetector` is created fresh at the start of every `normalize` call
-(§12.3). When `config.cycle_detection` is set, after every S-CALL:
+A `CycleDetector` is cleared at the start of every `normalize` call
+(§12.3). When `config.cycle_detection` is set, after every S-CALL the current
+observation `O = (phys, current, callers)` is compared with every earlier
+observation `E` of the same call that has the same `phys` (position,
+direction, stars, colors) and the same `current` frame. The branch is
+`Dead(Loop)` if, for some such `E`:
 
 ```text
-C-OBSERVE:
-    key := (position, direction, stars, colors, stack(M))       # steps excluded
-    if key was observed earlier in this normalize call: return Dead(Loop)
-    record key
+C-PUMP:     E.callers is an ancestor-or-self of O.callers (same NodeId on O's chain,
+            at depth E.depth; E.callers = None counts as an ancestor of everything)
+C-OBSERVE:  chain(E.callers) and chain(O.callers) have equal contents
 ```
+
+Otherwise `O` is recorded. `steps` is never part of an observation.
+
+**Lemma L8 (C-PUMP).** Nodes are immutable and a popped node can never be
+re-entered (a later push creates a new `NodeId`). So if `E.callers` is still
+on the current chain, no frame at or below it was popped between `E` and
+`O`: everything in between ran above it and depended only on `phys` and
+`current`, which are equal. Execution therefore repeats from `O` exactly as
+from `E`, pushing the same frames again, forever. Stars are in `phys`, so
+none is collected in between, and the branch never reaches `Solved`. (If
+`E.callers = None`, popping below it would have ended the program.) This
+catches non-tail recursion that only grows the stack, which C-OBSERVE alone
+cannot catch: such a run never repeats a state exactly.
 
 ### 12.1 Soundness
 
@@ -600,7 +629,9 @@ performs infinitely many calls, and a repeated state also repeats at a call.
 
 ### 12.2 Hashing and exact equality
 
-- The detector MUST index entries by `key_hash(M)` (§7.2).
+- The detector MAY index entries by a hash of `phys` and `current` (the
+  stack is deliberately excluded so C-PUMP can compare different stacks);
+  short observation lists MAY be scanned linearly.
 - A hash match MUST be confirmed by **exact** equality of `position`,
   `direction`, `stars`, `colors`, `current`, and the caller chain.
 - Chain comparison walks both chains in lockstep: equal `NodeId`s mean the
@@ -635,6 +666,8 @@ a child's copy of the state.
 | **D-PLACE(i)** | `OpenSlot{f, k}` | `cells[k] = Resolved(i)`; `len += 1` | +1 | `|= bit(g)` if `i.action = Call(g)` |
 | **D-DEFER(c)** | `OpenSlot{f, k}` | `cells[k] = CondOnly(c)`; `len += 1` | +1 | — |
 | **D-RESOLVE(a)** | `NeedAction{f, k, c}` | `cells[k] = Resolved{Color(c), a}` | +0 | `|= bit(g)` if `a = Call(g)` |
+| **D-PENDING(a)** | `OpenSlot{f, k}` | `cells[k] = Pending{a, colors[position]}`; `len += 1` | +1 | `|= bit(g)` if `a = Call(g)` |
+| **D-CHOOSE(cond)** | `NeedCondition{f, k}` with `cells[k] = Pending{a, c}` | `cells[k] = Resolved{cond, a}`, `cond ∈ {Any, Color(c)}` | +0 | — |
 
 After every decision, `normalize` resumes from the frontier machine (L3).
 
@@ -652,8 +685,9 @@ At `OpenSlot{f, k}`, let `cur = colors[position]` and
 | Candidate | Generated when |
 |---|---|
 | D-END | always, subject to P-EMPTYFN (§15.3) |
-| D-PLACE(`Any: a`) | for every action `a` (§14.3) |
-| D-PLACE(`Color(cur): a`) | if `|PC| ≥ 2` (P-COLOR), for every action `a` |
+| D-PLACE(`Any: a`) | for every action `a` (§14.3), if `|PC| = 1` or **not** `config.lazy_active_conditions` |
+| D-PLACE(`Color(cur): a`) | if `|PC| ≥ 2` (P-COLOR) and **not** `config.lazy_active_conditions`, for every action `a` |
+| D-PENDING(`a`) | if `|PC| ≥ 2` and `config.lazy_active_conditions`, for every action `a`, except that `Paint(cur)` becomes D-PLACE(`Any: Paint(cur)`) when `config.peephole` (P-PAINT forbids the other choice) |
 | D-DEFER(`d`) | if `|PC| ≥ 2` and `config.lazy_conditions`, for every `d ∈ PC`, `d ≠ cur` |
 | D-PLACE(`Color(d): a`) | if `|PC| ≥ 2` and **not** `config.lazy_conditions`, for every `d ∈ PC`, `d ≠ cur`, and every action `a` |
 
@@ -663,14 +697,26 @@ At `OpenSlot{f, k}`, let `cur = colors[position]` and
   `|PC| = 1`, only `Any` is generated. (*Proof:* a cell conditioned on an
   impossible color never runs and can be removed; with one color,
   `Color(c)` and `Any` behave identically and `Any` is the canonical form.)
-- `Any: a` and `Color(cur): a` MUST NOT be merged: they differ when the slot
-  is later evaluated on another color.
+- `Any: a` and `Color(cur): a` behave identically now and differ only when
+  the slot is later evaluated on another color. Without
+  `lazy_active_conditions` both are generated; with it, D-PENDING generates
+  one cell and D-CHOOSE splits it only when the difference becomes
+  observable (N-NEEDCOND).
+- **P-CRASH** (with `config.peephole`): an active candidate (D-PLACE with an
+  active condition, D-PENDING, D-RESOLVE, or D-CHOOSE(`Any`)) whose action is
+  `Forward` MUST NOT be generated when `neighbors[position][direction]` is
+  `None`. (*Proof:* the cell is evaluated next, in this exact state, and
+  crashes.)
 
-### 14.2 Need-action frontiers
+### 14.2 Need-action and need-condition frontiers
 
 At `NeedAction{f, k, c}`, the candidates are D-RESOLVE(`a`) for every action
-`a` (§14.3), subject to canonicalization (§15). The condition is fixed to
-`Color(c)`.
+`a` (§14.3), subject to canonicalization (§15) and P-CRASH. The condition is
+fixed to `Color(c)`.
+
+At `NeedCondition{f, k}` with `cells[k] = Pending{a, c}`, the candidates are
+D-CHOOSE(`Any`) (runs `a` now; subject to P-CRASH) and D-CHOOSE(`Color(c)`)
+(skips it), in that order, each subject to canonicalization.
 
 ### 14.3 Actions
 
@@ -737,7 +783,8 @@ condition**, these windows are forbidden:
 | `R R` | `L L` (canonical 180° turn) |
 
 Allowed same-condition turn runs are therefore exactly `L`, `R` and `L L`.
-`CondOnly` cells are not turns; they are checked when resolved.
+`CondOnly` and `Pending` cells are not turns (their condition or action is
+undecided); they are checked when resolved.
 
 *Proof:* functions are entered only at index 0 and cells run in order, so
 cell `i + 1` is evaluated immediately after cell `i`. A turn does not change
@@ -751,12 +798,18 @@ D-END MUST NOT be generated at `index = 0`. (*Proof:* for F1 the program
 does nothing; for any other function every call to it is a no-op that costs
 a slot and can be removed.)
 
+### 15.3a P-ENDDEAD
+
+With `config.peephole`, D-END MUST NOT be generated when `callers = None`.
+(*Proof:* the current frame becomes exhausted, N-RETURN pops it, and with no
+caller left N-NOFRAME ends the program while stars remain.)
+
 ### 15.4 P-STEPCUT
 
 If `machine.steps == MAX_STEPS` at a frontier:
 
-- at `NeedAction`, the search MUST return `NotFound` without generating
-  candidates;
+- at `NeedAction` and `NeedCondition`, the search MUST return `NotFound`
+  without generating candidates;
 - at `OpenSlot`, only D-END is generated (and P-EMPTYFN still applies).
 
 (*Proof:* the next evaluated occupied cell would be step `MAX_STEPS + 1`
@@ -767,17 +820,19 @@ and dies by R-STEP; D-END consumes no step.)
 ```rust
 pub struct Config {
     pub lazy_conditions: bool,    // D-DEFER / NeedAction (§14.1)
+    pub lazy_active_conditions: bool, // D-PENDING / NeedCondition (§14.1)
     pub function_symmetry: bool,  // P-SYM (§14.4)
-    pub peephole: bool,           // P-PAINT, P-TURN, P-EMPTYFN (§15.1–15.3)
-    pub cycle_detection: bool,    // C-OBSERVE (§12)
+    pub peephole: bool,           // P-PAINT, P-TURN, P-EMPTYFN, P-ENDDEAD, P-CRASH
+    pub cycle_detection: bool,    // C-OBSERVE and C-PUMP (§12)
     pub step_cut: bool,           // P-STEPCUT (§15.4)
 }   // Default: all true
 ```
 
 Disabling a flag MUST remove only the optimization; it MUST NOT forbid any
 program. In particular, disabling `lazy_conditions` MUST expand dormant
-conditions eagerly (the last row of §14.1), not drop them. Every
-`Config` MUST yield the same minimal cost.
+conditions eagerly (the last row of §14.1), not drop them, and disabling
+`lazy_active_conditions` MUST generate both `Any: a` and `Color(cur): a`.
+Every `Config` (all 64 combinations) MUST yield the same minimal cost.
 
 P-CONN, P-COLOR and P-DISABLED are part of the representation and have no
 flag.
@@ -824,6 +879,18 @@ SEARCH(state, budget) -> Found(Solution) | NotFound | Timeout:
                 mark  := stack_arena.mark()            # BEFORE applying: S-REBUILD allocates
                 child := state                         # Copy
                 apply cand to child (§13)
+                r := SEARCH(child, budget)
+                stack_arena.truncate(mark)
+                if r is Found or Timeout: return r
+            return NotFound
+        NeedCondition{f, k}:
+            if config.step_cut and state.machine.steps == MAX_STEPS:
+                stats.prune_step_cut += 1
+                return NotFound
+            for cond in CONDITION_CANDIDATES(state, f, k):     # Any, then Color(c)
+                mark  := stack_arena.mark()
+                child := state
+                apply D-CHOOSE(cond) to child
                 r := SEARCH(child, budget)
                 stack_arena.truncate(mark)
                 if r is Found or Timeout: return r
@@ -884,11 +951,11 @@ both in total and per budget iteration.
 | `search_nodes` | per `SEARCH` call |
 | `normalize_calls` | per `normalize` call |
 | `instructions_evaluated` | per `consume_instruction` call |
-| `open_frontiers`, `need_action_frontiers` | per frontier returned |
+| `open_frontiers`, `need_action_frontiers`, `need_condition_frontiers` | per frontier returned |
 | `candidates_generated`, `candidates_searched` | per candidate produced / recursed into |
 | `dead_crash`, `dead_program_ended`, `dead_step_limit`, `dead_loop` | per `Dead` result, by reason |
-| `prune_budget`, `prune_step_cut`, `prune_symmetry`, `prune_peephole` | per candidate eliminated by that rule |
-| `ends_selected`, `condonly_created`, `condonly_resolved` | per decision applied |
+| `prune_budget`, `prune_step_cut`, `prune_symmetry`, `prune_peephole`, `prune_crash`, `prune_end_dead` | per candidate eliminated by that rule |
+| `ends_selected`, `condonly_created`, `condonly_resolved`, `pending_created`, `pending_resolved` | per decision applied |
 | `stack_pushes`, `tail_calls`, `returns`, `stack_rebuilds`, `stack_nodes_rebuilt` | per stack operation |
 | `max_search_depth`, `max_call_depth` | maximum observed |
 
@@ -905,9 +972,9 @@ time.
 | ID | Invariant | Checked by |
 |---|---|---|
 | **INV-PREFIX** | Every `FunctionDraft` satisfies §3.1. | `debug_assert` on every decision |
-| **INV-COST** | `used_slots` equals the number of `Resolved` and `CondOnly` cells. | `debug_assert` on every decision |
+| **INV-COST** | `used_slots` equals the number of `Resolved`, `CondOnly` and `Pending` cells. | `debug_assert` on every decision |
 | **INV-STEP** | Every evaluated occupied cell consumes exactly one step, before its condition is tested and before its action runs. | TV-03, TV-09, T-DIFF |
-| **INV-FRONTIER** | At `OpenSlot` / `NeedAction`, `current` points at the frontier cell and it has consumed no step. | TV-13 |
+| **INV-FRONTIER** | At `OpenSlot` / `NeedAction` / `NeedCondition`, `current` points at the frontier cell and it has consumed no step. | TV-13 |
 | **INV-PURE** | `normalize` never modifies the program. | code structure (`&PartialProgram`) |
 | **INV-STACK** | No suspended frame is exhausted (§11.2). | TV-10, `t_rebuild_middle` |
 | **INV-FIN** | The first solution found contains no `CondOnly`. | `debug_assert` in FINALIZE |
@@ -935,11 +1002,15 @@ auxiliary functions by first introduction (P-SYM); apply the P-TURN,
 P-PAINT and P-COLOR rewrites. None increases cost, steps or changes
 behavior. `Q` contains no empty called function (P-EMPTYFN) and no
 never-firing conditional cell (the INV-FIN argument). Follow `Q` through the
-search at budget `K`: at every `OpenSlot`, `Q`'s cell is either a D-PLACE
-candidate (active condition), a D-DEFER candidate whose action a later
-D-RESOLVE supplies (or a direct D-PLACE when `lazy_conditions` is off), or a
-D-END. P-STEPCUT never cuts `Q`, because `Q` succeeds. C-OBSERVE never cuts
-`Q`, because a repeated state would mean `Q` never succeeds (L7). Every
+search at budget `K`: at every `OpenSlot`, `Q`'s cell is either a cell with
+an active condition (`Any` or `Color(cur)`: a D-PENDING candidate whose
+condition a later D-CHOOSE supplies if it ever matters, or a direct D-PLACE
+when `lazy_active_conditions` is off), a D-DEFER candidate whose action a
+later D-RESOLVE supplies (or a direct D-PLACE when `lazy_conditions` is
+off), or a D-END. P-CRASH and P-ENDDEAD only remove candidates whose branch
+dies immediately, so they never cut `Q`. P-STEPCUT never cuts `Q`, because `Q` succeeds. C-OBSERVE never cuts
+`Q`, because a repeated state would mean `Q` never succeeds (L7), and
+neither does C-PUMP (L8). Every
 budget `< K` fails, so the first solution found has cost `K`.
 
 Each pruning rule's proof obligation is stated next to the rule. A new
@@ -995,7 +1066,7 @@ For vectors marked ‡, `normalize` on the left-packed program MUST agree
 | TV-05 ‡ | `bB`, start facing `up` | `[2, 1]` | F1 `[callF2, forward]`, F2 `[turnRight]` | `SUCCESS`, steps 3; max stack depth 2 |
 | TV-06 | `bB` | `[2, 0]` | F1 `[callF2, forward]` | `SUCCESS`, steps 2 (R-CALL0 consumed a step) |
 | TV-07 | `bB` | `[1]` | F1 `[callF1]` | Reference: `STUCK`, steps 20001. `normalize`: `Dead(Loop)` at steps 2 with cycle detection; `Dead(StepLimit)` at steps 20001 without. |
-| TV-08 | `bbB` | `[2]` | F1 `[callF1, forward]` | Reference: `STUCK`, steps 20001, stack depth 20001. `normalize`: `Dead(StepLimit)`, steps 20001, caller-chain depth 20000, with or without cycle detection (no state repeats). |
+| TV-08 | `bbB` | `[2]` | F1 `[callF1, forward]` | Reference: `STUCK`, steps 20001, stack depth 20001. `normalize`: `Dead(Loop)` at steps 2 with cycle detection (C-PUMP: no state repeats exactly, but the stack pumps); `Dead(StepLimit)` at steps 20001, caller-chain depth 20000, without. |
 | TV-11 ‡ | `bbB` | `[3]` | F1 `[forward, null, callF1]` | `SUCCESS`, steps 3 |
 | TV-12 ‡ | `bbB` | `[3]` | F1 `[forward, callF1, null]` | `SUCCESS`, steps 3 (same as TV-11: L1) |
 
@@ -1039,6 +1110,9 @@ F3: [Resolved(Any, Paint Red), Resolved(Any, Call F2), Resolved(Any, Forward)]  
 
 ### 24.4 Candidate-generation vectors (root `OpenSlot{F1, 0}`, budget ≥ 1)
 
+TV-14c, d and e are stated with `lazy_active_conditions = false`; TV-14g–i
+show the same puzzles with it on. `X|any:a` denotes D-PENDING(`a`) on color `X`.
+
 | ID | Rows | `allowedCommands` | Caps | Config | Expected candidate set |
 |---|---|---|---|---|---|
 | TV-14a | `bbB` | 0 | `[2]` | default | `Any:{forward, turnLeft, turnRight, callF1}`: 4 candidates. No condition, no D-DEFER (P-COLOR, one color). No D-END (P-EMPTYFN). |
@@ -1047,6 +1121,9 @@ F3: [Resolved(Any, Paint Red), Resolved(Any, Call F2), Resolved(Any, Forward)]  
 | TV-14d | `rbB` | 0 | `[2]` | `lazy_conditions = false` | `Any:{4}` + `red:{4}` + `blue:{4}`: 12 |
 | TV-14e | `rbB` | 1 | `[2]` | default | `Any:{forward, turnLeft, turnRight, paintRed, callF1}` + `red:{forward, turnLeft, turnRight, callF1}` (no `red:paintRed`, P-PAINT) + D-DEFER(Blue): 10 |
 | TV-14f | `bbB` | 0 | `[2]` | budget = 0 | no candidates (every cost-1 candidate exceeds the budget; D-END is excluded by P-EMPTYFN) |
+| TV-14g | `rbB` | 0 | `[2]` | default | `red|any:{forward, turnLeft, turnRight, callF1}` + D-DEFER(Blue): 5 |
+| TV-14h | `rbB` | 1 | `[2]` | default | `red|any:{forward, turnLeft, turnRight, callF1}` + `paintRed` (an `Any` D-PLACE) + D-DEFER(Blue): 6 |
+| TV-14i | `rbB`, start facing `left` | 0 | `[2]` | default | as TV-14g without `forward` (P-CRASH): 4 |
 
 **TV-15 (P-SYM).** `callable` with F1 introduced only:
 
@@ -1089,29 +1166,32 @@ program of the same cost (and therefore possibly different steps).
 
 ## 25. Required conformance tests
 
+Test names are those of the implementation (`cargo test` in `solver/`).
+
 | Test | Covers |
 |---|---|
-| `t_level_validation` | §2.2: every rejection reason returns `Unsupported`; no panic. |
-| `t_level_catalog` | All 908 catalog puzzles load and compile. |
-| `t_ref_vectors` | TV-01 … TV-12 on `REFERENCE_RUN`. |
-| `t_step_limit_boundary` | TV-09a/b/c on both `REFERENCE_RUN` and `normalize`. |
-| `t_frontier_no_step` | TV-13. |
-| `t_tail_call`, `t_non_tail_call` | S-TAIL adds no arena node (TV-01); S-PUSH suspends the caller (TV-05). |
-| `t_unknown_continuation_not_tail` | A call followed by an open slot pushes the caller. |
-| `t_return_is_free` | TV-05: the return from F2 consumes no step. |
-| `t_rebuild_middle` | TV-10, including recomputed `depth` and `hash`. |
-| `t_loop_tail`, `t_loop_nontail` | TV-07 and TV-08. |
-| `t_cycle_exact_equality` | With `key_hash` forced to collide, different states are not reported as a loop. |
-| `t_zobrist_incremental` | After random moves, turns, paints and star collections, the incremental hash equals a from-scratch recomputation. |
-| `t_diff_random` | **T-DIFF:** ≥ 100 000 random fully resolved programs (fixed seed) on catalog puzzles; `normalize` and `REFERENCE_RUN` agree as in L4. |
-| `t_candidates` | TV-14a … TV-14f. |
-| `t_p_sym` | TV-15. |
-| `t_p_turn` | TV-16. |
-| `t_e2e_min_cost` | §24.5 vectors. |
-| `t_e2e_bruteforce` | On random tiny puzzles (total capacity ≤ 4), `SOLVE` matches an exhaustive enumeration. |
-| `t_config_equivalence` | Every `Config` combination yields the same minimal cost on the §24.5 set. |
+| `t_level_validation` | §2.2: every rejection reason returns `Unsupported`; no panic; the editor's limits (14×14, 12 slots) are accepted. |
+| `t_level_catalog` | All 908 catalog puzzles load and compile; none is disconnected; 18 have a single possible color. |
+| `t_ref_vectors`, `t_ref_depths` | TV-01 … TV-12 and TV-09a/b/c on `REFERENCE_RUN`, including stack depths. |
+| `t_step_limit_boundary_normalize` | TV-09a/b/c on `normalize`, plus a skipped `CondOnly` at the limit. |
+| `consume_instruction_boundary` | §9 at 19 999 / 20 000. |
+| `t_frontier_no_step` | TV-13 and the `NeedCondition` / `Pending` cases. |
+| `t_tail_call_and_unknown_continuation` | S-TAIL adds no arena node; a call followed by an open slot pushes the caller; after END the same call is a tail call. |
+| `pop_restores_caller` | S-POP. |
+| `t_rebuild_middle`, `rebuild_removes_every_match`, `rebuild_without_match_allocates_nothing` | S-REBUILD, including recomputed `depth` and `hash`. |
+| `t_rebuild_middle_end_to_end` | TV-10 through `normalize`. |
+| `chains_equal_compares_contents` | Exact chain equality used by C-OBSERVE. |
+| `t_normalize_loop_vectors` | TV-07 and TV-08 (C-OBSERVE, C-PUMP); a recursion that pops back down is not a loop. |
+| `t_zobrist_incremental` | After 10 000 random moves, turns, paints and star collections, the incremental hash equals a from-scratch recomputation. |
+| `t_diff_random` | **T-DIFF:** 100 000 random fully resolved programs (fixed seed), with and without cycle detection; `normalize` and `REFERENCE_RUN` agree as in L4; every `Dead(Loop)` corresponds to `STUCK`. |
+| `t_candidates` | TV-14a … TV-14i. |
+| `t_p_sym_callable_sets` | TV-15. |
+| `t_p_turn`, `t_p_paint` | TV-16, P-PAINT. |
+| `t_e2e_min_cost_all_configs` | §24.5 under all 64 `Config` combinations (this is also `t_config_equivalence`). |
+| `t_e2e_bruteforce` | 60 random tiny puzzles: `SOLVE` matches exhaustive enumeration under three configurations, including unsolvable cases. |
 | `t_determinism` | Two runs give identical results and statistics. |
-| Dart `solver_solutions_test.dart` | §26. |
+| `disconnected_is_unsolvable`, `star_less_puzzle_is_solved_by_the_empty_program` | P-CONN; the budget-0 iteration. |
+| Dart `test/solver_solutions_test.dart` | §26. |
 
 ## 26. Output format and Dart verification
 
@@ -1121,8 +1201,8 @@ The CLI writes `solutions.json`:
 {
   "solver": "robozzle-solver 0.1.0",
   "maxSteps": 20000,
-  "config": { "lazyConditions": true, "functionSymmetry": true, "peephole": true,
-              "cycleDetection": true, "stepCut": true },
+  "config": { "lazyConditions": true, "lazyActiveConditions": true, "functionSymmetry": true,
+              "peephole": true, "cycleDetection": true, "stepCut": true },
   "results": [
     { "sourceId": 195, "status": "solved", "cost": 7, "steps": 1234,
       "program": [["forward", "red:turnLeft", "callF2", null], ["forward", null], [], [], []],
@@ -1161,9 +1241,14 @@ solver <catalog.json> [--id <sourceId>]... [--all]
        [--timeout-ms <ms>]            per puzzle, default 10000
        [--node-limit <n>]
        [--out <solutions.json>]
-       [--no-lazy-conditions] [--no-function-symmetry] [--no-peephole]
+       [--jobs <n>]                    puzzles solved in parallel, default: all CPUs
+       [--no-lazy-conditions] [--no-lazy-active-conditions]
+       [--no-function-symmetry] [--no-peephole]
        [--no-cycle-detection] [--no-step-cut]
 ```
+
+Puzzles are independent, so `--jobs` parallelism is safe: each worker owns its
+`Solver`, and results are written in catalog order.
 
 One progress line per puzzle; at the end, a summary by rounded difficulty:
 solved count, average time, total `search_nodes` and
@@ -1187,8 +1272,8 @@ solver/src/
   stats.rs       Config, Limits, SearchStats (§16, §20)
 ```
 
-Dependencies: `serde`, `serde_json`, `clap` (derive). `thiserror` MAY be
-used for error types. Randomness in tests uses a hand-written `splitmix64`.
+Dependencies: `serde`, `serde_json`, `clap` (derive), `arrayvec`
+(fixed-capacity candidate lists, no per-node allocation). Randomness in tests uses a hand-written `splitmix64`.
 
 Implementation order (each step ends with its tests passing; from step 6
 on, a benchmark row is appended to `BENCHMARKS.md`):
@@ -1209,25 +1294,26 @@ on, a benchmark row is appended to `BENCHMARKS.md`):
 ## C. Non-goals for v1
 
 Global transposition table; undo/trail state; path-scoped cycle cache;
-parallel search within a puzzle (parallelism *across* puzzles MAY come in
-v1.5); MCTS, genetic or machine-learned search; heuristic (unsound)
-pruning; pushdown analysis of non-tail recursion; a secondary objective
+parallel search within a puzzle; MCTS, genetic or machine-learned search;
+heuristic (unsound) pruning; pushdown analysis beyond C-PUMP; a secondary objective
 (fewest steps at equal cost); any backend or HTTP integration.
 
 ## D. Traceability
 
 | Rule | Section | Tests |
 |---|---|---|
-| R-RUN, R-STEP, R-COND, R-CALL0, R-TAIL, R-POP, R-NULL | §8 | `t_ref_vectors`, `t_step_limit_boundary`, `t_diff_random`, Dart test |
+| R-RUN, R-STEP, R-COND, R-CALL0, R-TAIL, R-POP, R-NULL | §8 | `t_ref_vectors`, `t_ref_depths`, `t_diff_random`, Dart test |
 | N-* | §10 | `t_frontier_no_step`, `t_diff_random` |
-| S-CALL, S-POP | §11.1, §11.3 | `t_tail_call`, `t_non_tail_call`, `t_unknown_continuation_not_tail`, `t_return_is_free` |
-| S-REBUILD | §11.4 | `t_rebuild_middle` |
-| C-OBSERVE | §12 | `t_loop_tail`, `t_loop_nontail`, `t_cycle_exact_equality` |
-| D-* | §13 | `t_rebuild_middle`, `t_e2e_*` |
-| P-CONN | §2.6 | `t_level_catalog` (none disconnected), unit test |
+| S-CALL, S-POP | §11.1, §11.3 | `t_tail_call_and_unknown_continuation`, `pop_restores_caller`, TV-05 in `t_ref_vectors` |
+| S-REBUILD | §11.4 | `t_rebuild_middle`, `t_rebuild_middle_end_to_end` |
+| C-OBSERVE, C-PUMP | §12 | `t_normalize_loop_vectors`, `chains_equal_compares_contents`, `t_diff_random` |
+| D-* | §13 | `t_rebuild_middle_end_to_end`, `t_e2e_*` |
+| P-CONN | §2.6 | `t_level_catalog`, `disconnected_is_unsolvable` |
 | P-COLOR, P-PAINT, P-DISABLED | §14.1, §15.1, §14.3 | `t_candidates` |
-| P-SYM | §14.4 | `t_p_sym`, `t_config_equivalence` |
-| P-TURN | §15.2 | `t_p_turn`, `t_config_equivalence` |
+| P-SYM | §14.4 | `t_p_sym_callable_sets`, `t_e2e_min_cost_all_configs` |
+| P-TURN | §15.2 | `t_p_turn`, `t_e2e_min_cost_all_configs` |
 | P-EMPTYFN | §15.3 | `t_candidates` (TV-14a/b/f) |
-| P-STEPCUT | §15.4 | unit test at `steps = MAX_STEPS`, `t_config_equivalence` |
-| INV-* | §21 | see §21 |
+| P-CRASH, P-ENDDEAD | §14.1, §15.3a | `t_candidates` (TV-14i), `t_e2e_min_cost_all_configs` |
+| D-PENDING, D-CHOOSE, N-NEEDCOND | §10, §13, §14 | `t_candidates` (TV-14g/h), `t_frontier_no_step`, `t_e2e_min_cost_all_configs`, `t_e2e_bruteforce` |
+| P-STEPCUT | §15.4 | `t_e2e_min_cost_all_configs` |
+| INV-* | §21 | see §21; INV-PREFIX, INV-COST, INV-FIN as `debug_assert` in every test run |
