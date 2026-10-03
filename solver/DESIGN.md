@@ -27,6 +27,27 @@ SPEC.md'deki isimler kullanılır.
 > (hemen boşluğa çıkacak `Forward` üretilmez) ve **P-ENDDEAD** (askıda frame
 > yokken `END` programı bitirir). Hepsi `Config` ile kapatılabilir ve
 > sonuçları [`BENCHMARKS.md`](BENCHMARKS.md)'de.
+>
+> **v1.3 — sezgisel aşama.** Kesin arama her ek slotta işi ~10 katına
+> çıkardığı için 10–11 slotun ötesine geçemiyor; oysa zor bulmacaların
+> çözümleri daha uzun. Stockfish'in gücü "iyi hamleyi önce dene" ilkesinden
+> gelir; burada aynı ilkeyi **en kısa garantisini bozmadan** ekliyoruz
+> (SPEC §17). Önce kesin arama node bütçesinin yarısını kullanır; çözüm
+> yoksa aynı ağaçta *Limited Discrepancy Search* çalışır: her karar
+> noktasında çocuklar bir kez çalıştırılıp toplanan yıldıza ve en yakın
+> yıldıza uzaklığa göre sıralanır; arama önce en iyi yolu, sonra ondan
+> sapmaları dener. Bulunan çözüm doğrulanır, gereksiz hücreleri silinerek
+> kısaltılır ve kalan bütçeyle daha kısası aranır. Sonuç `optimal: true`
+> (kanıtlı en kısa) ya da `optimal: false` + `lowerBound` olarak raporlanır.
+> Rastgelelik yok, bütçe node sayısı: sonuç her makinede aynı.
+>
+> Hata analizi iki şey daha gösterdi: kesin ve sezgisel arama arasındaki
+> bütçe paylaşımı bir takas (ölçülen marjinal değere göre oran 1:1), ve
+> başarısız aramalar çoğu zaman yıldızların %90'ından fazlasını toplayıp
+> sonra ölen programlara ulaşıp onları unutuyor. **History heuristic**
+> (satranç motorlarındaki gibi) her kararın altında görülen en iyi ilerlemeyi,
+> ölü dallar dahil, hatırlar ve o kararları önce dener. Sadece sıralamayı
+> değiştirir; 444 → 461.
 
 Kimlik etiketleri (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) koddaki
 yorumlarda ve test isimlerinde referans olarak kullanılır. Örneğin bir budama
@@ -1010,6 +1031,28 @@ names from SPEC.md.
 > would immediately leave the board) and **P-ENDDEAD** (`END` with no
 > suspended caller ends the program). All of them can be switched off with
 > `Config`; results are in [`BENCHMARKS.md`](BENCHMARKS.md).
+>
+> **v1.3 — heuristic phase.** Exact search multiplies its work by ~10 per
+> extra slot, so it cannot go beyond 10–11 slots, while hard puzzles need
+> longer programs. Stockfish's strength comes from trying good moves first;
+> we add the same principle **without weakening the optimality guarantee**
+> (SPEC §17). The exact search uses half of the node budget first; if it finds
+> nothing, *Limited Discrepancy Search* runs on the same tree: at each
+> decision the children are run once and ranked by stars collected and
+> distance to the nearest star; the search tries the best path first, then
+> deviations from it. The solution found is verified, shrunk by deleting
+> unnecessary cells, and the remaining budget looks for a shorter one. The
+> result is reported as `optimal: true` (proven minimal) or `optimal: false`
+> with a `lowerBound`. No randomness, budgets are node counts: the result is
+> the same on every machine.
+>
+> Failure analysis showed two more things: the budget split between exact
+> and heuristic search is a trade-off (1:1 by measured marginal value), and
+> failed searches often reach programs that collect over 90 % of the stars
+> and then die, and forget them. The **history heuristic** (as in chess
+> engines) remembers the best progress seen below each decision, dead
+> branches included, and tries those decisions first. It only reorders;
+> 444 → 461.
 
 Rule IDs (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) are referenced from code
 comments and test names. For example, the code implementing a pruning rule

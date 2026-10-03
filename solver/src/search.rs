@@ -4,13 +4,14 @@
 use arrayvec::ArrayVec;
 
 use crate::canonical::{is_useless_paint, turns_canonical};
+use crate::heuristic::HeuristicCursor;
 use crate::machine::{DeadReason, Machine};
 use crate::normalize::{CycleDetector, NormalizeResult, normalize};
 use crate::program::{Cell, PartialProgram, ResolvedProgram};
 use crate::puzzle::StaticPuzzle;
 use crate::reference::{RunStatus, reference_run};
 use crate::stack::{self, StackArena};
-use crate::stats::{Config, Deadline, Limits, SearchStats, TimedOut};
+use crate::stats::{Config, Deadline, Limits, SearchStats};
 use crate::types::{Action, Color, Condition, FnId, Instruction, MAX_FUNCTIONS, MAX_STEPS};
 
 /// A branch's complete semantic state (SPEC §6). `Copy`, no heap.
@@ -21,17 +22,6 @@ pub struct SearchState {
     pub used_slots: u8,
     /// Bit f set: F(f+1) is introduced (SPEC §14.4).
     pub introduced_functions: u8,
-}
-
-impl SearchState {
-    pub fn root(puzzle: &StaticPuzzle) -> Self {
-        Self {
-            program: PartialProgram::new(puzzle.capacities),
-            machine: Machine::new(puzzle),
-            used_slots: 0,
-            introduced_functions: 0b00001,
-        }
-    }
 }
 
 /// At most 3 moves + 3 paints + 5 calls.
@@ -49,11 +39,20 @@ pub enum Candidate {
     Pending(Action, Color),
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FoundBy {
+    Exact,
+    Heuristic,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Solution {
     pub program: ResolvedProgram,
     pub cost: u8,
     pub steps: u32,
+    /// Proven minimal: every smaller budget was searched exhaustively.
+    pub optimal: bool,
+    pub found_by: FoundBy,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -73,16 +72,57 @@ pub enum Outcome {
 pub struct SolveResult {
     pub outcome: Outcome,
     pub stats: SearchStats,
+    /// Every program with fewer occupied slots is proven not to solve the
+    /// puzzle (budgets `0..lower_bound` were searched exhaustively).
+    pub lower_bound: u8,
 }
 
 pub struct Solver<'a> {
     pub puzzle: &'a StaticPuzzle,
     pub config: Config,
     pub stats: SearchStats,
-    arena: StackArena,
-    cycles: CycleDetector,
-    deadline: Deadline,
-    depth: u32,
+    /// The stack arena of the running phase; the other phase's is parked so
+    /// that each paused search keeps its stack nodes.
+    pub(crate) arena: StackArena,
+    parked_arena: StackArena,
+    pub(crate) cycles: CycleDetector,
+    pub(crate) deadline: Deadline,
+    exact: ExactCursor,
+    pub(crate) heuristic: HeuristicCursor,
+    /// Capacities the search uses. With anonymous functions, every enabled
+    /// auxiliary function gets the largest auxiliary capacity, at indices
+    /// 1..=n in order of introduction; otherwise the real capacities.
+    capacities: [u8; MAX_FUNCTIONS],
+    /// Real auxiliary capacities, largest first (INV-FIT).
+    aux_capacities: ArrayVec<u8, 4>,
+}
+
+/// Result of running a resumable search until it stops.
+pub(crate) enum Step {
+    Found(Solution),
+    /// Nothing left to search within the requested scope.
+    Exhausted,
+    /// The phase's node cap (or the global limit) was reached.
+    Paused,
+}
+
+/// Resumable exact iterative deepening (SPEC §17.2) on an explicit stack,
+/// so that the portfolio (§17.1) can pause it and later continue exactly
+/// where it stopped.
+#[derive(Default)]
+struct ExactCursor {
+    /// The budget being searched; every smaller budget is exhausted.
+    budget: u8,
+    started: bool,
+    iteration_start: u64,
+    stack: Vec<ExactFrame>,
+}
+
+struct ExactFrame {
+    kids: Vec<SearchState>,
+    next: usize,
+    /// Arena length after the kids were created; restored before each kid.
+    mark: usize,
 }
 
 /// SOLVE (SPEC §17.1).
@@ -90,9 +130,14 @@ pub fn solve(puzzle: &StaticPuzzle, config: Config, limits: Limits) -> SolveResu
     let mut solver = Solver::new(puzzle, config, limits);
     let outcome = solver.run();
     solver.stats.millis = solver.deadline.elapsed().as_millis() as u64;
+    let lower_bound = match &outcome {
+        Outcome::Solved(s) if s.optimal => s.cost,
+        _ => solver.exact.budget,
+    };
     SolveResult {
         outcome,
         stats: solver.stats,
+        lower_bound,
     }
 }
 
@@ -103,96 +148,354 @@ impl<'a> Solver<'a> {
             config,
             stats: SearchStats::default(),
             arena: StackArena::new(),
+            parked_arena: StackArena::new(),
             cycles: CycleDetector::default(),
             deadline: Deadline::new(limits),
-            depth: 0,
+            exact: ExactCursor::default(),
+            heuristic: HeuristicCursor::default(),
+            capacities: puzzle.capacities,
+            aux_capacities: ArrayVec::new(),
+        }
+        .with_capacities()
+    }
+
+    fn with_capacities(mut self) -> Self {
+        // P-SINGLE: an auxiliary function of capacity 1 could only hold one
+        // cell, which a minimal solution never has; treat it as disabled.
+        let min_aux = if self.config.peephole { 2 } else { 1 };
+        for f in 1..MAX_FUNCTIONS {
+            if self.capacities[f] < min_aux {
+                self.capacities[f] = 0;
+            }
+        }
+        let mut aux: ArrayVec<u8, 4> = self.capacities[1..].iter().copied().filter(|&c| c > 0).collect();
+        aux.sort_unstable_by(|a, b| b.cmp(a));
+        if self.config.anonymous_functions {
+            let largest = aux.first().copied().unwrap_or(0);
+            for f in 1..MAX_FUNCTIONS {
+                self.capacities[f] = if f <= aux.len() { largest } else { 0 };
+            }
+        }
+        self.aux_capacities = aux;
+        self
+    }
+
+    /// The root state of every iteration (SPEC §17.1).
+    pub fn root(&self) -> SearchState {
+        SearchState {
+            program: PartialProgram::new(self.capacities),
+            machine: Machine::new(self.puzzle),
+            used_slots: 0,
+            introduced_functions: 0b00001,
         }
     }
 
+    fn enabled_functions(&self) -> u8 {
+        (0..MAX_FUNCTIONS)
+            .filter(|&f| self.capacities[f] > 0)
+            .fold(0, |m, f| m | (1 << f))
+    }
+
+    /// Functions a new `Call` may target (P-DISABLED, P-SYM, D-NEWFN).
+    fn callable(&self, introduced: u8) -> u8 {
+        let enabled = self.enabled_functions();
+        if !self.config.function_symmetry {
+            return enabled;
+        }
+        // One class per capacity among the auxiliary functions (a single
+        // class with anonymous functions); the lowest-index fresh member of
+        // each class is callable.
+        let mut callable = introduced & enabled;
+        for f in 1..MAX_FUNCTIONS {
+            let cap = self.capacities[f];
+            if cap == 0 || introduced & (1 << f) != 0 {
+                continue;
+            }
+            let lower_fresh_same_class = (1..f)
+                .any(|g| self.capacities[g] == cap && introduced & (1 << g) == 0);
+            if !lower_fresh_same_class {
+                callable |= 1 << f;
+            }
+        }
+        callable
+    }
+
+    /// Whether a child already needs more slots than the budget once the
+    /// P-RESERVE slots are counted.
+    fn over_reserve(&mut self, child: &SearchState, budget: u8) -> bool {
+        let over = self.config.peephole && child.used_slots + self.reserved_slots(child) > budget;
+        if over {
+            self.stats.prune_reserve += 1;
+        }
+        over
+    }
+
+    /// P-RESERVE (SPEC §15.5): every introduced auxiliary body that is not
+    /// closed still needs `2 − len` cells in any minimal solution (P-EMPTYFN
+    /// and P-SINGLE), so this many slots are reserved on top of `used`.
+    fn reserved_slots(&self, s: &SearchState) -> u8 {
+        (1..MAX_FUNCTIONS)
+            .filter(|&g| s.introduced_functions & (1 << g) != 0)
+            .map(|g| &s.program.functions[g])
+            .filter(|d| !d.closed())
+            .map(|d| 2u8.saturating_sub(d.len))
+            .sum()
+    }
+
+    /// INV-FIT: the auxiliary bodies, with function `f` at length `len`,
+    /// can still be matched to distinct real functions of sufficient
+    /// capacity (sorted greedy matching is exact for threshold constraints).
+    fn aux_fits(&self, program: &PartialProgram, f: FnId, len: u8) -> bool {
+        let mut lens: ArrayVec<u8, 4> = (1..=self.aux_capacities.len())
+            .map(|g| if g == f as usize { len } else { program.functions[g].len })
+            .collect();
+        lens.sort_unstable_by(|a, b| b.cmp(a));
+        lens.iter().zip(&self.aux_capacities).all(|(l, c)| l <= c)
+    }
+
+    /// Maps an internal program to real function names and capacities:
+    /// the longest body goes to the largest real capacity (ties by index),
+    /// and every call is renamed accordingly.
+    pub(crate) fn realize(&self, program: &PartialProgram) -> PartialProgram {
+        let mut name: [u8; MAX_FUNCTIONS] = [0, 1, 2, 3, 4];
+        let n = if self.config.anonymous_functions {
+            let n = self.aux_capacities.len();
+            let mut internal: ArrayVec<usize, 4> = (1..=n).collect();
+            internal.sort_by_key(|&g| (std::cmp::Reverse(program.functions[g].len), g));
+            // The real functions the search may use: those not disabled by
+            // P-SINGLE (exactly the ones counted in `aux_capacities`).
+            let min_aux = if self.config.peephole { 2 } else { 1 };
+            let mut real: ArrayVec<usize, 4> = (1..MAX_FUNCTIONS)
+                .filter(|&f| self.puzzle.capacities[f] >= min_aux)
+                .collect();
+            real.sort_by_key(|&f| (std::cmp::Reverse(self.puzzle.capacities[f]), f));
+            for (&g, &f) in internal.iter().zip(&real) {
+                name[g] = f as u8;
+            }
+            n
+        } else {
+            MAX_FUNCTIONS - 1
+        };
+        let rename = |a: Action| match a {
+            Action::Call(g) => Action::Call(name[g as usize]),
+            other => other,
+        };
+        let mut out = PartialProgram::new(self.puzzle.capacities);
+        for g in 0..=n {
+            let src = &program.functions[g];
+            if src.len == 0 {
+                continue;
+            }
+            let dst = &mut out.functions[name[g] as usize];
+            assert!(src.len <= dst.capacity, "INV-FIT violated: body does not fit");
+            for (k, cell) in src.decided().iter().enumerate() {
+                dst.cells[k] = match *cell {
+                    Cell::Resolved(i) => Cell::Resolved(Instruction::new(i.condition, rename(i.action))),
+                    Cell::Pending { action, color } => Cell::Pending { action: rename(action), color },
+                    other => other,
+                };
+            }
+            dst.len = src.len;
+            dst.ended = true;
+        }
+        out
+    }
+
+    /// The deterministic portfolio (SPEC §17.1). Exact and heuristic search
+    /// alternate in equal slices that double every round; both resume where
+    /// they stopped. Once the heuristic finds a solution, all remaining
+    /// nodes go to exact search below its cost, which either finds a shorter
+    /// solution or proves this one minimal.
     fn run(&mut self) -> Outcome {
         if !self.puzzle.stars_connected() {
             return Outcome::Unsolvable(UnsolvableReason::Disconnected); // P-CONN
         }
-        for budget in 0..=self.puzzle.total_capacity() as u8 {
-            self.arena.clear();
-            let before = self.stats.search_nodes;
-            let result = self.search(SearchState::root(self.puzzle), budget);
-            self.stats
-                .nodes_per_budget
-                .push(self.stats.search_nodes - before);
-            match result {
-                Err(TimedOut) => return Outcome::Timeout,
-                Ok(Some(solution)) => return Outcome::Solved(solution),
-                Ok(None) => {}
+        let max_budget = self.puzzle.total_capacity() as u8;
+        if !self.config.heuristic {
+            return match self.exact_resume(max_budget) {
+                Step::Found(s) => Outcome::Solved(s),
+                Step::Exhausted => Outcome::Unsolvable(UnsolvableReason::Exhausted),
+                Step::Paused => Outcome::Timeout,
+            };
+        }
+        let mut slice = self
+            .deadline
+            .node_limit()
+            .map_or(1_000_000, |n| (n / 60).max(1));
+        let mut best = loop {
+            let cap = self.stats.search_nodes.saturating_add(slice);
+            self.deadline.set_phase_cap(Some(cap));
+            match self.exact_resume(max_budget) {
+                Step::Found(s) => return Outcome::Solved(s),
+                Step::Exhausted => return Outcome::Unsolvable(UnsolvableReason::Exhausted),
+                Step::Paused if self.deadline.limit_reached(self.stats.search_nodes) => {
+                    return Outcome::Timeout;
+                }
+                Step::Paused => {}
+            }
+            let cap = self.stats.search_nodes.saturating_add(slice);
+            self.deadline.set_phase_cap(Some(cap));
+            std::mem::swap(&mut self.arena, &mut self.parked_arena);
+            let step = self.heuristic_resume();
+            std::mem::swap(&mut self.arena, &mut self.parked_arena);
+            match step {
+                Step::Found(s) => break s,
+                Step::Exhausted => return Outcome::Unsolvable(UnsolvableReason::Exhausted),
+                Step::Paused if self.deadline.limit_reached(self.stats.search_nodes) => {
+                    return Outcome::Timeout;
+                }
+                Step::Paused => {}
+            }
+            slice = slice.saturating_mul(2);
+        };
+        self.deadline.set_phase_cap(None);
+        if best.cost > 0 {
+            match self.exact_resume(best.cost - 1) {
+                Step::Found(s) => return Outcome::Solved(s),
+                Step::Exhausted => best.optimal = true,
+                Step::Paused => {}
             }
         }
-        Outcome::Unsolvable(UnsolvableReason::Exhausted)
+        Outcome::Solved(best)
     }
 
-    /// SEARCH (SPEC §17.2).
-    fn search(&mut self, state: SearchState, budget: u8) -> Result<Option<Solution>, TimedOut> {
+    /// Continues exact IDDFS until a solution, until every budget up to
+    /// `max_budget` is exhausted, or until the node cap.
+    fn exact_resume(&mut self, max_budget: u8) -> Step {
+        loop {
+            if self.exact.budget > max_budget {
+                return Step::Exhausted;
+            }
+            match self.exact_iteration() {
+                Step::Exhausted => {
+                    self.stats
+                        .nodes_per_budget
+                        .push(self.stats.search_nodes - self.exact.iteration_start);
+                    self.exact.budget += 1;
+                    self.exact.started = false;
+                }
+                other => return other,
+            }
+        }
+    }
+
+    /// One budget of SEARCH (SPEC §17.2), resumable.
+    fn exact_iteration(&mut self) -> Step {
+        let budget = self.exact.budget;
+        if !self.exact.started {
+            if self.deadline.check(self.stats.search_nodes + 1).is_err() {
+                return Step::Paused;
+            }
+            self.arena.clear();
+            self.exact.stack.clear();
+            self.exact.iteration_start = self.stats.search_nodes;
+            self.exact.started = true;
+            let mut root = self.root();
+            match self.normalize_counted(&mut root) {
+                NormalizeResult::Solved => return Step::Found(self.finalize(&root)),
+                NormalizeResult::Dead(_) => return Step::Exhausted,
+                r => self.push_exact_frame(&root, r, budget),
+            }
+        }
+        loop {
+            let Some(top) = self.exact.stack.last_mut() else {
+                return Step::Exhausted;
+            };
+            if top.next == top.kids.len() {
+                self.exact.stack.pop();
+                continue;
+            }
+            if self.deadline.check(self.stats.search_nodes + 1).is_err() {
+                return Step::Paused;
+            }
+            let mut kid = top.kids[top.next];
+            top.next += 1;
+            let mark = top.mark;
+            self.arena.truncate(mark);
+            self.stats.candidates_searched += 1;
+            match self.normalize_counted(&mut kid) {
+                NormalizeResult::Solved => return Step::Found(self.finalize(&kid)),
+                NormalizeResult::Dead(_) => {}
+                r => self.push_exact_frame(&kid, r, budget),
+            }
+        }
+    }
+
+    fn push_exact_frame(&mut self, state: &SearchState, result: NormalizeResult, budget: u8) {
+        let kids = self.children(state, result, budget);
+        let mark = self.arena.mark();
+        self.exact.stack.push(ExactFrame {
+            kids,
+            next: 0,
+            mark,
+        });
+        let depth = self.exact.stack.len() as u32;
+        self.stats.max_search_depth = self.stats.max_search_depth.max(depth);
+    }
+
+    /// Normalizes one search node (SPEC §10), counting it.
+    pub(crate) fn normalize_counted(&mut self, s: &mut SearchState) -> NormalizeResult {
         self.stats.search_nodes += 1;
-        self.deadline.check(self.stats.search_nodes)?;
-        debug_assert!(state.program.check_prefix(), "INV-PREFIX");
-        debug_assert_eq!(state.used_slots, state.program.occupied_slots(), "INV-COST");
-        let mut state = state;
-        let result = normalize(
+        debug_assert!(s.program.check_prefix(), "INV-PREFIX");
+        debug_assert_eq!(s.used_slots, s.program.occupied_slots(), "INV-COST");
+        let r = normalize(
             self.puzzle,
-            &state.program,
-            &mut state.machine,
+            &s.program,
+            &mut s.machine,
             &mut self.arena,
             &mut self.cycles,
             &self.config,
             &mut self.stats,
         );
+        if let NormalizeResult::Dead(reason) = r {
+            self.count_dead(reason);
+        }
+        r
+    }
+
+    pub(crate) fn count_dead(&mut self, reason: DeadReason) {
+        match reason {
+            DeadReason::Crash => self.stats.dead_crash += 1,
+            DeadReason::ProgramEnded => self.stats.dead_program_ended += 1,
+            DeadReason::StepLimit => self.stats.dead_step_limit += 1,
+            DeadReason::Loop => self.stats.dead_loop += 1,
+        }
+    }
+
+    /// Every child of a frontier, decisions applied (SPEC §13), in
+    /// generation order. Used by the heuristic phase.
+    pub(crate) fn children(
+        &mut self,
+        state: &SearchState,
+        result: NormalizeResult,
+        budget: u8,
+    ) -> Vec<SearchState> {
+        let mut out = Vec::new();
         match result {
-            NormalizeResult::Solved => Ok(Some(self.finalize(&state))),
-            NormalizeResult::Dead(reason) => {
-                match reason {
-                    DeadReason::Crash => self.stats.dead_crash += 1,
-                    DeadReason::ProgramEnded => self.stats.dead_program_ended += 1,
-                    DeadReason::StepLimit => self.stats.dead_step_limit += 1,
-                    DeadReason::Loop => self.stats.dead_loop += 1,
-                }
-                Ok(None)
-            }
             NormalizeResult::OpenSlot { function, index } => {
-                let candidates = self.open_candidates(&state, function, index, budget);
-                self.stats.candidates_generated += candidates.len() as u64;
-                for cand in candidates {
-                    let mark = self.arena.mark(); // before applying: S-REBUILD allocates
-                    let mut child = state;
+                for cand in self.open_candidates(state, function, index, budget) {
+                    let mut child = *state;
                     self.apply_open(&mut child, function, index, cand);
-                    let r = self.recurse(child, budget);
-                    self.arena.truncate(mark);
-                    if let Some(s) = r? {
-                        return Ok(Some(s));
+                    if self.over_reserve(&child, budget) {
+                        continue;
                     }
+                    out.push(child);
                 }
-                Ok(None)
             }
             NormalizeResult::NeedCondition { function, index } => {
                 if self.config.step_cut && state.machine.steps == MAX_STEPS {
-                    self.stats.prune_step_cut += 1; // P-STEPCUT: either choice consumes a step
-                    return Ok(None);
+                    self.stats.prune_step_cut += 1;
+                    return out;
                 }
-                let choices = self.condition_candidates(&state, function, index);
-                self.stats.candidates_generated += choices.len() as u64;
-                for condition in choices {
-                    let mark = self.arena.mark();
-                    let mut child = state;
+                for condition in self.condition_candidates(state, function, index) {
+                    let mut child = *state;
                     child
                         .program
                         .function_mut(function)
                         .resolve_pending(index, condition);
                     self.stats.pending_resolved += 1;
-                    let r = self.recurse(child, budget);
-                    self.arena.truncate(mark);
-                    if let Some(s) = r? {
-                        return Ok(Some(s));
-                    }
+                    out.push(child);
                 }
-                Ok(None)
             }
             NormalizeResult::NeedAction {
                 function,
@@ -200,14 +503,11 @@ impl<'a> Solver<'a> {
                 condition,
             } => {
                 if self.config.step_cut && state.machine.steps == MAX_STEPS {
-                    self.stats.prune_step_cut += 1; // P-STEPCUT
-                    return Ok(None);
+                    self.stats.prune_step_cut += 1;
+                    return out;
                 }
-                let actions = self.need_candidates(&state, function, index, condition);
-                self.stats.candidates_generated += actions.len() as u64;
-                for action in actions {
-                    let mark = self.arena.mark();
-                    let mut child = state;
+                for action in self.need_candidates(state, function, index, condition) {
+                    let mut child = *state;
                     child
                         .program
                         .function_mut(function)
@@ -216,24 +516,16 @@ impl<'a> Solver<'a> {
                         child.introduced_functions |= 1 << g;
                     }
                     self.stats.condonly_resolved += 1;
-                    let r = self.recurse(child, budget);
-                    self.arena.truncate(mark);
-                    if let Some(s) = r? {
-                        return Ok(Some(s));
+                    if self.over_reserve(&child, budget) {
+                        continue;
                     }
+                    out.push(child);
                 }
-                Ok(None)
             }
+            NormalizeResult::Solved | NormalizeResult::Dead(_) => {}
         }
-    }
-
-    fn recurse(&mut self, child: SearchState, budget: u8) -> Result<Option<Solution>, TimedOut> {
-        self.stats.candidates_searched += 1;
-        self.depth += 1;
-        self.stats.max_search_depth = self.stats.max_search_depth.max(self.depth);
-        let r = self.search(child, budget);
-        self.depth -= 1;
-        r
+        self.stats.candidates_generated += out.len() as u64;
+        out
     }
 
     /// D-END, D-PLACE, D-DEFER (SPEC §13).
@@ -271,6 +563,63 @@ impl<'a> Solver<'a> {
                 self.stats.pending_created += 1;
             }
         }
+        if self.config.anonymous_functions && f != 0 && cand != Candidate::End {
+            self.close_unfittable(s);
+        }
+    }
+
+    /// INV-FIT deduction (SPEC §14.5): once an auxiliary body can no longer
+    /// grow, no completion can grow it (lengths only increase), so it is
+    /// closed at once, as the engine's capacity would close it. This is not
+    /// a decision and costs nothing; it restores tail calls and spares a
+    /// node whose only child would be END.
+    fn close_unfittable(&mut self, s: &mut SearchState) {
+        for h in 1..=self.aux_capacities.len() as FnId {
+            let d = s.program.function(h);
+            if d.closed() || d.len == 0 || self.aux_fits(&s.program, h, d.len + 1) {
+                continue;
+            }
+            let len = d.len;
+            s.program.function_mut(h).end();
+            self.stats.forced_closes += 1;
+            let rebuilt = stack::rebuild_after_end(&mut s.machine, &mut self.arena, h, len);
+            if rebuilt > 0 {
+                self.stats.stack_rebuilds += 1;
+                self.stats.stack_nodes_rebuilt += rebuilt as u64;
+            }
+        }
+    }
+
+    /// P-ENDDEAD (SPEC §15.3a): END at `(f, k)` ends the program if every
+    /// suspended frame is `(f, k)` too, because S-REBUILD removes them all.
+    fn end_leaves_no_caller(&self, state: &SearchState, f: FnId, k: u8) -> bool {
+        let target = stack::Frame { function: f, pc: k };
+        let mut cursor = state.machine.callers;
+        while let Some(id) = cursor {
+            let node = self.arena.get(id);
+            if node.frame != target {
+                return false;
+            }
+            cursor = node.parent;
+        }
+        true
+    }
+
+    /// The output shape the game requires (SPEC §18): exactly `cap[f]` slots
+    /// per function, calls only to enabled functions, paints only in allowed
+    /// colors. The reference interpreter cannot see capacities, so this is
+    /// checked separately.
+    pub(crate) fn assert_shape(&self, program: &ResolvedProgram) {
+        for (f, slots) in program.functions.iter().enumerate() {
+            assert_eq!(slots.len(), self.puzzle.capacities[f] as usize, "F{} slot count", f + 1);
+            for i in slots.iter().flatten() {
+                match i.action {
+                    Action::Call(g) => assert!(self.puzzle.capacities[g as usize] > 0, "call to disabled F{}", g + 1),
+                    Action::Paint(c) => assert!(self.puzzle.allowed_paints.contains(c), "paint not allowed"),
+                    _ => {}
+                }
+            }
+        }
     }
 
     /// Actions available for a new cell (SPEC §14.3), in search order:
@@ -278,10 +627,8 @@ impl<'a> Solver<'a> {
     /// functions, paints.
     fn actions(&mut self, state: &SearchState) -> Actions {
         let introduced = state.introduced_functions;
-        let callable = self
-            .puzzle
-            .callable(introduced, self.config.function_symmetry);
-        let excluded = self.puzzle.enabled_functions() & !callable;
+        let callable = self.callable(introduced);
+        let excluded = self.enabled_functions() & !callable;
         self.stats.prune_symmetry += excluded.count_ones() as u64;
         let mut out = Actions::new();
         out.push(Action::Forward);
@@ -361,9 +708,14 @@ impl<'a> Solver<'a> {
         // P-EMPTYFN; P-ENDDEAD: with no suspended caller, END ends the
         // program while stars remain.
         let mut end_allowed = true;
-        if self.config.peephole && (k == 0 || state.machine.callers.is_none()) {
-            end_allowed = false;
-            if k != 0 {
+        if self.config.peephole {
+            if k == 0 {
+                end_allowed = false; // P-EMPTYFN
+            } else if f != 0 && k == 1 {
+                end_allowed = false; // P-SINGLE: an auxiliary body never has exactly one cell
+                self.stats.prune_single += 1;
+            } else if self.end_leaves_no_caller(state, f, k) {
+                end_allowed = false; // P-ENDDEAD
                 self.stats.prune_end_dead += 1;
             }
         }
@@ -376,7 +728,13 @@ impl<'a> Solver<'a> {
             return out;
         }
         let mut out = Candidates::new();
-        if state.used_slots < budget {
+        // INV-FIT: with anonymous functions, appending to an auxiliary body
+        // must keep the bodies matchable to the real capacities.
+        let fits = !self.config.anonymous_functions || f == 0 || self.aux_fits(&state.program, f, k + 1);
+        if !fits {
+            self.stats.prune_capacity += 1;
+        }
+        if state.used_slots < budget && fits {
             let actions = self.actions(state);
             let pc = self.puzzle.possible_colors;
             let cur = state.machine.tile_color();
@@ -426,7 +784,7 @@ impl<'a> Solver<'a> {
                     }
                 }
             }
-        } else {
+        } else if fits {
             self.stats.prune_budget += 1;
         }
         if end_allowed {
@@ -477,7 +835,8 @@ impl<'a> Solver<'a> {
     /// FINALIZE (SPEC §18).
     fn finalize(&self, state: &SearchState) -> Solution {
         debug_assert!(!state.program.has_cond_only(), "INV-FIN");
-        let program = state.program.to_physical();
+        let program = self.realize(&state.program).to_physical();
+        self.assert_shape(&program);
         let run = reference_run(self.puzzle, &program);
         assert_eq!(
             run.status,
@@ -489,6 +848,8 @@ impl<'a> Solver<'a> {
             program,
             cost: state.used_slots,
             steps: run.steps,
+            optimal: true,
+            found_by: FoundBy::Exact,
         }
     }
 }
@@ -501,7 +862,7 @@ mod tests {
 
     fn root_candidates(p: &StaticPuzzle, config: Config, budget: u8) -> Vec<String> {
         let mut solver = Solver::new(p, config, Limits::default());
-        let state = SearchState::root(p);
+        let state = solver.root();
         solver
             .open_candidates(&state, 0, 0, budget)
             .into_iter()
@@ -841,6 +1202,123 @@ mod tests {
             solved > 10 && unsolvable > 5,
             "solved {solved}, unsolvable {unsolvable}"
         );
+    }
+
+    /// Pausing the exact search every few nodes and resuming it gives the
+    /// same solution after the same number of nodes as one uninterrupted run.
+    #[test]
+    fn t_exact_resume_is_lossless() {
+        let p = puzzle(&["bbr", "  b", "rbB"], (0, 0), "right", &[3, 2], 1);
+        let mut whole = Solver::new(&p, Config::default(), Limits::default());
+        let Step::Found(expected) = whole.exact_resume(10) else {
+            panic!("no solution")
+        };
+        for slice in [1u64, 7, 100] {
+            let mut sliced = Solver::new(&p, Config::default(), Limits::default());
+            let found = loop {
+                let cap = sliced.stats.search_nodes + slice;
+                sliced.deadline.set_phase_cap(Some(cap));
+                match sliced.exact_resume(10) {
+                    Step::Found(s) => break s,
+                    Step::Paused => {}
+                    Step::Exhausted => panic!("exhausted"),
+                }
+            };
+            assert_eq!(found, expected, "slice {slice}");
+            assert_eq!(
+                sliced.stats.search_nodes, whole.stats.search_nodes,
+                "slice {slice}"
+            );
+        }
+    }
+
+    /// INV-FIT and the final renaming (D-NEWFN).
+    #[test]
+    fn t_anonymous_functions_fit_and_realize() {
+        // Real auxiliary capacities: F2 = 1, F3 = 3, F5 = 2 (F4 disabled).
+        let p = puzzle(&["bbbbB"], (0, 0), "right", &[2, 1, 3, 0, 2], 0);
+        let solver = Solver::new(&p, Config::default(), Limits::default());
+        assert_eq!(solver.capacities, [2, 3, 3, 3, 0]);
+        assert_eq!(solver.aux_capacities.as_slice(), &[3, 2, 1]);
+        let mut prog = solver.root().program;
+        let fwd = Cell::Resolved(Instruction::any(Action::Forward));
+        prog.function_mut(1).push(fwd);
+        prog.function_mut(2).push(fwd);
+        assert!(solver.aux_fits(&prog, 1, 3)); // lengths 3, 1, 0 fit 3, 2, 1
+        prog.function_mut(1).push(fwd);
+        prog.function_mut(1).push(fwd);
+        assert!(solver.aux_fits(&prog, 2, 2)); // 3, 2, 0
+        assert!(!solver.aux_fits(&prog, 2, 3)); // 3, 3, 0: two bodies need 3
+        prog.function_mut(2).push(fwd);
+        prog.function_mut(3).push(fwd);
+        assert!(!solver.aux_fits(&prog, 3, 2)); // 3, 2, 2: the third gets 1
+
+        // Realize: the longest body goes to F3, the next to F5, the shortest
+        // to F2, and calls follow.
+        prog.function_mut(0).push(Cell::Resolved(Instruction::any(Action::Call(2))));
+        prog.function_mut(0).push(Cell::Pending { action: Action::Call(3), color: Color::Blue });
+        let real = solver.realize(&prog);
+        assert_eq!(real.functions[2].len, 3); // internal 1 -> F3
+        assert_eq!(real.functions[4].len, 2); // internal 2 -> F5
+        assert_eq!(real.functions[1].len, 1); // internal 3 -> F2
+        assert_eq!(real.functions[3].len, 0);
+        assert_eq!(
+            real.functions[0].decided(),
+            &[
+                Cell::Resolved(Instruction::any(Action::Call(4))),
+                Cell::Pending { action: Action::Call(1), color: Color::Blue },
+            ]
+        );
+        let tokens = real.to_physical().to_tokens();
+        assert_eq!(tokens.iter().map(Vec::len).collect::<Vec<_>>(), vec![2, 1, 3, 0, 2]);
+    }
+
+    /// Anonymous functions against exhaustive enumeration on tiny puzzles
+    /// whose auxiliary functions have different capacities (one color, no
+    /// paint, so the brute force stays small).
+    #[test]
+    fn t_anonymous_functions_bruteforce() {
+        let mut rng = Rng(7);
+        let mut checked = 0;
+        let mut solved = 0;
+        while checked < 25 {
+            let (rows, cols) = (1 + rng.below(3) as usize, 2 + rng.below(3) as usize);
+            let mut grid: Vec<Vec<char>> =
+                (0..rows).map(|_| (0..cols).map(|_| if rng.below(4) == 0 { ' ' } else { 'b' }).collect()).collect();
+            grid[0][0] = 'b';
+            let tiles: Vec<(usize, usize)> = (0..rows)
+                .flat_map(|r| (0..cols).map(move |c| (r, c)))
+                .filter(|&(r, c)| grid[r][c] != ' ' && (r, c) != (0, 0))
+                .collect();
+            if tiles.is_empty() {
+                continue;
+            }
+            for _ in 0..1 + rng.below(2) {
+                let (r, c) = tiles[rng.below(tiles.len() as u64) as usize];
+                grid[r][c] = 'B';
+            }
+            let caps: &[i64] = if rng.below(2) == 0 { &[1, 2, 1] } else { &[1, 1, 2] };
+            let rows_s: Vec<String> = grid.iter().map(|r| r.iter().collect()).collect();
+            let rows_ref: Vec<&str> = rows_s.iter().map(|s| s.as_str()).collect();
+            let dirs = ["up", "right", "down", "left"];
+            let p = puzzle(&rows_ref, (0, 0), dirs[rng.below(4) as usize], caps, 0);
+            if !p.stars_connected() {
+                continue;
+            }
+            checked += 1;
+            let expected = brute_force_min(&p);
+            for anonymous_functions in [true, false] {
+                let config = Config { anonymous_functions, heuristic: false, ..Config::default() };
+                let got = match solve_default(&p, config).outcome {
+                    Outcome::Solved(s) => Some(s.cost),
+                    Outcome::Unsolvable(UnsolvableReason::Exhausted) => None,
+                    other => panic!("{other:?}"),
+                };
+                assert_eq!(got, expected, "{rows_s:?} caps {caps:?} anonymous={anonymous_functions}");
+            }
+            solved += expected.is_some() as u32;
+        }
+        assert!(solved >= 5, "only {solved} solvable cases");
     }
 
     #[test]

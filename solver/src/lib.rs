@@ -2,6 +2,7 @@
 //! comments (`R-*`, `N-*`, `P-*`, …) refer to it.
 
 pub mod canonical;
+pub mod heuristic;
 pub mod machine;
 pub mod normalize;
 pub mod program;

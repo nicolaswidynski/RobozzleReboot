@@ -9,12 +9,12 @@ use clap::Parser;
 use serde_json::{Value, json};
 
 use solver::puzzle::{RawPuzzle, StaticPuzzle, load_catalog};
-use solver::search::{Outcome, UnsolvableReason, solve};
+use solver::search::{FoundBy, Outcome, UnsolvableReason, solve};
 use solver::stats::{Config, Limits};
 use solver::types::MAX_STEPS;
 
 #[derive(Parser)]
-#[command(about = "Finds minimal-slot RoboZZle programs (see SPEC.md)")]
+#[command(about = "Solves RoboZZle puzzles, minimal-slot when provable (see SPEC.md)")]
 struct Args {
     /// Catalog JSON file (an array of puzzles).
     catalog: PathBuf,
@@ -24,12 +24,17 @@ struct Args {
     /// Solve every puzzle in the catalog.
     #[arg(long)]
     all: bool,
-    /// Per-puzzle time limit in milliseconds.
-    #[arg(long, default_value_t = 10_000)]
-    timeout_ms: u64,
-    /// Per-puzzle search-node limit.
+    /// Per-puzzle search-node limit. Results depend only on this, not on
+    /// the machine's speed (deterministic).
+    #[arg(long, default_value_t = 20_000_000)]
+    node_limit: u64,
+    /// Optional per-puzzle wall-clock safety limit in milliseconds. When it
+    /// triggers, the result depends on machine speed.
     #[arg(long)]
-    node_limit: Option<u64>,
+    timeout_ms: Option<u64>,
+    /// Exact (optimal) search only; no heuristic phase.
+    #[arg(long)]
+    exact_only: bool,
     /// Output file (default: print to stdout).
     #[arg(long)]
     out: Option<PathBuf>,
@@ -48,6 +53,12 @@ struct Args {
     no_cycle_detection: bool,
     #[arg(long)]
     no_step_cut: bool,
+    /// Heuristic phase without the history heuristic.
+    #[arg(long)]
+    no_history: bool,
+    /// Auxiliary functions keep their identities (P-SYM only).
+    #[arg(long)]
+    no_anonymous_functions: bool,
 }
 
 fn id_string(v: &Value) -> String {
@@ -74,15 +85,21 @@ fn solve_one(raw: &RawPuzzle, config: Config, limits: Limits) -> (Value, String)
     let ms = result.stats.millis;
     match result.outcome {
         Outcome::Solved(s) => {
+            let found_by = match s.found_by {
+                FoundBy::Exact => "exact",
+                FoundBy::Heuristic => "heuristic",
+            };
             let line = format!(
-                "{:>6}  solved       cost {:>2}  steps {:>5}  {:>7} ms",
+                "{:>6}  solved       cost {:>2}{}  steps {:>5}  {:>7} ms  {found_by}",
                 id_string(&id),
                 s.cost,
+                if s.optimal { "*" } else { " " },
                 s.steps,
                 ms
             );
             (
-                json!({ "sourceId": id, "status": "solved", "cost": s.cost, "steps": s.steps,
+                json!({ "sourceId": id, "status": "solved", "cost": s.cost, "optimal": s.optimal,
+                        "lowerBound": result.lower_bound, "foundBy": found_by, "steps": s.steps,
                         "program": s.program.to_tokens(), "stats": stats }),
                 line,
             )
@@ -100,11 +117,13 @@ fn solve_one(raw: &RawPuzzle, config: Config, limits: Limits) -> (Value, String)
         }
         Outcome::Timeout => {
             let line = format!(
-                "{:>6}  timeout                     {ms:>7} ms",
-                id_string(&id)
+                "{:>6}  timeout      cost >= {:>2}               {ms:>7} ms",
+                id_string(&id),
+                result.lower_bound
             );
             (
-                json!({ "sourceId": id, "status": "timeout", "stats": stats }),
+                json!({ "sourceId": id, "status": "timeout", "lowerBound": result.lower_bound,
+                        "stats": stats }),
                 line,
             )
         }
@@ -144,10 +163,13 @@ fn main() {
         peephole: !args.no_peephole,
         cycle_detection: !args.no_cycle_detection,
         step_cut: !args.no_step_cut,
+        heuristic: !args.exact_only,
+        history: !args.no_history,
+        anonymous_functions: !args.no_anonymous_functions,
     };
     let limits = Limits {
-        time: Some(Duration::from_millis(args.timeout_ms)),
-        nodes: args.node_limit,
+        time: args.timeout_ms.map(Duration::from_millis),
+        nodes: Some(args.node_limit),
     };
     let jobs = args
         .jobs

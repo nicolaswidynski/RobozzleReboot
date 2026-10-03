@@ -191,6 +191,30 @@ pub fn normalize(
     config: &Config,
     stats: &mut SearchStats,
 ) -> NormalizeResult {
+    let before = stats.instructions_evaluated;
+    let result = normalize_inner(puzzle, program, machine, arena, cycles, config, stats);
+    let n = stats.instructions_evaluated - before;
+    let bucket = match n {
+        0 => 0,
+        1..=10 => 1,
+        11..=100 => 2,
+        101..=1000 => 3,
+        1001..=10000 => 4,
+        _ => 5,
+    };
+    stats.normalize_histogram[bucket] += 1;
+    result
+}
+
+fn normalize_inner(
+    puzzle: &StaticPuzzle,
+    program: &PartialProgram,
+    machine: &mut Machine,
+    arena: &mut StackArena,
+    cycles: &mut CycleDetector,
+    config: &Config,
+    stats: &mut SearchStats,
+) -> NormalizeResult {
     stats.normalize_calls += 1;
     cycles.clear();
     loop {
@@ -242,7 +266,20 @@ pub fn normalize(
                 advance(machine);
             }
             Cell::Pending { action, color } => {
-                if machine.tile_color() != color {
+                let tile = machine.tile_color();
+                if tile != color && action == Action::Paint(tile) {
+                    // N-PAINTSAME: `Any` repaints the tile with its own color
+                    // and `Color(color)` skips; both consume one step and
+                    // change nothing, so the choice stays deferred.
+                    stats.paint_same_skips += 1;
+                    stats.instructions_evaluated += 1;
+                    if let Err(e) = machine.consume_instruction() {
+                        return NormalizeResult::Dead(e);
+                    }
+                    advance(machine);
+                    continue;
+                }
+                if tile != color {
                     // N-NEEDCOND: no step consumed, pc not advanced.
                     stats.need_condition_frontiers += 1;
                     return NormalizeResult::NeedCondition {

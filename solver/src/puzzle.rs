@@ -49,6 +49,9 @@ pub struct StaticPuzzle {
     pub allowed_paints: ColorMask,
     pub possible_colors: ColorMask,
     pub function_classes: FunctionClasses,
+    /// Walking distance between tiles (row-major `tile_count²`),
+    /// `u16::MAX` when unreachable. Used only to order heuristic search.
+    pub distance: Vec<u16>,
 }
 
 /// Capacity classes of F2..F5 (SPEC §2.5): each class is a bitmask of
@@ -187,7 +190,44 @@ impl StaticPuzzle {
             allowed_paints,
             possible_colors,
             function_classes: FunctionClasses::new(&capacities),
+            distance: Vec::new(),
         })
+        .map(|mut p| {
+            p.distance = p.all_pairs_distances();
+            p
+        })
+    }
+
+    fn all_pairs_distances(&self) -> Vec<u16> {
+        let n = self.tile_count as usize;
+        let mut dist = vec![u16::MAX; n * n];
+        for from in 0..n {
+            if !self.is_tile[from] {
+                continue;
+            }
+            let row = &mut dist[from * n..(from + 1) * n];
+            row[from] = 0;
+            let mut queue = VecDeque::from([from]);
+            while let Some(t) = queue.pop_front() {
+                for &nb in self.neighbors[t].iter().flatten() {
+                    if row[nb as usize] == u16::MAX {
+                        row[nb as usize] = row[t] + 1;
+                        queue.push_back(nb as usize);
+                    }
+                }
+            }
+        }
+        dist
+    }
+
+    /// Walking distance from `tile` to the nearest star in `stars`.
+    pub fn nearest_star(&self, tile: TileId, stars: &StarSet) -> u16 {
+        let n = self.tile_count as usize;
+        stars
+            .iter()
+            .map(|s| self.distance[tile as usize * n + s as usize])
+            .min()
+            .unwrap_or(0)
     }
 
     #[inline]

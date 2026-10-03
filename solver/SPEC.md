@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.1 |
+| **Version** | 1.4 |
 | **Status** | Normative implementation specification |
 | **Engine** | `lib/engine/interpreter.dart` at commit `37b5ede` |
 | **Rationale** | [`DESIGN.md`](DESIGN.md) (why each rule exists, alternatives considered) |
@@ -467,6 +467,7 @@ At each iteration, the **first** rule whose guard holds fires. Let
 | **N-NEED** | `D.cells[pc] = CondOnly(c)` and `tile == c` | return `NeedAction{f, pc, c}` | 0 |
 | **N-SKIP** | `D.cells[pc] = CondOnly(c)` and `tile ≠ c` | `consume_instruction()?`; `pc += 1` | 1 |
 | **N-NEEDCOND** | `D.cells[pc] = Pending{a, c}` and `tile ≠ c` | return `NeedCondition{f, pc}` | 0 |
+| **N-PAINTSAME** | `D.cells[pc] = Pending{Paint(x), c}`, `tile ≠ c`, `tile == x` | `consume_instruction()?`; `pc += 1`; the cell stays `Pending` (`Any` would repaint the tile with its own color, `Color(c)` skips: both consume one step and change nothing) | 1 |
 | **N-PENDING** | `D.cells[pc] = Pending{a, c}` and `tile == c` | `consume_instruction()?`; `pc += 1`; apply the X-rule for `a` (both possible conditions match) | 1 |
 | **N-EXEC** | `D.cells[pc] = Resolved(i)` | `consume_instruction()?`; `pc += 1`; if `i.condition` matches `tile`, apply the X-rule for `i.action` | 1 |
 
@@ -750,6 +751,45 @@ Renaming each class in the order of first introduction, which execution
 determines, maps every solution to one that satisfies this rule. Functions
 of different capacities are not interchangeable, and F1 is the entry point.
 
+### 14.5 Anonymous auxiliary functions (D-NEWFN, INV-FIT)
+
+With `config.anonymous_functions`, auxiliary functions lose their real
+identities during search:
+
+- Let the enabled auxiliary capacities, sorted descending, be
+  `c_1 ≥ c_2 ≥ … ≥ c_n`. Internally, functions `1..=n` all get capacity
+  `c_1`; functions `n+1..` are disabled. `F1` keeps its own capacity.
+- Internal functions are introduced in order (D-NEWFN): a `Call` to a new
+  function always targets the lowest unintroduced internal index. P-SYM
+  then has a single class, whatever the real capacities are.
+- **INV-FIT:** let `l_1 ≥ … ≥ l_n` be the current body lengths of the
+  internal auxiliary functions, sorted descending. Always `l_i ≤ c_i` for all
+  `i`. A cell may be appended at `OpenSlot{f, k}` (`f ≠ F1`) only if the
+  invariant still holds with `len(f) = k + 1`; otherwise only D-END is
+  offered there (counted as `prune_capacity`).
+- **Forced close (deduction):** after every append to an auxiliary body,
+  any open auxiliary body `h` with `len(h) > 0` that INV-FIT no longer allows
+  to grow is ended at once (`ended := true`, then S-REBUILD(h, len(h))).
+  Lengths only grow, so such a body can never grow again in any completion;
+  this is not a decision and costs nothing. It restores the engine's tail
+  calls (as auto-closing at a real capacity would) and removes nodes whose
+  only child would be D-END.
+- **Realize** (at FINALIZE): assign internal bodies to real functions,
+  longest body to largest capacity (ties by index), and rename every `Call`
+  (in `Resolved` and `Pending` cells) accordingly.
+
+*Proof.* For threshold constraints `len ≤ cap`, an injective assignment
+exists if and only if the sorted greedy matching succeeds, so INV-FIT is
+exactly "the bodies can still be given real names". Lengths only grow, so a
+solution satisfies INV-FIT at every prefix. Renaming functions changes no
+execution; a body shorter than its real capacity behaves exactly like the
+same body followed by END (L1, S-REBUILD). Conversely, every program the
+search builds satisfies INV-FIT at the end, so Realize yields a valid real
+program with identical behavior and cost. Any real solution, renamed by
+first introduction, is in the anonymous search space, so no (minimal)
+solution is lost. Without the flag, P-SYM alone treats only equal
+capacities as interchangeable.
+
 ## 15. Canonicalization
 
 Canonicalization rules MAY discard a candidate only if every program
@@ -800,9 +840,11 @@ a slot and can be removed.)
 
 ### 15.3a P-ENDDEAD
 
-With `config.peephole`, D-END MUST NOT be generated when `callers = None`.
-(*Proof:* the current frame becomes exhausted, N-RETURN pops it, and with no
-caller left N-NOFRAME ends the program while stars remain.)
+With `config.peephole`, D-END at `OpenSlot{f, k}` MUST NOT be generated
+when every suspended frame equals `(f, k)` (in particular when
+`callers = None`). (*Proof:* S-REBUILD removes all of them, the current
+frame becomes exhausted, N-RETURN pops it, and with no caller left
+N-NOFRAME ends the program while stars remain.)
 
 ### 15.4 P-STEPCUT
 
@@ -825,6 +867,9 @@ pub struct Config {
     pub peephole: bool,           // P-PAINT, P-TURN, P-EMPTYFN, P-ENDDEAD, P-CRASH
     pub cycle_detection: bool,    // C-OBSERVE and C-PUMP (§12)
     pub step_cut: bool,           // P-STEPCUT (§15.4)
+    pub heuristic: bool,          // phases 2–3 of SOLVE (§17.3); off = exact only
+    pub history: bool,            // history heuristic in §17.3 (ordering only)
+    pub anonymous_functions: bool, // D-NEWFN / INV-FIT (§14.5)
 }   // Default: all true
 ```
 
@@ -832,34 +877,61 @@ Disabling a flag MUST remove only the optimization; it MUST NOT forbid any
 program. In particular, disabling `lazy_conditions` MUST expand dormant
 conditions eagerly (the last row of §14.1), not drop them, and disabling
 `lazy_active_conditions` MUST generate both `Any: a` and `Color(cur): a`.
-Every `Config` (all 64 combinations) MUST yield the same minimal cost.
+Every `Config` (all 128 combinations of the flags that shape exact search)
+MUST yield the same minimal cost.
 
 P-CONN, P-COLOR and P-DISABLED are part of the representation and have no
 flag.
 
 ## 17. Search
 
-### 17.1 Outer loop (iterative deepening)
+### 17.1 Outer loop: a deterministic portfolio
+
+Exact search (§17.2) and heuristic search (§17.3) are both **resumable**:
+each keeps its search stack in an explicit cursor and its own stack arena,
+so it can be paused at a node cap and later continued exactly where it
+stopped, with no work lost or repeated (`t_exact_resume_is_lossless`).
 
 ```text
 SOLVE(puzzle, config, limits) -> SolveResult:
     if P-CONN fails: return Unsolvable(Disconnected)
-    for budget in 0 ..= sum(cap):
-        stack_arena.clear()
-        root := SearchState {
-            program: every function empty (len 0; ended iff capacity 0),
-            machine: start position, direction, colors, stars;
-                     current = Some(Frame(0, 0)); callers = None;
-                     steps = 0; physical_hash from §7.1,
-            used_slots: 0,
-            introduced_functions: 0b00001,
-        }
-        match SEARCH(root, budget):
-            Found(solution) -> return Solved(solution)
-            Timeout         -> return Timeout
-            NotFound        -> continue
-    return Unsolvable(Exhausted)
+    if not config.heuristic:
+        run EXACT to completion or to the node limit         # Found | Exhausted | Timeout
+
+    slice := node_limit / 60  (1 000 000 when unlimited)
+    loop:                                                    # portfolio rounds
+        EXACT for slice more nodes:        Found -> return Solved(optimal = true)
+                                           Exhausted -> return Unsolvable(Exhausted)
+        HEURISTIC for slice more nodes:    Found(s) -> best := s; break
+                                           Exhausted -> return Unsolvable(Exhausted)
+        if the node (or time) limit is reached: return Timeout(lower_bound)
+        slice := 2 × slice
+
+    # A heuristic solution exists: all remaining nodes go to exact search
+    # below its cost.
+    EXACT up to budget best.cost − 1:      Found -> return Solved(optimal = true)
+                                           Exhausted -> best.optimal := true
+    return Solved(best)
 ```
+
+With the default 20 M node limit, exact and heuristic search each get about
+10 M nodes when neither finishes. The 1:1 ratio is measured, not guessed:
+with 2:1 (exact 15 M, heuristic 5 M) six more puzzles were solved by exact
+search but thirteen fewer by the heuristic, so a heuristic node was worth
+about twice an exact node at the margin (BENCHMARKS.md).
+
+`EXACT` searches budgets `next_budget, next_budget + 1, …` in order;
+`next_budget` (the smallest budget not yet exhausted) is the reported
+`lower_bound` unless the solution is optimal.
+
+The root state of every iteration is: every function empty (len 0; ended
+iff capacity 0); start position, direction, colors, stars;
+`current = Some(Frame(0, 0))`; `callers = None`; `steps = 0`;
+`physical_hash` from §7.1; `used_slots = 0`; `introduced_functions = 0b00001`.
+
+`lower_bound` (reported with every result) is `cost` for an optimal
+solution and `next_budget` otherwise: no program with fewer occupied slots
+solves the puzzle.
 
 ### 17.2 Recursive search
 
@@ -912,12 +984,69 @@ SEARCH(state, budget) -> Found(Solution) | NotFound | Timeout:
 `limits.check()` SHOULD read the clock only every N nodes (for example
 every 4096) to keep it off the hot path.
 
+### 17.3 Heuristic phase (LDS)
+
+Limited discrepancy search over the same tree as §17.2, with the same
+candidate generation and the same sound pruning, at budget `sum(cap)`:
+
+```text
+HEURISTIC():
+    for allowance in 0, 1, 2, ...:
+        stack_arena.clear(); cut := false
+        root := normalize(root state)
+        match LDS(root, allowance):
+            Found(s)                -> return Found(s)
+            NotFound and not cut    -> return Exhausted     # whole space searched
+            NotFound                -> continue
+
+LDS(state, allowance):                       # state is already normalized
+    Solved   -> return Found(FINALIZE_HEURISTIC(state))
+    Dead     -> return NotFound
+    frontier -> kids := every child (§13), each normalized once (lookahead):
+                    a Solved kid returns Found immediately; Dead kids are dropped
+                rank kids by (stars left, walking distance to the nearest star,
+                              used_slots, generation order)    # ascending
+                    # with config.history: stars collected := max(own, HISTORY[decision])
+                for kid of rank r:
+                    if r > allowance: cut := true; break
+                    mark := arena.mark(); LDS(kid, allowance - r); arena.truncate(mark)
+```
+
+- Ranking only orders the search; it never removes a kid (INV-ORDER-ONLY).
+  Every kid not explored in iteration `d` is explored in a later iteration,
+  so without a node limit the phase is complete.
+- Lookahead normalizations count as search nodes.
+- **History heuristic** (`config.history`): `HISTORY[(function, slot,
+  decision)]` is the most stars collected by any normalized node below that
+  decision so far in this solve, **dead nodes included**; a frame credits its
+  best to the decision that created it when it is popped. A decision whose
+  subtree once nearly solved the puzzle and then crashed keeps being tried
+  first in later iterations. It only reorders, so completeness and
+  determinism are unaffected.
+- **FINALIZE_HEURISTIC:** drop `CondOnly` cells (they never ran on their
+  color, so they were always skipped), turn `Pending` into `Any`, verify with
+  `REFERENCE_RUN` (MUST succeed), then **shrink**: repeatedly delete the first
+  single cell, else the first adjacent pair of cells, whose deletion keeps
+  `REFERENCE_RUN` successful, until none does. Verify again.
+- INV-FIN does not apply to heuristic solutions.
+
+### 17.4 Determinism
+
+Search decisions never depend on time, randomness or hash-map iteration
+order, and the phase budgets are node counts. For a given puzzle, `Config`
+and node limit, the result and statistics are identical on every machine.
+The optional wall-clock limit is a safety net; if it triggers, the result
+depends on machine speed.
+
 ## 18. Finalization and verification
 
 ```text
 FINALIZE(state) -> Solution:
     debug_assert!(no CondOnly cell remains)            # INV-FIN
-    program := physical(state.program)                 # undecided tails become None
+    program := physical(REALIZE(state.program))        # §14.5; undecided tails become None
+    ASSERT_SHAPE(program)    # len(program[f]) == cap[f]; calls only to enabled
+                             # functions; paints only in allowed colors
+                             # (REFERENCE_RUN cannot see capacities)
     run := REFERENCE_RUN(puzzle, program)
     assert!(run.status == SUCCESS)                     # INV-VERIFY, in release builds too
     return Solution { program, cost: state.used_slots, steps: run.steps }
@@ -977,6 +1106,7 @@ time.
 | **INV-FRONTIER** | At `OpenSlot` / `NeedAction` / `NeedCondition`, `current` points at the frontier cell and it has consumed no step. | TV-13 |
 | **INV-PURE** | `normalize` never modifies the program. | code structure (`&PartialProgram`) |
 | **INV-STACK** | No suspended frame is exhausted (§11.2). | TV-10, `t_rebuild_middle` |
+| **INV-FIT** | With anonymous functions, the auxiliary bodies can always be matched to distinct real functions of sufficient capacity (§14.5). | `t_anonymous_functions_fit_and_realize`, assert in Realize |
 | **INV-FIN** | The first solution found contains no `CondOnly`. | `debug_assert` in FINALIZE |
 | **INV-VERIFY** | Every returned solution succeeds in `REFERENCE_RUN`. | `assert` in FINALIZE |
 | **INV-ORDER-ONLY** | Heuristics reorder candidates and never remove them. | code review |
@@ -1020,12 +1150,13 @@ switchable through `Config`.
 ## 23. Solver contract
 
 ```rust
-pub enum SolveResult {
-    Solved { program: ResolvedProgram, cost: u8, steps: u32, stats: SearchStats },
-    Unsolvable { reason: UnsolvableReason, stats: SearchStats },  // Disconnected | Exhausted
-    Timeout { stats: SearchStats },
-    Unsupported { reason: String },
+pub enum Outcome {
+    Solved(Solution),      // Solution { program, cost, steps, optimal, found_by }
+    Unsolvable(UnsolvableReason),  // Disconnected | Exhausted
+    Timeout,
 }
+pub struct SolveResult { pub outcome: Outcome, pub stats: SearchStats, pub lower_bound: u8 }
+// Unsupported puzzles are rejected by the loader (§2.2) before SOLVE.
 ```
 
 `Solved` guarantees:
@@ -1033,10 +1164,12 @@ pub enum SolveResult {
 1. `program` has exactly `cap[f]` slots in function `f`, uses only paint
    colors in `allowed_paints`, and never calls a function with `cap = 0`;
 2. `REFERENCE_RUN(program)` returns `SUCCESS` with `steps` steps;
-3. no program with fewer occupied slots solves the puzzle under §8.
+3. if `optimal` is true, no program with fewer occupied slots solves the
+   puzzle under §8. If it is false, the solution was found by the heuristic
+   phase and only `lower_bound ≤ minimal cost ≤ cost` is known.
 
 `Unsolvable(Exhausted)` guarantees that no program of any cost solves the
-puzzle under §8.
+puzzle under §8. `Timeout` guarantees `minimal cost ≥ lower_bound`.
 
 ---
 
@@ -1187,9 +1320,14 @@ Test names are those of the implementation (`cargo test` in `solver/`).
 | `t_candidates` | TV-14a … TV-14i. |
 | `t_p_sym_callable_sets` | TV-15. |
 | `t_p_turn`, `t_p_paint` | TV-16, P-PAINT. |
-| `t_e2e_min_cost_all_configs` | §24.5 under all 64 `Config` combinations (this is also `t_config_equivalence`). |
+| `t_e2e_min_cost_all_configs` | §24.5 under all 128 `Config` combinations (this is also `t_config_equivalence`). |
+| `t_anonymous_functions_fit_and_realize` | INV-FIT on capacities 1, 3, 2; Realize maps bodies and renames calls in `Resolved` and `Pending` cells; output slot counts equal real capacities. |
+| `t_anonymous_functions_bruteforce` | 25 random tiny puzzles with auxiliary capacities `[2, 1]` or `[1, 2]`: anonymous and labelled exact search both match exhaustive enumeration. |
 | `t_e2e_bruteforce` | 60 random tiny puzzles: `SOLVE` matches exhaustive enumeration under three configurations, including unsolvable cases. |
-| `t_determinism` | Two runs give identical results and statistics. |
+| `t_exact_resume_is_lossless` | Pausing exact search every 1, 7 or 100 nodes gives the same solution after the same node count as one uninterrupted run. |
+| `t_determinism`, `t_node_limited_solve_is_deterministic` | Two runs give identical results and statistics, also when the node limit cuts the search. |
+| `t_heuristic_phase_alone` | §24.5 puzzles with the heuristic phase only: a verified solution of cost ≥ the optimum, or `Exhausted` when none exists; a node-starved `SOLVE` never reports a wrong optimum. |
+| `t_shrink_removes_redundant_cells` | The shrink pass removes a cancelling `L R` pair. |
 | `disconnected_is_unsolvable`, `star_less_puzzle_is_solved_by_the_empty_program` | P-CONN; the budget-0 iteration. |
 | Dart `test/solver_solutions_test.dart` | §26. |
 
@@ -1204,11 +1342,13 @@ The CLI writes `solutions.json`:
   "config": { "lazyConditions": true, "lazyActiveConditions": true, "functionSymmetry": true,
               "peephole": true, "cycleDetection": true, "stepCut": true },
   "results": [
-    { "sourceId": 195, "status": "solved", "cost": 7, "steps": 1234,
+    { "sourceId": 195, "status": "solved", "cost": 7, "optimal": true, "lowerBound": 7,
+      "foundBy": "exact", "steps": 1234,
       "program": [["forward", "red:turnLeft", "callF2", null], ["forward", null], [], [], []],
       "stats": { "millis": 12, "searchNodes": 45678, "instructionsEvaluated": 912345,
                  "nodesPerBudget": [1, 1, 5, 40] } },
-    { "sourceId": 53, "status": "timeout", "stats": { "millis": 10000, "searchNodes": 98765432 } },
+    { "sourceId": 53, "status": "timeout", "lowerBound": 8,
+      "stats": { "millis": 10000, "searchNodes": 20000001 } },
     { "sourceId": 999, "status": "unsupported", "reason": "function capacity 13 exceeds 12" }
   ]
 }
@@ -1221,6 +1361,8 @@ The CLI writes `solutions.json`:
   `paintRed`, `paintGreen`, `paintBlue`, `callF1` … `callF5`.
 - `status` is one of `solved | unsolvable | timeout | unsupported`;
   `unsolvable` entries carry `"reason": "disconnected" | "exhausted"`.
+- `solved` entries carry `optimal`, `lowerBound` and `foundBy`
+  (`"exact" | "heuristic"`); `timeout` entries carry `lowerBound`.
 - `stats` keys are the camelCase names of §20.
 
 **Dart verification** (`test/solver_solutions_test.dart`): for every
@@ -1238,8 +1380,11 @@ MUST be skipped when `solutions.json` is absent.
 
 ```text
 solver <catalog.json> [--id <sourceId>]... [--all]
-       [--timeout-ms <ms>]            per puzzle, default 10000
-       [--node-limit <n>]
+       [--node-limit <n>]             per puzzle, default 20 000 000 (deterministic)
+       [--timeout-ms <ms>]            optional wall-clock safety limit
+       [--exact-only]                 phase 1 only (config.heuristic = false)
+       [--no-history]                 heuristic phase without the history heuristic
+       [--no-anonymous-functions]     keep auxiliary function identities (P-SYM only)
        [--out <solutions.json>]
        [--jobs <n>]                    puzzles solved in parallel, default: all CPUs
        [--no-lazy-conditions] [--no-lazy-active-conditions]
@@ -1269,6 +1414,7 @@ solver/src/
   normalize.rs   normalize, CycleDetector (§10, §12)
   canonical.rs   P-PAINT, P-TURN, P-EMPTYFN (§15)
   search.rs      Solver, SearchState, candidates, SOLVE/SEARCH, FINALIZE (§6, §13–§18)
+  heuristic.rs   heuristic phase: LDS, FINALIZE_HEURISTIC, shrink (§17.3)
   stats.rs       Config, Limits, SearchStats (§16, §20)
 ```
 
@@ -1295,7 +1441,7 @@ on, a benchmark row is appended to `BENCHMARKS.md`):
 
 Global transposition table; undo/trail state; path-scoped cycle cache;
 parallel search within a puzzle; MCTS, genetic or machine-learned search;
-heuristic (unsound) pruning; pushdown analysis beyond C-PUMP; a secondary objective
+heuristic (unsound) pruning (the heuristic phase only reorders); pushdown analysis beyond C-PUMP; a secondary objective
 (fewest steps at equal cost); any backend or HTTP integration.
 
 ## D. Traceability
@@ -1316,4 +1462,6 @@ heuristic (unsound) pruning; pushdown analysis beyond C-PUMP; a secondary object
 | P-CRASH, P-ENDDEAD | §14.1, §15.3a | `t_candidates` (TV-14i), `t_e2e_min_cost_all_configs` |
 | D-PENDING, D-CHOOSE, N-NEEDCOND | §10, §13, §14 | `t_candidates` (TV-14g/h), `t_frontier_no_step`, `t_e2e_min_cost_all_configs`, `t_e2e_bruteforce` |
 | P-STEPCUT | §15.4 | `t_e2e_min_cost_all_configs` |
+| D-NEWFN, INV-FIT, Realize | §14.5 | `t_anonymous_functions_fit_and_realize`, `t_anonymous_functions_bruteforce`, `t_e2e_min_cost_all_configs` |
+| Phases, LDS, shrink | §17.1, §17.3 | `t_heuristic_phase_alone`, `t_shrink_removes_redundant_cells`, `t_node_limited_solve_is_deterministic`, Dart test |
 | INV-* | §21 | see §21; INV-PREFIX, INV-COST, INV-FIN as `debug_assert` in every test run |

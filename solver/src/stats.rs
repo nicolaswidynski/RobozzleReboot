@@ -15,6 +15,17 @@ pub struct Config {
     pub peephole: bool,
     pub cycle_detection: bool,
     pub step_cut: bool,
+    /// After the exact phase runs out of its node share, search for any
+    /// solution with LDS (heuristic phase); off = exact search only.
+    pub heuristic: bool,
+    /// History heuristic in the heuristic phase: rank a decision by the
+    /// best progress seen anywhere in its subtrees so far (dead branches
+    /// included). Ordering only.
+    pub history: bool,
+    /// Anonymous auxiliary functions (D-NEWFN): F2..F5 are interchangeable
+    /// whatever their capacities; bodies are matched to real functions at
+    /// the end, subject to INV-FIT.
+    pub anonymous_functions: bool,
 }
 
 impl Default for Config {
@@ -26,20 +37,27 @@ impl Default for Config {
             peephole: true,
             cycle_detection: true,
             step_cut: true,
+            heuristic: true,
+            history: true,
+            anonymous_functions: true,
         }
     }
 }
 
 impl Config {
-    /// All 64 combinations, for `t_config_equivalence`.
+    /// All 128 combinations of the flags that shape the exact search, for
+    /// `t_config_equivalence`.
     pub fn all_combinations() -> impl Iterator<Item = Config> {
-        (0u8..64).map(|b| Config {
+        (0u8..128).map(|b| Config {
             lazy_conditions: b & 1 != 0,
             function_symmetry: b & 2 != 0,
             peephole: b & 4 != 0,
             cycle_detection: b & 8 != 0,
             step_cut: b & 16 != 0,
             lazy_active_conditions: b & 32 != 0,
+            heuristic: true,
+            history: true,
+            anonymous_functions: b & 64 != 0,
         })
     }
 }
@@ -55,6 +73,8 @@ pub struct Deadline {
     start: Instant,
     limits: Limits,
     checks: u64,
+    /// A tighter node cap for the current phase (deterministic).
+    phase_cap: Option<u64>,
 }
 
 pub struct TimedOut;
@@ -65,7 +85,22 @@ impl Deadline {
             start: Instant::now(),
             limits,
             checks: 0,
+            phase_cap: None,
         }
+    }
+
+    pub fn set_phase_cap(&mut self, cap: Option<u64>) {
+        self.phase_cap = cap;
+    }
+
+    pub fn node_limit(&self) -> Option<u64> {
+        self.limits.nodes
+    }
+
+    /// Whether the global node or time limit (not a phase cap) is reached.
+    pub fn limit_reached(&self, nodes: u64) -> bool {
+        self.limits.nodes.is_some_and(|max| nodes >= max)
+            || self.limits.time.is_some_and(|t| self.start.elapsed() > t)
     }
 
     /// Reads the clock only every 4096 calls (SPEC §17.2).
@@ -73,6 +108,11 @@ impl Deadline {
     pub fn check(&mut self, nodes: u64) -> Result<(), TimedOut> {
         if let Some(max) = self.limits.nodes
             && nodes > max
+        {
+            return Err(TimedOut);
+        }
+        if let Some(cap) = self.phase_cap
+            && nodes > cap
         {
             return Err(TimedOut);
         }
@@ -118,6 +158,17 @@ pub struct SearchStats {
     pub pending_created: u64,
     pub pending_resolved: u64,
     pub prune_crash: u64,
+    /// Cells not appended because the bodies would no longer fit the real
+    /// function capacities (INV-FIT).
+    pub prune_capacity: u64,
+    /// D-END at index 1 of an auxiliary function not generated (P-SINGLE).
+    pub prune_single: u64,
+    /// Children cut because used slots plus P-RESERVE exceed the budget.
+    pub prune_reserve: u64,
+    /// Auxiliary bodies closed because INV-FIT forbids any growth.
+    pub forced_closes: u64,
+    /// `Pending{Paint(x)}` evaluated on an `x` tile: no decision needed.
+    pub paint_same_skips: u64,
     pub prune_end_dead: u64,
     pub stack_pushes: u64,
     pub tail_calls: u64,
@@ -126,4 +177,23 @@ pub struct SearchStats {
     pub stack_nodes_rebuilt: u64,
     pub max_search_depth: u32,
     pub max_call_depth: u32,
+    /// Instructions per `normalize` call: 0, 1–10, 11–100, 101–1000,
+    /// 1001–10000, >10000.
+    pub normalize_histogram: [u64; 6],
+    /// Nodes spent in the heuristic phase (included in `search_nodes`).
+    pub heuristic_nodes: u64,
+    pub lds_iterations: u32,
+    /// Cells removed from a heuristic solution by the shrink pass.
+    pub shrink_removed: u32,
+    /// Heuristic-phase telemetry: how many normalized nodes had collected
+    /// `i` stars (index `i`), and the best progress seen.
+    pub heuristic_stars_histogram: Vec<u64>,
+    pub heuristic_best_stars_alive: u32,
+    pub heuristic_best_stars_dead: u32,
+    /// The best live partial program (most stars, then fewest slots), with
+    /// its robot position (row, col) and remaining stars; for failure
+    /// analysis.
+    pub heuristic_best_program: Option<Vec<Vec<String>>>,
+    pub heuristic_best_position: Option<(usize, usize)>,
+    pub heuristic_best_remaining: Option<Vec<(usize, usize)>>,
 }

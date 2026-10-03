@@ -140,6 +140,49 @@ impl PartialProgram {
         })
     }
 
+    /// Decided cells as tokens, for diagnostics: `CondOnly` as `"red:?"`,
+    /// `Pending` as `"red|any:forward"`.
+    pub fn to_partial_tokens(&self) -> Vec<Vec<String>> {
+        self.functions
+            .iter()
+            .map(|d| {
+                d.decided()
+                    .iter()
+                    .map(|c| match c {
+                        Cell::Resolved(i) => instruction_token(*i),
+                        Cell::CondOnly(color) => format!("{}:?", color.name()),
+                        Cell::Pending { action, color } => format!(
+                            "{}|any:{}",
+                            color.name(),
+                            instruction_token(Instruction::any(*action))
+                        ),
+                        Cell::Unused => "unused".to_string(),
+                    })
+                    .collect()
+            })
+            .collect()
+    }
+
+    /// Like `to_physical`, but drops `CondOnly` cells (left-packing the rest).
+    /// A `CondOnly` left at `Solved` never ran on its color, so it was skipped
+    /// every time; removing it keeps the behavior. Used by the heuristic
+    /// phase, whose solutions need not be minimal (INV-FIN does not apply).
+    pub fn to_physical_dropping_cond_only(&self) -> ResolvedProgram {
+        let mut copy = *self;
+        for d in copy.functions.iter_mut() {
+            let kept: Vec<Cell> = d
+                .decided()
+                .iter()
+                .copied()
+                .filter(|c| !matches!(c, Cell::CondOnly(_)))
+                .collect();
+            d.cells = [Cell::Unused; MAX_FUNCTION_SLOTS];
+            d.cells[..kept.len()].copy_from_slice(&kept);
+            d.len = kept.len() as u8;
+        }
+        copy.to_physical()
+    }
+
     /// The physical program (SPEC §3.3): undecided tails become `None`, and a
     /// `Pending` cell becomes `Any` (it never ran on another color, so `Any`
     /// and `Color(c)` behaved identically). Panics if a `CondOnly` remains.
