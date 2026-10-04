@@ -180,6 +180,47 @@ Measured and not adopted (both trade puzzles rather than add them):
   the nearest remaining star (with some slack for detours), as a share of
   the heuristic budget. FINDER 27 against 26 (+5 / −4).
 
+### v1.8: the loop detector was the bottleneck of the slow puzzles
+
+A few timeouts took minutes (#1877: 822 s for 20 M nodes in v1.7). Telemetry
+on the 20 slowest puzzles (default mode, 2 M nodes each) recorded, for every
+normalization that died at the 20 000-step limit (6 312 of them):
+
+- an exact repeat of the full state (position, direction, colors, stars,
+  frame and caller stack) inside the normalization: **0**. A full-state
+  check at every instruction would catch nothing, and could not: without a
+  call, execution runs straight through a function body, so every endless
+  run calls, and C-OBSERVE already compares full states at calls;
+- no star collected in the last 10 000 steps: 98.8 %;
+- the same position, direction and frame at a different stack depth: 38 %;
+  about 300 distinct (physical state, frame) keys per 20 000-step window,
+  and almost no paints. The robot walks the same small loop while recursion
+  grows and shrinks the stack like a counter, so the full state does not
+  recur within 20 000 steps.
+
+The time went into the detector itself. Each call was compared with every
+earlier observation of the same key, and each comparison walked the caller
+chains: per executed instruction, 160 detector operations on #10581, 86 on
+#1877, 15 on #4936, 11 on #283, quadratic in the length of the run. v1.8
+compares chain hashes before walking, answers C-PUMP's ancestor test with
+low-water marks of the stack depth, and in long normalizations compares a
+call with the last 8 observations of its key and a Brent checkpoint only
+(SPEC.md §12.2, §12.4). Detection cannot change the search (an undetected
+endless loop still dies at the step limit), and indeed nothing changed:
+
+| | v1.7 | v1.8 |
+|---|---|---|
+| Slow 20, 2 M nodes: results, node counts, loops and step-limit deaths detected, instructions | | identical |
+| Slow 20: CPU time | 215 s | 53 s (4.1×) |
+| #10581 / #1877 | 62.0 s / 29.6 s | 5.5 s / 2.1 s |
+| Dev set (150 puzzles, default mode, 5 M nodes): results and node counts | | identical |
+| Dev set: CPU time | 715 s | 494 s (1.45×) |
+
+A "no star for K steps" cutoff (the way a human gives up on a program) was
+not added: in the heuristic phase only, it would save at most about half of
+the step-limit runs' instructions, about 6 % on the slow puzzles, and unlike
+the detector it would change the search.
+
 ### v1.7: find first (measurements behind the new default)
 
 **FINDER alone against the v1.6 default.** On the first 559 puzzles of the

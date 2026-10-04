@@ -116,6 +116,22 @@ SPEC.md'deki isimler kullanılır.
 > çözüme kadar geçen süre medyan 178 ms; tüm katalog 34 yerine 27 dakika.
 > Bedeli: kanıtlı en kısa 399 → 187 (`--prove-minimal` eski davranışı geri
 > getirir).
+>
+> **v1.8 — döngü dedektörünün maliyeti.** Birkaç bulmaca dakikalar sürüyordu
+> (#1877: 822 s). Ölçüm, sebebin adım sınırına kadar giden döngüler değil,
+> dedektörün kendisi olduğunu gösterdi: her çağrı aynı anahtardaki bütün
+> önceki gözlemlerle karşılaştırılıyor ve her karşılaştırma stack zincirini
+> yürüyordu (çalışan komut başına 160'a kadar işlem, uzun koşularda
+> karesel). Tam durum tekrarı (C-EXACT) hiç görülmedi: döngüler çağrı
+> içermek zorunda ve çağrılardaki C-OBSERVE zaten tam durumu karşılaştırıyor;
+> takılan koşularda robot aynı küçük turu atarken özyineleme stack'i sayaç
+> gibi büyütüp küçültüyor. v1.8 zincirleri önce hash ile karşılaştırıyor,
+> C-PUMP'ın ata testini stack derinliğinin "en düşük seviye" işaretleriyle
+> yürümeden cevaplıyor ve uzun koşularda her çağrıyı yalnızca son 8 gözlem ve
+> bir Brent kontrol noktasıyla karşılaştırıyor. Hangi gözlemlerin
+> karşılaştırıldığı aramayı değiştiremez (yakalanmayan sonsuz döngü de adım
+> sınırında ölür); sonuçlar ve node sayıları birebir aynı, en yavaş 20
+> bulmacada süre 4,1 kat, #1877'de 14 kat düştü.
 
 Kimlik etiketleri (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) koddaki
 yorumlarda ve test isimlerinde referans olarak kullanılır. Örneğin bir budama
@@ -1189,6 +1205,22 @@ names from SPEC.md.
 > 5-function puzzles 12 → 16; median time to the solution 178 ms; the whole
 > catalog in 27 minutes instead of 34. The price: 399 → 187 proven minimal
 > (`--prove-minimal` restores the old behaviour).
+>
+> **v1.8 — the cost of the loop detector.** A few puzzles took minutes
+> (#1877: 822 s). Measurement showed that the cause was not the loops that
+> run to the step limit but the detector itself: every call was compared
+> with every earlier observation of the same key, and every comparison
+> walked the stack chains (up to 160 operations per executed instruction,
+> quadratic in long runs). A full-state repeat (C-EXACT) never occurred:
+> loops must contain calls, and C-OBSERVE already compares full states at
+> calls; in the stuck runs the robot walks the same small loop while
+> recursion grows and shrinks the stack like a counter. v1.8 compares chains
+> by hash first, answers C-PUMP's ancestor test with low-water marks of the
+> stack depth instead of a walk, and in long runs compares each call with
+> the last 8 observations of its key and a Brent checkpoint only. Which
+> observations are compared cannot change the search (an undetected endless
+> loop still dies at the step limit); results and node counts are
+> identical, and the 20 slowest puzzles run 4.1× faster, #1877 14×.
 
 Rule IDs (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) are referenced from code
 comments and test names. For example, the code implementing a pruning rule

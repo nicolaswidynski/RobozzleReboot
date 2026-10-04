@@ -58,6 +58,22 @@ struct CycleSnapshot {
     current: Option<Frame>,
     callers: Option<NodeId>,
     depth: u16,
+    /// Content hash of the caller chain (`StackArena::hash_of`): equal
+    /// chains have equal hashes.
+    chain_hash: u128,
+    /// Position of this observation in `entries`.
+    index: u32,
+}
+
+/// Observations of one key (physical state and current frame) once the
+/// detector is indexed: the last `RECENT` of them, and a checkpoint that
+/// moves to the newest observation whenever the key's count reaches a power
+/// of two (Brent's cycle detection).
+#[derive(Clone, Copy)]
+struct KeyState {
+    recent: [u32; RECENT],
+    count: u32,
+    checkpoint: u32,
 }
 
 /// C-OBSERVE and C-PUMP (SPEC §12). Cleared at the start of every
@@ -70,6 +86,13 @@ struct CycleSnapshot {
 /// along that ancestry. V1 deliberately resets cycle detection at each
 /// normalization frontier for implementation simplicity; the cost is that a
 /// loop is detected at most one iteration later.
+///
+/// Which earlier observations a new one is compared with only decides how
+/// soon a loop is detected, never the search: an undetected endless loop
+/// reaches no frontier and dies at the step limit (SPEC §12.4). Short
+/// normalizations compare with every earlier observation; long ones with
+/// the last `RECENT` observations of the same key and a Brent checkpoint,
+/// so that each observation costs O(1) comparisons.
 #[derive(Default)]
 pub struct CycleDetector {
     /// Observations of the current `normalize` call, keyed by the physical
@@ -78,19 +101,52 @@ pub struct CycleDetector {
     entries: Vec<(u128, CycleSnapshot)>,
     /// Built only once a normalization makes many calls; most make few, and
     /// a linear scan of a short `Vec` is cheaper than hashing and clearing.
-    index: HashMap<u128, Vec<u32>, BuildHasherDefault<PassThroughHasher>>,
+    index: HashMap<u128, KeyState, BuildHasherDefault<PassThroughHasher>>,
     indexed: bool,
+    /// Low-water marks of the caller depth: segments (first observation,
+    /// lowest depth since then), with strictly increasing depths. An earlier
+    /// caller chain is still the bottom of the current one if and only if
+    /// the depth never fell below its depth since (nodes are immutable and
+    /// only `pop` lowers the depth), which makes C-PUMP O(log n).
+    lows: Vec<(u32, u16)>,
 }
 
 const LINEAR_LIMIT: usize = 32;
+const RECENT: usize = 8;
 
 impl CycleDetector {
     pub fn clear(&mut self) {
         self.entries.clear();
+        self.lows.clear();
         if self.indexed {
             self.index.clear();
             self.indexed = false;
         }
+    }
+
+    /// Records that a `pop` lowered the caller depth to `depth`.
+    #[inline]
+    pub fn on_pop(&mut self, depth: u16) {
+        let mut start = None;
+        while let Some(&(first, low)) = self.lows.last() {
+            if low <= depth {
+                break;
+            }
+            start = Some(first);
+            self.lows.pop();
+        }
+        if let Some(first) = start
+            && self.lows.last().is_none_or(|&(_, low)| low < depth)
+        {
+            self.lows.push((first, depth));
+        }
+    }
+
+    /// The lowest caller depth since observation `index` (u16::MAX if the
+    /// depth has not fallen since).
+    fn low_since(&self, index: u32) -> u16 {
+        let pos = self.lows.partition_point(|&(first, _)| first <= index);
+        self.lows[pos - 1].1
     }
 
     /// Records the state; returns true if execution provably never ends.
@@ -100,6 +156,7 @@ impl CycleDetector {
             pc: 255,
         });
         let key = stack::mix(m.physical_hash, current);
+        let i = self.entries.len() as u32;
         let snap = CycleSnapshot {
             position: m.position,
             direction: m.direction,
@@ -108,60 +165,97 @@ impl CycleDetector {
             current: m.current,
             callers: m.callers,
             depth: arena.depth_of(m.callers),
+            chain_hash: arena.hash_of(m.callers),
+            index: i,
         };
         if self.indexed {
-            if let Some(list) = self.index.get(&key)
-                && list
+            if let Some(ks) = self.index.get(&key) {
+                let n = (ks.count as usize).min(RECENT);
+                let older = ks.count as usize > RECENT;
+                if ks.recent[..n]
                     .iter()
-                    .any(|&i| repeats(&self.entries[i as usize].1, &snap, arena))
-            {
-                return true;
+                    .chain(older.then_some(&ks.checkpoint))
+                    .any(|&j| self.repeats(&self.entries[j as usize].1, &snap, arena))
+                {
+                    return true;
+                }
             }
         } else if self
             .entries
             .iter()
-            .any(|(k, s)| *k == key && repeats(s, &snap, arena))
+            .any(|(k, s)| *k == key && self.repeats(s, &snap, arena))
         {
             return true;
         }
-        let i = self.entries.len() as u32;
         self.entries.push((key, snap));
+        if self.lows.last().is_none_or(|&(_, low)| low < u16::MAX) {
+            self.lows.push((i, u16::MAX));
+        }
         if self.indexed {
-            self.index.entry(key).or_default().push(i);
+            Self::record(&mut self.index, key, i);
         } else if self.entries.len() > LINEAR_LIMIT {
             for (j, (k, _)) in self.entries.iter().enumerate() {
-                self.index.entry(*k).or_default().push(j as u32);
+                Self::record(&mut self.index, *k, j as u32);
             }
             self.indexed = true;
         }
         false
     }
+
+    fn record(
+        index: &mut HashMap<u128, KeyState, BuildHasherDefault<PassThroughHasher>>,
+        key: u128,
+        i: u32,
+    ) {
+        let ks = index.entry(key).or_insert(KeyState {
+            recent: [0; RECENT],
+            count: 0,
+            checkpoint: i,
+        });
+        ks.recent[ks.count as usize % RECENT] = i;
+        ks.count += 1;
+        if ks.count.is_power_of_two() {
+            ks.checkpoint = i;
+        }
+    }
+
+    /// Whether reaching `now` after `before` proves the execution never ends.
+    #[inline]
+    fn repeats(&self, before: &CycleSnapshot, now: &CycleSnapshot, arena: &StackArena) -> bool {
+        if before.position != now.position
+            || before.direction != now.direction
+            || before.current != now.current
+            || before.stars != now.stars
+            || before.colors != now.colors
+        {
+            return false;
+        }
+        // C-PUMP: the earlier caller chain is still the bottom of the current
+        // one (same node: it was never popped), so everything between the
+        // observations ran above it and repeats forever. Also covers the
+        // exact repeat with the same node.
+        let still_bottom =
+            now.depth >= before.depth && self.low_since(before.index) >= before.depth;
+        if cfg!(test) {
+            assert_eq!(
+                still_bottom,
+                is_ancestor_or_self(arena, before.callers, before.depth, now.callers, now.depth),
+                "low-water mark disagrees with the chain walk"
+            );
+        }
+        if still_bottom {
+            return true;
+        }
+        // C-OBSERVE: an exact repeat whose chain was rebuilt with different
+        // nodes but identical contents.
+        before.depth == now.depth
+            && before.chain_hash == now.chain_hash
+            && arena.chains_equal(before.callers, now.callers)
+    }
 }
 
-/// Whether reaching `now` after `before` proves the execution never ends.
-#[inline]
-fn repeats(before: &CycleSnapshot, now: &CycleSnapshot, arena: &StackArena) -> bool {
-    if before.position != now.position
-        || before.direction != now.direction
-        || before.current != now.current
-        || before.stars != now.stars
-        || before.colors != now.colors
-    {
-        return false;
-    }
-    // C-PUMP: the earlier caller chain is still the bottom of the current
-    // one (same node: it was never popped), so everything between the
-    // observations ran above it and repeats forever. Also covers the exact
-    // repeat with the same node.
-    if is_ancestor_or_self(arena, before.callers, before.depth, now.callers, now.depth) {
-        return true;
-    }
-    // C-OBSERVE: an exact repeat whose chain was rebuilt with different nodes
-    // but identical contents.
-    before.depth == now.depth && arena.chains_equal(before.callers, now.callers)
-}
-
-/// Whether node `a` (at depth `a_depth`) lies on the chain ending at `b`.
+/// Whether node `a` (at depth `a_depth`) lies on the chain ending at `b`
+/// (the reference for the low-water mark, checked in tests).
 fn is_ancestor_or_self(
     arena: &StackArena,
     a: Option<NodeId>,
@@ -231,6 +325,7 @@ fn normalize_inner(
             if d.closed() {
                 // N-RETURN
                 stack::pop(machine, arena);
+                cycles.on_pop(arena.depth_of(machine.callers));
                 stats.returns += 1;
                 continue;
             }
@@ -696,6 +791,44 @@ mod tests {
                 .collect()
         });
         ResolvedProgram { functions }
+    }
+
+    /// The low-water marks answer "lowest caller depth since observation
+    /// i" exactly like a brute-force minimum, under random pushes, pops and
+    /// observations.
+    #[test]
+    fn t_low_water_marks() {
+        let mut rng = Rng(77);
+        for _ in 0..2000 {
+            let mut d = CycleDetector::default();
+            let mut depth: u16 = rng.below(5) as u16;
+            // (observation index, depths seen since it)
+            let mut obs: Vec<u16> = Vec::new();
+            let mut lows_since: Vec<u16> = Vec::new();
+            for _ in 0..rng.below(200) {
+                match rng.below(3) {
+                    0 => depth += 1,
+                    1 if depth > 0 => {
+                        depth -= 1;
+                        d.on_pop(depth);
+                        for l in lows_since.iter_mut() {
+                            *l = (*l).min(depth);
+                        }
+                    }
+                    _ => {
+                        let i = obs.len() as u32;
+                        obs.push(depth);
+                        lows_since.push(u16::MAX);
+                        if d.lows.last().is_none_or(|&(_, low)| low < u16::MAX) {
+                            d.lows.push((i, u16::MAX));
+                        }
+                    }
+                }
+                for (i, &l) in lows_since.iter().enumerate() {
+                    assert_eq!(d.low_since(i as u32), l);
+                }
+            }
+        }
     }
 
     /// T-DIFF (SPEC §25, L4): normalize on the left-packed program agrees

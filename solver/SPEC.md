@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.7 |
+| **Version** | 1.8 |
 | **Status** | Normative implementation specification |
 | **Engine** | `lib/engine/interpreter.dart` at commit `37b5ede` |
 | **Rationale** | [`DESIGN.md`](DESIGN.md) (why each rule exists, alternatives considered) |
@@ -597,10 +597,10 @@ S-REBUILD leaves `callers = [C@j]` and `current = B@k`; N-RETURN then makes
 
 A `CycleDetector` is cleared at the start of every `normalize` call
 (§12.3). When `config.cycle_detection` is set, after every S-CALL the current
-observation `O = (phys, current, callers)` is compared with every earlier
-observation `E` of the same call that has the same `phys` (position,
-direction, stars, colors) and the same `current` frame. The branch is
-`Dead(Loop)` if, for some such `E`:
+observation `O = (phys, current, callers)` is compared with earlier
+observations `E` of the same call that have the same `phys` (position,
+direction, stars, colors) and the same `current` frame (which ones: §12.4).
+The branch is `Dead(Loop)` if, for some such `E`:
 
 ```text
 C-PUMP:     E.callers is an ancestor-or-self of O.callers (same NodeId on O's chain,
@@ -639,10 +639,22 @@ performs infinitely many calls, and a repeated state also repeats at a call.
   short observation lists MAY be scanned linearly.
 - A hash match MUST be confirmed by **exact** equality of `position`,
   `direction`, `stars`, `colors`, `current`, and the caller chain.
-- Chain comparison walks both chains in lockstep: equal `NodeId`s mean the
-  rest is equal (nodes are immutable); different `depth`s mean the chains
-  differ; otherwise compare frames and move to the parents.
+- Chain comparison first compares the chains' content hashes
+  (`StackNode::hash = mix(parent.hash, frame)`, so equal chains have equal
+  hashes) and depths; only if both match does it walk both chains in
+  lockstep: equal `NodeId`s mean the rest is equal (nodes are immutable);
+  different `depth`s mean the chains differ; otherwise compare frames and
+  move to the parents.
 - An entry MUST store the caller chain as a `NodeId`, not as a copied stack.
+- C-PUMP's ancestor test uses **low-water marks** instead of walking the
+  chain: only `pop` lowers the caller depth, so `E.callers` is still on the
+  current chain if and only if `O.depth ≥ E.depth` and the depth never fell
+  below `E.depth` since `E` (the bottom `E.depth` nodes were then never
+  popped, and a popped node is never re-entered). The detector keeps the
+  lowest depth since each observation as a stack of segments (first
+  observation, lowest depth) with strictly increasing depths: a `pop` to
+  depth `d` merges the segments above `d`, a lookup is a binary search.
+  Test builds check every answer against the chain walk.
 
 A hash collision accepted without exact equality would prune a branch that
 may contain a solution. The verifier (§18) cannot detect this, because it
@@ -659,6 +671,23 @@ on the same DFS ancestry, because cells are only ever added and a completed
 repeated path depends only on cells fixed along that ancestry. v1 resets per
 call for simplicity; the cost is detecting a loop at most one iteration
 later.
+
+### 12.4 Which observations are compared
+
+Detection never changes the search: an endless execution reaches no
+frontier, so a loop that is not detected still ends the branch, with
+`Dead(StepLimit)` at step 20 000 instead of `Dead(Loop)`. Only cost
+depends on the choice, so the detector MAY compare a new observation with
+any subset of the earlier ones with the same key:
+
+- while a `normalize` call has made at most 32 observations, with all of
+  them (a linear scan);
+- after that, with the last 8 observations of the same key and with a
+  checkpoint per key that moves to the newest observation whenever the
+  key's count reaches a power of two (Brent's cycle detection). Each
+  observation then costs O(1) comparisons, where comparing with every
+  earlier one cost O(n) and made long executions quadratic (BENCHMARKS.md:
+  up to 160 detector operations per executed instruction).
 
 ## 13. Synthesis decisions
 
@@ -1617,7 +1646,7 @@ heuristic (unsound) pruning (the heuristic phase only reorders); pushdown analys
 | N-* | §10 | `t_frontier_no_step`, `t_diff_random` |
 | S-CALL, S-POP | §11.1, §11.3 | `t_tail_call_and_unknown_continuation`, `pop_restores_caller`, TV-05 in `t_ref_vectors` |
 | S-REBUILD | §11.4 | `t_rebuild_middle`, `t_rebuild_middle_end_to_end` |
-| C-OBSERVE, C-PUMP | §12 | `t_normalize_loop_vectors`, `chains_equal_compares_contents`, `t_diff_random` |
+| C-OBSERVE, C-PUMP | §12 | `t_normalize_loop_vectors`, `chains_equal_compares_contents`, `t_diff_random`, `t_low_water_marks` (and every comparison in test builds is checked against the chain walk) |
 | D-* | §13 | `t_rebuild_middle_end_to_end`, `t_e2e_*` |
 | P-CONN | §2.6 | `t_level_catalog`, `disconnected_is_unsolvable` |
 | P-COLOR, P-PAINT, P-DISABLED | §14.1, §15.1, §14.3 | `t_candidates` |
