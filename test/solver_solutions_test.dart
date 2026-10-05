@@ -1,7 +1,8 @@
 // Verifies the Rust solver's output (solver/solutions.json, see
-// solver/SPEC.md §26) against the game's own interpreter: every solved
-// program must succeed here, in exactly the number of steps the solver
-// reported. Skipped when solutions.json has not been generated.
+// solver/SPEC.md §26) and the ledger of verified solutions
+// (solver/ledger.json) against the game's own interpreter: every solved
+// program must succeed here, in exactly the number of steps reported. Each
+// file is skipped when it does not exist.
 
 import 'dart:convert';
 import 'dart:io';
@@ -27,33 +28,40 @@ ProgramInstruction _parseInstruction(String token) {
 }
 
 void main() {
-  final solutionsFile = File('solver/solutions.json');
-  if (!solutionsFile.existsSync()) {
-    test('solver solutions', () {},
-        skip: 'solver/solutions.json not found; run the solver first');
-    return;
-  }
-
   final catalog = {
     for (final entry
         in jsonDecode(File('assets/levels_catalog.json').readAsStringSync())
             as List)
       '${(entry as Map<String, dynamic>)['sourceId']}': entry,
   };
-  final output =
-      jsonDecode(solutionsFile.readAsStringSync()) as Map<String, dynamic>;
+  _verifyFile('solver/solutions.json', catalog,
+      skipReason: 'solver/solutions.json not found; run the solver first');
+  _verifyFile('solver/ledger.json', catalog,
+      skipReason: 'solver/ledger.json not found');
+}
+
+/// Registers one test per solved entry of [path]: the program succeeds in
+/// the game engine in exactly the reported number of steps.
+void _verifyFile(String path, Map<String, dynamic> catalog,
+    {required String skipReason}) {
+  final file = File(path);
+  if (!file.existsSync()) {
+    test(path, () {}, skip: skipReason);
+    return;
+  }
+  final output = jsonDecode(file.readAsStringSync()) as Map<String, dynamic>;
   final solved = (output['results'] as List)
       .cast<Map<String, dynamic>>()
       .where((r) => r['status'] == 'solved')
       .toList();
 
-  test('solutions.json contains solved puzzles', () {
+  test('$path contains solved puzzles', () {
     expect(solved, isNotEmpty);
   });
 
   for (final result in solved) {
     final id = '${result['sourceId']}';
-    test('puzzle $id: solver program succeeds in the game engine', () {
+    test('$path, puzzle $id: program succeeds in the game engine', () {
       final entry = catalog[id];
       expect(entry, isNotNull, reason: 'sourceId $id is not in the catalog');
       final level = Level.fromJson(entry!);
