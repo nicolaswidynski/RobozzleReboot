@@ -12,9 +12,11 @@ single-job run on a fixed puzzle set, repeated, reporting the median; the
 figures below marked "batch" were not measured that way.
 
 Every reported solution was re-checked on the game's own interpreter with
-`flutter test test/solver_solutions_test.dart` (exact step counts). A
-solution is **proven minimal** only when the output says `"optimal": true`;
-heuristic solutions are valid but may be longer than necessary.
+`flutter test test/solver_solutions_test.dart` (exact step counts); the test
+also checks `solver/ledger.json`, the best verified program per puzzle from
+every run (see "Solution ledger" below). A solution is **proven minimal**
+only when the output says `"optimal": true`; heuristic solutions are valid
+but may be longer than necessary.
 
 Difficulty is the catalog's player rating, rounded half away from zero.
 
@@ -47,13 +49,16 @@ regression).
 ```
 
 Deterministic: the limit is 20 million search nodes per puzzle, not time.
-v1.7 returns the **first** valid program it finds (FIND, SPEC.md §17.1):
-exact search gets 10 % of each doubling round and the heuristic phase (LDS
-with the decaying history heuristic, plus local repair; SPEC.md §17.3,
-§17.5) the rest, and both resume where they stopped. A program found by
-exact search is proven minimal; so is a heuristic program whose cost equals
-the budget exact search has reached. Wall time for the whole catalog: 27
-minutes (v1.6: 34).
+Since v1.7 the solver returns the **first** valid program it finds (FIND,
+SPEC.md §17.1): exact search gets 10 % of each doubling round and the
+heuristic phase (LDS with the decaying history heuristic, plus local
+repair; SPEC.md §17.3, §17.5) the rest, and both resume where they stopped.
+A program found by exact search is proven minimal; so is a heuristic
+program whose cost equals the budget exact search has reached. Wall time
+for the whole catalog: 27 minutes in v1.7 (v1.6: 34). v1.8 changed only the
+loop detector, which cannot change the search (SPEC.md §12.4): its results
+are identical to the table below, and it is faster on the slow puzzles
+(section "v1.8" below); the whole catalog was not re-timed.
 
 | Difficulty | Solved / total | Proven minimal |
 |---|---|---|
@@ -68,6 +73,15 @@ minutes (v1.6: 34).
   whose time includes the proof phase: 811 ms), 90th percentile 10.6 s;
   234 are solved within 0.1 s, 366 within 1 s and 487 within 10 s. Nodes
   to the solution: median 206 k, 90th percentile 6.8 M.
+- Solved within a smaller node limit (the search does not depend on the
+  limit, so this is the same run cut earlier): 358 at 0.625 M, 396 at
+  1.25 M, 438 at 2.5 M, 472 at 5 M, 506 at 10 M, 544 at 20 M: +34 to +42 per
+  doubling.
+- By the size of the shortest human solution (archived robozzle.com
+  statistics, known for 783 puzzles): 313 / 319 (98 %) at ≤ 8 cells,
+  134 / 178 (75 %) at 9–10, 33 / 97 (34 %) at 11–12, 16 / 83 (19 %) at
+  13–15, 6 / 75 (8 %) at 16–20, 1 / 31 (3 %) above 20. The size of the
+  program, not the board, is the wall.
 - 170 solutions come from exact search (all proven minimal), 296 from LDS
   (6 to 28 slots, median 10) and 78 from local repair (7 to 28 slots,
   median 12); 17 of the heuristic ones are proven minimal because exact
@@ -86,16 +100,14 @@ minutes (v1.6: 34).
   with `--no-repair` it reproduces v1.6 node for node, and with repair the
   results can differ slightly because an interrupted repair is now resumed
   (SPEC.md §17.5).
-- Seven puzzles are solved for the first time by any run; the union of all
-  runs is now 571.
+- Seven puzzles were solved for the first time by any run; the union of all
+  runs up to v1.7 was 571 (the ledger below now has more).
 - The 17 rows proven minimal by the reached budget were rerun with the final
   binary (the same programs, steps and node counts; only `optimal`
   changed).
-- Slow puzzles: a few timeouts take minutes (e.g. #1877: 822 s for 20 M
-  nodes, already 496 s in v1.6). There, programs that run to the 20 000-step
-  limit without a detected loop account for half of all instructions, and
-  calls (with their loop checks) are frequent. This is the next performance
-  target.
+- Slow puzzles: in v1.7 a few timeouts took minutes (e.g. #1877: 822 s for
+  20 M nodes, already 496 s in v1.6). The cause was the loop detector's own
+  cost; v1.8 fixed it (14× faster on #1877, section "v1.8" below).
 
 ### How the heuristic phase evolved (20 M nodes per puzzle, except the first row)
 
@@ -112,14 +124,15 @@ Each row is a full catalog run; puzzle-by-puzzle comparisons in the notes.
 | + review fixes, P-SINGLE, P-RESERVE, D-DEFER-SET (v1.5) | 478 | 393 | Against the history row: +38 / −21 solved, lower bound higher on 282 puzzles. |
 | + decaying history (v1.6 with `--no-repair`) | 513 | 399 | Against v1.5: +57 / −22 solved; 4-function puzzles 18 → 32. |
 | + local repair (v1.6 default) | 521 | 399 | Against the previous row: +11 / −3 solved (all 11 found by repair); against v1.5: +61 / −18, 4-function puzzles 18 → 34. |
-| **FIND first, exact share 10 %, no proof phase (v1.7 default)** | **544** | **187** | Against v1.6: +28 / −5; 5-function puzzles 12 → 16, 3-function 119 → 129. Time to the solution: median 178 ms. |
+| FIND first, exact share 10 %, no proof phase (v1.7 default) | 544 | 187 | Against v1.6: +28 / −5; 5-function puzzles 12 → 16, 3-function 119 → 129. Time to the solution: median 178 ms. |
+| **Faster loop detector (v1.8 default)** | **544** | **187** | Identical results by construction (SPEC.md §12.4); 4.1× less CPU on the 20 slowest puzzles. |
 
 The union of all these runs solves 571 puzzles (7 of them only in the
 v1.7 run): changing the search order trades some puzzles for others (for
 example #851 was proven minimal when an early heuristic solution handed
 exact search 19 M nodes, and timed out when the heuristic found nothing and
-exact search had 10 M). Running several orderings would therefore solve
-more, at a proportional cost in nodes.
+exact search had 10 M). Running several orderings, each at its full budget,
+solves more; the ledger below does exactly that.
 
 ### Finder improvements in v1.6 (dev set, 5 M nodes)
 
@@ -326,6 +339,105 @@ progress the heuristic reached:
 The history heuristic addresses the first point: it remembers the best
 progress below each decision, dead branches included, and tries those
 decisions first. On the 30-puzzle sample it solved 3 against 0 without it.
+
+## Solution ledger: every run combined
+
+`solver/ledger.json` keeps the best verified program per puzzle from every
+run, re-verified on the reference interpreter and on the game's own engine.
+Runs beyond the default mode only work on puzzles the ledger has not
+solved, so a stage can only add solutions (an ordering that "trades
+puzzles" becomes a pure gain). Status on 2026-10-05, with the campaign
+still running: **642 / 908**, of which 219 are proven minimal (cost equal
+to a proven lower bound; earlier proofs whose runs were not kept are not
+counted).
+
+| Source | Puzzles added |
+|---|---|
+| Solver runs up to v1.6 (known programs) | 564 |
+| v1.8 default run | 544 (union with the above: 571) |
+| Research experiments: exact search 15–93 M nodes (14), seeded LDS (7), a deterministic 40 M run (2), whole-program MCMC (3) | +26 → 597 |
+| Exact search to 2 × 10⁹ nodes on 19 short-program puzzles (15 tried, 4 already solved) | +15, all proven minimal (cost 9–12, 81 M–1.4 × 10⁹ nodes) |
+| Seeded heuristic search, 20 M nodes, seeds 1–6 | +29 (per seed: 12, 2, 4, 4, 4, 3) |
+| Whole-program MCMC (running) | +1 so far |
+| Exact search with a per-puzzle budget, 160 M-node heuristic search, seeds 7– (running) | — |
+
+A **seed** changes only the last tie-break of the LDS ranking (seed 0 is the
+default order): the same algorithm in a different order. Seeds are not
+better on average (dev set 39 and 39 against 40) but solve different
+puzzles, and a few long runs beat many short ones (4 × 4 M solved more than
+8 × 2 M). Yield per CPU-hour (new puzzles for the ledger, one niced core):
+
+| Stage | New puzzles | CPU-hours | New per CPU-hour |
+|---|---|---|---|
+| Exact search to 2 × 10⁹ nodes | 15 | 0.65 | 23.0 |
+| Seed 1 | 12 | 0.84 | 14.4 |
+| Seeds 2–6 | 2–4 each | 0.62–0.66 each | 3.0–6.2 |
+
+Runs that hit the 20 000-step limit used at most 5 % of the campaign's
+instructions (3 % in the seeded runs), so loop-detection work would not
+speed it up further.
+
+By number of functions in the puzzle: 1 function 149 / 149, 2 functions
+254 / 278, 3 functions 163 / 246, 4 functions 51 / 133, 5 functions
+25 / 102. By the size of the shortest human solution: 319 / 319 (100 %) at
+≤ 8 cells, 174 / 178 (98 %) at 9–10, 61 / 97 (63 %) at 11–12, 22 / 83 (27 %)
+at 13–15, 7 / 75 (9 %) at 16–20, 3 / 31 (10 %) above 20, 56 / 125 unknown.
+Of the 266 unsolved puzzles, 40 have a human solution of at most 12 cells,
+36 of 13–14, 121 of 15 or more, and 69 have no recorded size.
+
+**Other solvers and the best humans** (archived robozzle.com profiles,
+collected by the research agents): the genetic-algorithm account robozlov
+solved 618 of these puzzles, the evolutionary solver zlej-rob 234; the
+three strongest human accounts solved 901, 856 and 736, together 904 (not
+#294, #384, #573, #1623). Together with the ledger, 907 of the 908 puzzles
+have a known solution; **#384 has none** in the sources checked.
+
+### Oracle ablation: which structure is hard to find
+
+For the 51 puzzles with at least 4 functions whose known solution uses at
+least 3, the search was given facts about a known solution and the nodes to
+the first solution were measured. Exact search ran at the known cost only
+(20 M-node cap); FINDER at 5 M. Ratios are geometric means against no facts,
+over the puzzles both runs solve.
+
+| Facts given | Exact: solved (gained / lost) | Exact: nodes | FINDER: solved (gained / lost) | FINDER: nodes |
+|---|---|---|---|---|
+| none | 17 | 1× | 28 | 1× |
+| number of functions | 17 (+0 / −0) | 0.93× | — | — |
+| body lengths | 20 (+3 / −0) | 0.52× | — | — |
+| call graph | 15 (+1 / −3) | 0.12× | 24 (+7 / −11) | 0.42× |
+| call sites (which slot calls which function) | 27 (+12 / −2) | 0.002× | — | — |
+| lengths + call graph | 16 (+3 / −4) | 0.085× | 27 (+8 / −9) | 0.44× |
+| lengths + call sites | 34 (+19 / −2) | 0.0007× | 42 (+15 / −1) | 0.115× |
+
+Call placement is the hidden variable: knowing it makes exact search
+500–1 400× cheaper, while the number of functions tells nothing. It cannot
+be bought cheaply, though: guessing a 4–5-function skeleton costs an
+estimated 24–43 bits (every 4–5-function call graph in the known solutions
+is unique, and bodies of 6 or more cells never recur across puzzles), and
+even the full skeleton speeds up the heuristic phase only 8.7×, with 9 of
+51 puzzles still unsolved: the contents of the other slots (conditions,
+turns) remain a large cost. A structure-first search was therefore not
+built. Partial facts can lose puzzles because many puzzles have several
+solutions (#1806 has 17 known call graphs), so a fact taken from one
+solution excludes the others.
+
+### Chess-engine techniques: what transfers
+
+A study of the Stockfish source (master 49ea5de: `search.cpp`,
+`movepick.cpp`, `history.h`) sorted its techniques by their premises.
+Alpha-beta, PVS, aspiration windows, null move, razoring, futility pruning,
+ProbCut and singular extensions need an opponent and an evaluation
+calibrated against a bound; here a leaf is only solved, dead or unknown,
+and the star count is not calibrated (a near-solution may have to lose 16
+stars on the way to a solution). Stockfish itself relaxes razoring,
+singular extensions and reverse futility when it searches for a mate
+(`seekMate`), the closest analogue to this search. Late move reductions are
+what the LDS rank cost already does; the history heuristic is in use (the
+Stockfish-style gravity tables measured worse, above). What transfers is
+the method: several diverse searches at full budget (Lazy SMP: the seeds),
+budget scaling tests, statistical tests before changing a default, and
+extra effort where the ordering has no signal (exact escalation).
 
 ## Exact-only mode (10 s per puzzle)
 
