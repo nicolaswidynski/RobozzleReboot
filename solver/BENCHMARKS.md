@@ -1,7 +1,22 @@
 # Benchmarks
 
-All runs: `assets/levels_catalog.json` (908 puzzles), release build, 12
-parallel jobs on an Intel Core i7-1255U, default `Config` unless stated.
+## Current status (2026-10-05)
+
+| | Solved / 908 | Proven minimal |
+|---|---|---|
+| **Ledger: best of every run so far** (`solver/ledger.json`, details below) | **642** | 219 |
+| One default run of the solver (`solver --all`, 20 M nodes, v1.8) | 544 | 187 |
+| Known to have a solution (ledger, other solvers, top human players) | 907 | — |
+
+The default run is what the solver does by itself in one pass; the ledger
+adds the runs that only work on still-unsolved puzzles (longer exact
+searches, seeded orderings, whole-program MCMC). #384 is the only puzzle
+with no known solution in the sources checked. Campaign runs are still in
+progress, so the ledger figures will grow.
+
+Full-catalog runs: `assets/levels_catalog.json` (908 puzzles), release
+build, 12 parallel jobs on an Intel Core i7-1255U, default `Config` unless
+stated. The ledger's campaign runs used one niced core per queue.
 
 These are **batch throughput** measurements: the i7-1255U is a laptop CPU
 with 2 performance and 8 efficiency cores (12 threads) and may throttle, so
@@ -19,6 +34,105 @@ only when the output says `"optimal": true`; heuristic solutions are valid
 but may be longer than necessary.
 
 Difficulty is the catalog's player rating, rounded half away from zero.
+
+## Solution ledger: every run combined
+
+`solver/ledger.json` keeps the best verified program per puzzle from every
+run, re-verified on the reference interpreter and on the game's own engine.
+Runs beyond the default mode only work on puzzles the ledger has not
+solved, so a stage can only add solutions (an ordering that "trades
+puzzles" becomes a pure gain). Status on 2026-10-05, with the campaign
+still running: **642 / 908**, of which 219 are proven minimal (cost equal
+to a proven lower bound; earlier proofs whose runs were not kept are not
+counted).
+
+| Source | Puzzles added |
+|---|---|
+| Solver runs up to v1.6 (known programs) | 564 |
+| v1.8 default run | 544 (union with the above: 571) |
+| Research experiments: exact search 15–93 M nodes (14), seeded LDS (7), a deterministic 40 M run (2), whole-program MCMC (3) | +26 → 597 |
+| Exact search to 2 × 10⁹ nodes on 19 short-program puzzles (15 tried, 4 already solved) | +15, all proven minimal (cost 9–12, 81 M–1.4 × 10⁹ nodes) |
+| Seeded heuristic search, 20 M nodes, seeds 1–6 | +29 (per seed: 12, 2, 4, 4, 4, 3) |
+| Whole-program MCMC (running) | +1 so far |
+| Exact search with a per-puzzle budget, 160 M-node heuristic search, seeds 7– (running) | — |
+
+A **seed** changes only the last tie-break of the LDS ranking (seed 0 is the
+default order): the same algorithm in a different order. Seeds are not
+better on average (dev set 39 and 39 against 40) but solve different
+puzzles, and a few long runs beat many short ones (4 × 4 M solved more than
+8 × 2 M). Yield per CPU-hour (new puzzles for the ledger, one niced core):
+
+| Stage | New puzzles | CPU-hours | New per CPU-hour |
+|---|---|---|---|
+| Exact search to 2 × 10⁹ nodes | 15 | 0.65 | 23.0 |
+| Seed 1 | 12 | 0.84 | 14.4 |
+| Seeds 2–6 | 2–4 each | 0.62–0.66 each | 3.0–6.2 |
+
+Runs that hit the 20 000-step limit used at most 5 % of the campaign's
+instructions (3 % in the seeded runs), so loop-detection work would not
+speed it up further.
+
+By number of functions in the puzzle: 1 function 149 / 149, 2 functions
+254 / 278, 3 functions 163 / 246, 4 functions 51 / 133, 5 functions
+25 / 102. By the size of the shortest human solution: 319 / 319 (100 %) at
+≤ 8 cells, 174 / 178 (98 %) at 9–10, 61 / 97 (63 %) at 11–12, 22 / 83 (27 %)
+at 13–15, 7 / 75 (9 %) at 16–20, 3 / 31 (10 %) above 20, 56 / 125 unknown.
+Of the 266 unsolved puzzles, 40 have a human solution of at most 12 cells,
+36 of 13–14, 121 of 15 or more, and 69 have no recorded size.
+
+**Other solvers and the best humans** (archived robozzle.com profiles,
+collected by the research agents): the genetic-algorithm account robozlov
+solved 618 of these puzzles, the evolutionary solver zlej-rob 234; the
+three strongest human accounts solved 901, 856 and 736, together 904 (not
+#294, #384, #573, #1623). Together with the ledger, 907 of the 908 puzzles
+have a known solution; **#384 has none** in the sources checked.
+
+### Oracle ablation: which structure is hard to find
+
+For the 51 puzzles with at least 4 functions whose known solution uses at
+least 3, the search was given facts about a known solution and the nodes to
+the first solution were measured. Exact search ran at the known cost only
+(20 M-node cap); FINDER at 5 M. Ratios are geometric means against no facts,
+over the puzzles both runs solve.
+
+| Facts given | Exact: solved (gained / lost) | Exact: nodes | FINDER: solved (gained / lost) | FINDER: nodes |
+|---|---|---|---|---|
+| none | 17 | 1× | 28 | 1× |
+| number of functions | 17 (+0 / −0) | 0.93× | — | — |
+| body lengths | 20 (+3 / −0) | 0.52× | — | — |
+| call graph | 15 (+1 / −3) | 0.12× | 24 (+7 / −11) | 0.42× |
+| call sites (which slot calls which function) | 27 (+12 / −2) | 0.002× | — | — |
+| lengths + call graph | 16 (+3 / −4) | 0.085× | 27 (+8 / −9) | 0.44× |
+| lengths + call sites | 34 (+19 / −2) | 0.0007× | 42 (+15 / −1) | 0.115× |
+
+Call placement is the hidden variable: knowing it makes exact search
+500–1 400× cheaper, while the number of functions tells nothing. It cannot
+be bought cheaply, though: guessing a 4–5-function skeleton costs an
+estimated 24–43 bits (every 4–5-function call graph in the known solutions
+is unique, and bodies of 6 or more cells never recur across puzzles), and
+even the full skeleton speeds up the heuristic phase only 8.7×, with 9 of
+51 puzzles still unsolved: the contents of the other slots (conditions,
+turns) remain a large cost. A structure-first search was therefore not
+built. Partial facts can lose puzzles because many puzzles have several
+solutions (#1806 has 17 known call graphs), so a fact taken from one
+solution excludes the others.
+
+### Chess-engine techniques: what transfers
+
+A study of the Stockfish source (master 49ea5de: `search.cpp`,
+`movepick.cpp`, `history.h`) sorted its techniques by their premises.
+Alpha-beta, PVS, aspiration windows, null move, razoring, futility pruning,
+ProbCut and singular extensions need an opponent and an evaluation
+calibrated against a bound; here a leaf is only solved, dead or unknown,
+and the star count is not calibrated (a near-solution may have to lose 16
+stars on the way to a solution). Stockfish itself relaxes razoring,
+singular extensions and reverse futility when it searches for a mate
+(`seekMate`), the closest analogue to this search. Late move reductions are
+what the LDS rank cost already does; the history heuristic is in use (the
+Stockfish-style gravity tables measured worse, above). What transfers is
+the method: several diverse searches at full budget (Lazy SMP: the seeds),
+budget scaling tests, statistical tests before changing a default, and
+extra effort where the ordering has no signal (exact escalation).
 
 ## Three benchmarks, kept separate
 
@@ -339,105 +453,6 @@ progress the heuristic reached:
 The history heuristic addresses the first point: it remembers the best
 progress below each decision, dead branches included, and tries those
 decisions first. On the 30-puzzle sample it solved 3 against 0 without it.
-
-## Solution ledger: every run combined
-
-`solver/ledger.json` keeps the best verified program per puzzle from every
-run, re-verified on the reference interpreter and on the game's own engine.
-Runs beyond the default mode only work on puzzles the ledger has not
-solved, so a stage can only add solutions (an ordering that "trades
-puzzles" becomes a pure gain). Status on 2026-10-05, with the campaign
-still running: **642 / 908**, of which 219 are proven minimal (cost equal
-to a proven lower bound; earlier proofs whose runs were not kept are not
-counted).
-
-| Source | Puzzles added |
-|---|---|
-| Solver runs up to v1.6 (known programs) | 564 |
-| v1.8 default run | 544 (union with the above: 571) |
-| Research experiments: exact search 15–93 M nodes (14), seeded LDS (7), a deterministic 40 M run (2), whole-program MCMC (3) | +26 → 597 |
-| Exact search to 2 × 10⁹ nodes on 19 short-program puzzles (15 tried, 4 already solved) | +15, all proven minimal (cost 9–12, 81 M–1.4 × 10⁹ nodes) |
-| Seeded heuristic search, 20 M nodes, seeds 1–6 | +29 (per seed: 12, 2, 4, 4, 4, 3) |
-| Whole-program MCMC (running) | +1 so far |
-| Exact search with a per-puzzle budget, 160 M-node heuristic search, seeds 7– (running) | — |
-
-A **seed** changes only the last tie-break of the LDS ranking (seed 0 is the
-default order): the same algorithm in a different order. Seeds are not
-better on average (dev set 39 and 39 against 40) but solve different
-puzzles, and a few long runs beat many short ones (4 × 4 M solved more than
-8 × 2 M). Yield per CPU-hour (new puzzles for the ledger, one niced core):
-
-| Stage | New puzzles | CPU-hours | New per CPU-hour |
-|---|---|---|---|
-| Exact search to 2 × 10⁹ nodes | 15 | 0.65 | 23.0 |
-| Seed 1 | 12 | 0.84 | 14.4 |
-| Seeds 2–6 | 2–4 each | 0.62–0.66 each | 3.0–6.2 |
-
-Runs that hit the 20 000-step limit used at most 5 % of the campaign's
-instructions (3 % in the seeded runs), so loop-detection work would not
-speed it up further.
-
-By number of functions in the puzzle: 1 function 149 / 149, 2 functions
-254 / 278, 3 functions 163 / 246, 4 functions 51 / 133, 5 functions
-25 / 102. By the size of the shortest human solution: 319 / 319 (100 %) at
-≤ 8 cells, 174 / 178 (98 %) at 9–10, 61 / 97 (63 %) at 11–12, 22 / 83 (27 %)
-at 13–15, 7 / 75 (9 %) at 16–20, 3 / 31 (10 %) above 20, 56 / 125 unknown.
-Of the 266 unsolved puzzles, 40 have a human solution of at most 12 cells,
-36 of 13–14, 121 of 15 or more, and 69 have no recorded size.
-
-**Other solvers and the best humans** (archived robozzle.com profiles,
-collected by the research agents): the genetic-algorithm account robozlov
-solved 618 of these puzzles, the evolutionary solver zlej-rob 234; the
-three strongest human accounts solved 901, 856 and 736, together 904 (not
-#294, #384, #573, #1623). Together with the ledger, 907 of the 908 puzzles
-have a known solution; **#384 has none** in the sources checked.
-
-### Oracle ablation: which structure is hard to find
-
-For the 51 puzzles with at least 4 functions whose known solution uses at
-least 3, the search was given facts about a known solution and the nodes to
-the first solution were measured. Exact search ran at the known cost only
-(20 M-node cap); FINDER at 5 M. Ratios are geometric means against no facts,
-over the puzzles both runs solve.
-
-| Facts given | Exact: solved (gained / lost) | Exact: nodes | FINDER: solved (gained / lost) | FINDER: nodes |
-|---|---|---|---|---|
-| none | 17 | 1× | 28 | 1× |
-| number of functions | 17 (+0 / −0) | 0.93× | — | — |
-| body lengths | 20 (+3 / −0) | 0.52× | — | — |
-| call graph | 15 (+1 / −3) | 0.12× | 24 (+7 / −11) | 0.42× |
-| call sites (which slot calls which function) | 27 (+12 / −2) | 0.002× | — | — |
-| lengths + call graph | 16 (+3 / −4) | 0.085× | 27 (+8 / −9) | 0.44× |
-| lengths + call sites | 34 (+19 / −2) | 0.0007× | 42 (+15 / −1) | 0.115× |
-
-Call placement is the hidden variable: knowing it makes exact search
-500–1 400× cheaper, while the number of functions tells nothing. It cannot
-be bought cheaply, though: guessing a 4–5-function skeleton costs an
-estimated 24–43 bits (every 4–5-function call graph in the known solutions
-is unique, and bodies of 6 or more cells never recur across puzzles), and
-even the full skeleton speeds up the heuristic phase only 8.7×, with 9 of
-51 puzzles still unsolved: the contents of the other slots (conditions,
-turns) remain a large cost. A structure-first search was therefore not
-built. Partial facts can lose puzzles because many puzzles have several
-solutions (#1806 has 17 known call graphs), so a fact taken from one
-solution excludes the others.
-
-### Chess-engine techniques: what transfers
-
-A study of the Stockfish source (master 49ea5de: `search.cpp`,
-`movepick.cpp`, `history.h`) sorted its techniques by their premises.
-Alpha-beta, PVS, aspiration windows, null move, razoring, futility pruning,
-ProbCut and singular extensions need an opponent and an evaluation
-calibrated against a bound; here a leaf is only solved, dead or unknown,
-and the star count is not calibrated (a near-solution may have to lose 16
-stars on the way to a solution). Stockfish itself relaxes razoring,
-singular extensions and reverse futility when it searches for a mate
-(`seekMate`), the closest analogue to this search. Late move reductions are
-what the LDS rank cost already does; the history heuristic is in use (the
-Stockfish-style gravity tables measured worse, above). What transfers is
-the method: several diverse searches at full budget (Lazy SMP: the seeds),
-budget scaling tests, statistical tests before changing a default, and
-extra effort where the ordering has no signal (exact escalation).
 
 ## Exact-only mode (10 s per puzzle)
 
