@@ -4,15 +4,15 @@
 
 | | Solved / 908 | Proven minimal |
 |---|---|---|
-| **Ledger: best of every run so far** (`solver/ledger.json`, details below) | **642** | 219 |
+| **Ledger: best of every run so far** (`solver/ledger.json`, details below) | **676** | 225 |
 | One default run of the solver (`solver --all`, 20 M nodes, v1.8) | 544 | 187 |
 | Known to have a solution (ledger, other solvers, top human players) | 907 | — |
 
 The default run is what the solver does by itself in one pass; the ledger
-adds the runs that only work on still-unsolved puzzles (longer exact
-searches, seeded orderings, whole-program MCMC). #384 is the only puzzle
-with no known solution in the sources checked. Campaign runs are still in
-progress, so the ledger figures will grow.
+adds a campaign of runs that only work on still-unsolved puzzles (longer
+exact searches, seeded orderings, whole-program MCMC; 20.7 CPU-hours on one
+niced core per queue). #384 is the only puzzle with no known solution in
+the sources checked.
 
 Full-catalog runs: `assets/levels_catalog.json` (908 puzzles), release
 build, 12 parallel jobs on an Intel Core i7-1255U, default `Config` unless
@@ -41,51 +41,73 @@ Difficulty is the catalog's player rating, rounded half away from zero.
 run, re-verified on the reference interpreter and on the game's own engine.
 Runs beyond the default mode only work on puzzles the ledger has not
 solved, so a stage can only add solutions (an ordering that "trades
-puzzles" becomes a pure gain). Status on 2026-10-05, with the campaign
-still running: **642 / 908**, of which 219 are proven minimal (cost equal
-to a proven lower bound; earlier proofs whose runs were not kept are not
-counted).
+puzzles" becomes a pure gain). After the campaign of 2026-10-05: **676 /
+908**, of which 225 are proven minimal (cost equal to a proven lower bound;
+earlier proofs whose runs were not kept are not counted).
 
 | Source | Puzzles added |
 |---|---|
 | Solver runs up to v1.6 (known programs) | 564 |
 | v1.8 default run | 544 (union with the above: 571) |
 | Research experiments: exact search 15–93 M nodes (14), seeded LDS (7), a deterministic 40 M run (2), whole-program MCMC (3) | +26 → 597 |
-| Exact search to 2 × 10⁹ nodes on 19 short-program puzzles (15 tried, 4 already solved) | +15, all proven minimal (cost 9–12, 81 M–1.4 × 10⁹ nodes) |
-| Seeded heuristic search, 20 M nodes, seeds 1–6 | +29 (per seed: 12, 2, 4, 4, 4, 3) |
-| Whole-program MCMC (running) | +1 so far |
-| Exact search with a per-puzzle budget, 160 M-node heuristic search, seeds 7– (running) | — |
+| Exact search to 2 × 10⁹ nodes on 19 short-program puzzles (15 tried, 4 already solved) | +15, all proven minimal (cost 9–12) |
+| Exact search with a per-puzzle budget (see below) | +6, all proven minimal (cost 10–11) |
+| Seeded heuristic search, 20 M nodes, seeds 1–12 | +50 (per seed: 12, 2, 4, 4, 4, 3, 2, 3, 5, 4, 3, 4) |
+| Whole-program MCMC from the empty program, 600 k evaluations | +7 (6 of the 29 still-unsolved puzzles robozlov had solved, 1 of the 234 others) |
+| Heuristic search with 8× the budget (160 M nodes, 31 puzzles) | +1 |
+| **Total** | **676** |
 
-A **seed** changes only the last tie-break of the LDS ranking (seed 0 is the
-default order): the same algorithm in a different order. Seeds are not
-better on average (dev set 39 and 39 against 40) but solve different
-puzzles, and a few long runs beat many short ones (4 × 4 M solved more than
-8 × 2 M). Yield per CPU-hour (new puzzles for the ledger, one niced core):
+Yield per CPU-hour (new puzzles for the ledger, one niced core):
 
-| Stage | New puzzles | CPU-hours | New per CPU-hour |
-|---|---|---|---|
-| Exact search to 2 × 10⁹ nodes | 15 | 0.65 | 23.0 |
-| Seed 1 | 12 | 0.84 | 14.4 |
-| Seeds 2–6 | 2–4 each | 0.62–0.66 each | 3.0–6.2 |
+| Stage | Puzzles run | New puzzles | CPU-hours | New per CPU-hour |
+|---|---|---|---|---|
+| Exact search to 2 × 10⁹ nodes | 15 | 15 | 0.65 | 23.0 |
+| Seed 1 | 309 | 12 | 0.84 | 14.4 |
+| Seeds 2–12 | 236–284 each | 2–5 each | 0.62–0.94 each | 2.1–6.2 |
+| Whole-program MCMC | 263 | 7 | 5.05 | 1.4 |
+| Exact search, per-puzzle budget (probes included) | 74 | 6 | 4.92 | 1.2 |
+| Heuristic search at 160 M nodes | 31 | 1 | 0.98 | 1.0 |
 
-Runs that hit the 20 000-step limit used at most 5 % of the campaign's
-instructions (3 % in the seeded runs), so loop-detection work would not
-speed it up further.
+What the campaign shows:
+
+- **Exact search was only short of budget** on the short-program puzzles:
+  15 of 15 solved at up to 1.4 × 10⁹ nodes. For the next 77 candidates
+  (human solution of at most 14 cells), a 2 × 10⁸-node probe measured each
+  puzzle's node growth per cost level and predicted the nodes to reach the
+  human solution's size; the 6 predicted at ≤ 10¹⁰ nodes were all solved,
+  with 0.7–5.2 × 10⁹ nodes against predictions of 2.1–8.6 × 10⁹. The rest
+  were predicted above 10¹⁰ and not run; four of them were later solved
+  by seeds.
+- **Order beats budget for the heuristic search.** Eight times the nodes
+  solved 1 of 31 puzzles, while each new seed still added 2–5. A seed
+  changes only the last tie-break of the LDS ranking (seed 0 is the default
+  order): the same algorithm in a different order. Seeds are not better on
+  average (dev set 39 and 39 against 40) but solve different puzzles, and a
+  few long runs beat many short ones (4 × 4 M solved more than 8 × 2 M).
+- **MCMC** finds a few puzzles the other methods miss, mostly among those
+  the genetic-algorithm solver robozlov also solved (6 of the 29 it ran on),
+  almost none elsewhere (1 of 234).
+- Runs that hit the 20 000-step limit used at most 5 % of the campaign's
+  instructions (3 % in the seeded runs), so loop-detection work would not
+  speed the campaign up.
 
 By number of functions in the puzzle: 1 function 149 / 149, 2 functions
-254 / 278, 3 functions 163 / 246, 4 functions 51 / 133, 5 functions
-25 / 102. By the size of the shortest human solution: 319 / 319 (100 %) at
-≤ 8 cells, 174 / 178 (98 %) at 9–10, 61 / 97 (63 %) at 11–12, 22 / 83 (27 %)
-at 13–15, 7 / 75 (9 %) at 16–20, 3 / 31 (10 %) above 20, 56 / 125 unknown.
-Of the 266 unsolved puzzles, 40 have a human solution of at most 12 cells,
-36 of 13–14, 121 of 15 or more, and 69 have no recorded size.
+258 / 278, 3 functions 182 / 246, 4 functions 58 / 133, 5 functions
+29 / 102. By the size of the shortest human solution: 319 / 319 (100 %) at
+≤ 8 cells, 178 / 178 (100 %) at 9–10, 73 / 97 (75 %) at 11–12, 31 / 83
+(37 %) at 13–15, 11 / 75 (15 %) at 16–20, 3 / 31 (10 %) above 20, 61 / 125
+unknown. Of the 232 unsolved puzzles, 24 have a human solution of at most
+12 cells, 30 of 13–14, 114 of 15 or more, and 64 have no recorded size.
 
 **Other solvers and the best humans** (archived robozzle.com profiles,
 collected by the research agents): the genetic-algorithm account robozlov
 solved 618 of these puzzles, the evolutionary solver zlej-rob 234; the
 three strongest human accounts solved 901, 856 and 736, together 904 (not
-#294, #384, #573, #1623). Together with the ledger, 907 of the 908 puzzles
-have a known solution; **#384 has none** in the sources checked.
+#294, #384, #573, #1623; the ledger has #294 and #1623, which robozlov
+also solved). Every puzzle in the ledger has also been solved by robozlov
+or by one of these humans; robozlov solved 12 that the ledger does not
+have. Together, 907 of the 908 puzzles have a known solution; **#384 has
+none** in the sources checked.
 
 ### Oracle ablation: which structure is hard to find
 
@@ -177,16 +199,16 @@ are identical to the table below, and it is faster on the slow puzzles
 | Difficulty | Puzzles | One default run (v1.8): solved | proven minimal | **Ledger, all runs: solved** | proven minimal |
 |---|---|---|---|---|---|
 | ★ | 7 | 7 | 7 | **7** | 7 |
-| ★★ | 223 | 195 | 97 | **212** | 105 |
-| ★★★ | 533 | 306 | 80 | **370** | 101 |
-| ★★★★ | 134 | 34 | 2 | **51** | 5 |
+| ★★ | 223 | 195 | 97 | **215** | 105 |
+| ★★★ | 533 | 306 | 80 | **393** | 104 |
+| ★★★★ | 134 | 34 | 2 | **59** | 8 |
 | ★★★★★ | 11 | 2 | 1 | **2** | 1 |
-| **All** | **908** | **544** | **187** | **642** | **219** |
+| **All** | **908** | **544** | **187** | **676** | **225** |
 
 The default-run columns are one pass of `solver --all`; the ledger columns
 are the best verified program per puzzle from every run (`solver/ledger.json`,
-section "Solution ledger" above; 2026-10-05, campaign still running). The
-notes below describe the default run.
+section "Solution ledger" above; after the 2026-10-05 campaign). The notes
+below describe the default run.
 
 - Time to the solution, on the 544 solved puzzles: median 178 ms (v1.6,
   whose time includes the proof phase: 811 ms), 90th percentile 10.6 s;
