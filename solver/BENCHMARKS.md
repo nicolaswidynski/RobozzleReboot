@@ -174,14 +174,19 @@ loop detector, which cannot change the search (SPEC.md §12.4): its results
 are identical to the table below, and it is faster on the slow puzzles
 (section "v1.8" below); the whole catalog was not re-timed.
 
-| Difficulty | Solved / total | Proven minimal |
-|---|---|---|
-| ★ | 7 / 7 | 7 |
-| ★★ | 195 / 223 | 97 |
-| ★★★ | 306 / 533 | 80 |
-| ★★★★ | 34 / 134 | 2 |
-| ★★★★★ | 2 / 11 | 1 |
-| **All** | **544 / 908** | **187** |
+| Difficulty | Puzzles | One default run (v1.8): solved | proven minimal | **Ledger, all runs: solved** | proven minimal |
+|---|---|---|---|---|---|
+| ★ | 7 | 7 | 7 | **7** | 7 |
+| ★★ | 223 | 195 | 97 | **212** | 105 |
+| ★★★ | 533 | 306 | 80 | **370** | 101 |
+| ★★★★ | 134 | 34 | 2 | **51** | 5 |
+| ★★★★★ | 11 | 2 | 1 | **2** | 1 |
+| **All** | **908** | **544** | **187** | **642** | **219** |
+
+The default-run columns are one pass of `solver --all`; the ledger columns
+are the best verified program per puzzle from every run (`solver/ledger.json`,
+section "Solution ledger" above; 2026-10-05, campaign still running). The
+notes below describe the default run.
 
 - Time to the solution, on the 544 solved puzzles: median 178 ms (v1.6,
   whose time includes the proof phase: 811 ms), 90th percentile 10.6 s;
