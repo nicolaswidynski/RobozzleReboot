@@ -27,7 +27,10 @@ detection, function symmetry, local equivalences, and the engine's
 20 000-step limit. If that runs out of its share of the node budget, a
 heuristic phase (limited discrepancy search) explores the same tree,
 trying first the children that collect more stars, or whose decision has
-recently led to the most stars anywhere (a decaying history heuristic).
+recently led to the most stars anywhere (a decaying history heuristic). On
+puzzles with one or two stars, where nearly every branch has collected the
+same number, progress is instead how close the run has come to a star, and
+then how many distinct positions and headings it has reached.
 Alongside it, local repair takes the best programs seen so far, which often
 die a cell or two away from a solution, and tries every single edit and
 some pairs of edits. A heuristic solution is shrunk by deleting cells that

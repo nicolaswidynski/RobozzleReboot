@@ -21,6 +21,15 @@
 //! way down (a malus). A decision that once led far but keeps failing
 //! slowly loses its pull, so the search moves on to other prefixes.
 //!
+//! With `config.low_star` on puzzles with at most 2 stars, the star count
+//! is nearly always 0, so it cannot tell branches apart. Progress is then
+//! measured geometrically: a branch's value is its stars, then the smallest
+//! walking distance to a remaining star its run has reached since the last
+//! star (a side channel, `Progress`, not part of the semantic state). The
+//! history stores that value, so a dead branch that came close still pulls
+//! the search back. Level 2 also breaks ties by the number of distinct
+//! (tile, direction) poses the run has reached, more first. Ordering only.
+//!
 //! With `config.repair`, local repair (`repair.rs`) runs after every frame
 //! push: it tries small edits of the best programs seen so far, within a
 //! share of this phase's nodes.
@@ -29,7 +38,7 @@
 //! the reference interpreter, then shrunk by deleting cells while it still
 //! solves the puzzle.
 
-use crate::normalize::NormalizeResult;
+use crate::normalize::{NormalizeResult, Progress};
 use crate::program::Cell;
 use crate::program::ResolvedProgram;
 use crate::puzzle::StaticPuzzle;
@@ -37,12 +46,17 @@ use crate::reference::{RunStatus, reference_run};
 use crate::search::{FoundBy, SearchState, Solution, Solver, Step};
 use crate::types::{Action, Condition, FnId, MAX_FUNCTION_SLOTS, MAX_FUNCTIONS};
 
-/// (stars left × 16, walking distance, used slots, generation order).
-type Score = (u32, u16, u8, usize);
+/// (−progress, −poses reached (low-star level 2, else 0), walking distance,
+/// used slots, generation order); smaller ranks first.
+type Score = (u32, u16, u16, u8, usize);
 
 /// History entries count stars × 16, so that a decaying entry keeps a
 /// fraction of a star.
 const HISTORY_SCALE: u32 = 16;
+/// In low-star mode a star is worth more than any distance improvement.
+const LOW_STAR_SCALE: u32 = 1 << 16;
+/// Low-star mode applies to puzzles with at most this many stars.
+const LOW_STAR_MAX_STARS: u32 = 2;
 /// A worse subtree pulls a decaying entry `1 / 2^DECAY_SHIFT` of the way
 /// down.
 const DECAY_SHIFT: u32 = 2;
@@ -119,19 +133,19 @@ pub(crate) struct HeuristicCursor {
     slice_start: u64,
     started: bool,
     stack: Vec<HeuristicFrame>,
-    /// Best stars collected anywhere below each decision (history
-    /// heuristic), × `HISTORY_SCALE`; a decaying maximum with
-    /// `config.history_decay`.
+    /// Best progress (`history_value`) reached anywhere below each decision
+    /// (history heuristic); a decaying maximum with `config.history_decay`.
     history: Vec<u32>,
 }
 
 struct HeuristicFrame {
-    /// Normalized kids in rank order, with their decision's history key.
-    kids: Vec<(SearchState, NormalizeResult, u16)>,
+    /// Normalized kids in rank order, with their run's progress and their
+    /// decision's history key.
+    kids: Vec<(SearchState, Progress, NormalizeResult, u16)>,
     next: usize,
     allowance: u32,
     mark: usize,
-    /// Best stars collected in this frame's subtree so far.
+    /// Best progress (`history_value`) in this frame's subtree so far.
     best: u32,
     /// The parent's decision that led here.
     parent_key: Option<u16>,
@@ -166,13 +180,14 @@ impl Solver<'_> {
                 self.heuristic.cut = false;
                 self.heuristic.started = true;
                 let mut root = self.root();
-                match self.normalize_counted(&mut root) {
+                let mut progress = Progress::new(self.puzzle, &root.machine);
+                match self.lds_normalize(&mut root, &mut progress) {
                     NormalizeResult::Solved => return Step::Found(self.finalize_heuristic(&root)),
                     NormalizeResult::Dead(_) => return Step::Exhausted,
                     r => {
                         let allowance = self.heuristic.allowance;
                         if let Some(s) =
-                            self.push_heuristic_frame(&root, r, allowance, budget, None)
+                            self.push_heuristic_frame(&root, &progress, r, allowance, budget, None)
                         {
                             return Step::Found(s);
                         }
@@ -202,14 +217,14 @@ impl Solver<'_> {
                 if self.deadline.check(self.stats.search_nodes + 1).is_err() {
                     return Step::Paused;
                 }
-                let (kid, result, key) = top.kids[top.next];
+                let (kid, progress, result, key) = top.kids[top.next];
                 top.next += 1;
                 let allowance = top.allowance - rank;
                 let mark = top.mark;
                 self.arena.truncate(mark);
                 self.stats.candidates_searched += 1;
                 if let Some(s) =
-                    self.push_heuristic_frame(&kid, result, allowance, budget, Some(key))
+                    self.push_heuristic_frame(&kid, &progress, result, allowance, budget, Some(key))
                 {
                     return Step::Found(s);
                 }
@@ -222,6 +237,7 @@ impl Solver<'_> {
     fn push_heuristic_frame(
         &mut self,
         state: &SearchState,
+        progress: &Progress,
         result: NormalizeResult,
         allowance: u32,
         budget: u8,
@@ -234,15 +250,17 @@ impl Solver<'_> {
         let total = self.puzzle.initial_stars.len();
         let kids = self.children(state, result, budget);
         let mut best = 0;
-        let mut ranked: Vec<(Score, SearchState, NormalizeResult, u16)> =
+        let mut ranked: Vec<(Score, SearchState, Progress, NormalizeResult, u16)> =
             Vec::with_capacity(kids.len());
         for (i, mut kid) in kids.into_iter().enumerate() {
             let key = history_key(f, index, decision_code(&kid, f, index));
-            let r = self.normalize_counted(&mut kid);
+            let mut kid_progress = *progress;
+            let r = self.lds_normalize(&mut kid, &mut kid_progress);
             let collected = total - kid.machine.stars.len();
-            best = best.max(collected);
+            let value = self.history_value(&kid, &kid_progress);
+            best = best.max(value);
             let h = &mut self.heuristic.history[key as usize];
-            *h = (*h).max(collected * HISTORY_SCALE);
+            *h = (*h).max(value);
             if self.config.repair && r != NormalizeResult::Solved {
                 self.repair_observe(&kid, collected);
             }
@@ -251,16 +269,17 @@ impl Solver<'_> {
                 NormalizeResult::Dead(_) => self.record_progress(&kid, false),
                 r => {
                     self.record_progress(&kid, true);
-                    ranked.push((self.score(&kid, i, key), kid, r, key));
+                    let score = self.score(&kid, &kid_progress, i, key);
+                    ranked.push((score, kid, kid_progress, r, key));
                 }
             }
         }
-        ranked.sort_by_key(|(score, _, _, _)| *score);
+        ranked.sort_by_key(|(score, ..)| *score);
         let mark = self.arena.mark();
         self.heuristic.stack.push(HeuristicFrame {
             kids: ranked
                 .into_iter()
-                .map(|(_, k, r, key)| (k, r, key))
+                .map(|(_, k, p, r, key)| (k, p, r, key))
                 .collect(),
             next: 0,
             allowance,
@@ -285,7 +304,7 @@ impl Solver<'_> {
         }
         if let Some(key) = frame.parent_key {
             let h = &mut self.heuristic.history[key as usize];
-            let v = frame.best * HISTORY_SCALE;
+            let v = frame.best;
             if self.config.history_decay {
                 decay_toward(h, v);
             } else {
@@ -331,15 +350,48 @@ impl Solver<'_> {
         }
     }
 
-    fn score(&self, kid: &SearchState, index: usize, key: u16) -> Score {
-        let m = &kid.machine;
-        let total = self.puzzle.initial_stars.len() * HISTORY_SCALE;
-        let mut collected = total - m.stars.len() * HISTORY_SCALE;
-        if self.config.history {
-            collected = collected.max(self.heuristic.history[key as usize]);
+    /// Normalizes an LDS node, recording its run's progress in low-star
+    /// mode.
+    fn lds_normalize(&mut self, s: &mut SearchState, progress: &mut Progress) -> NormalizeResult {
+        if self.low_star_on() {
+            self.normalize_tracked_counted(s, progress)
+        } else {
+            self.normalize_counted(s)
         }
+    }
+
+    /// Low-star mode (SPEC §17.3): on, and the puzzle has at most
+    /// `LOW_STAR_MAX_STARS` stars.
+    fn low_star_on(&self) -> bool {
+        self.config.low_star > 0 && self.puzzle.initial_stars.len() <= LOW_STAR_MAX_STARS
+    }
+
+    /// The progress a node has made, as ranked and stored in the history:
+    /// stars × `HISTORY_SCALE`; in low-star mode, stars first, then the
+    /// smallest walking distance to a remaining star its run has reached.
+    fn history_value(&self, kid: &SearchState, progress: &Progress) -> u32 {
+        let collected = self.puzzle.initial_stars.len() - kid.machine.stars.len();
+        if self.low_star_on() {
+            collected * LOW_STAR_SCALE + (u16::MAX - progress.best_distance) as u32
+        } else {
+            collected * HISTORY_SCALE
+        }
+    }
+
+    fn score(&self, kid: &SearchState, progress: &Progress, index: usize, key: u16) -> Score {
+        let m = &kid.machine;
+        let mut value = self.history_value(kid, progress);
+        if self.config.history {
+            value = value.max(self.heuristic.history[key as usize]);
+        }
+        let poses = if self.low_star_on() && self.config.low_star >= 2 {
+            u16::MAX - progress.coverage() as u16
+        } else {
+            0
+        };
         (
-            total - collected,
+            u32::MAX - value,
+            poses,
             self.puzzle.nearest_star(m.position, &m.stars),
             kid.used_slots,
             index,

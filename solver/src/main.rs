@@ -82,6 +82,11 @@ struct Args {
     /// shorter one and to prove minimality (the v1.6 behaviour).
     #[arg(long)]
     prove_minimal: bool,
+    /// Low-star ranking in the heuristic phase for puzzles with at most 2
+    /// stars: 0 off, 1 nearest-star distance reached, 2 also distinct poses
+    /// reached.
+    #[arg(long, default_value_t = solver::stats::DEFAULT_LOW_STAR)]
+    low_star: u8,
 }
 
 fn id_string(v: &Value) -> String {
@@ -197,6 +202,7 @@ fn main() {
         repair_share: args.repair_share,
         exact_share: args.exact_share,
         prove_minimal: args.prove_minimal,
+        low_star: args.low_star,
     };
     let limits = Limits {
         time: args.timeout_ms.map(Duration::from_millis),

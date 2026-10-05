@@ -48,7 +48,15 @@ pub struct Config {
     /// below its cost (a shorter solution or a minimality proof). Off: the
     /// first solution found is returned (FIND).
     pub prove_minimal: bool,
+    /// Low-star ranking in the heuristic phase for puzzles with at most 2
+    /// stars (SPEC §17.3): 0 off, 1 progress = nearest-star distance
+    /// reached, 2 = 1 plus distinct poses reached as a tie-break. Ordering
+    /// only.
+    pub low_star: u8,
 }
+
+/// Default `Config::low_star`.
+pub const DEFAULT_LOW_STAR: u8 = 2;
 
 /// Default `Config::exact_share`.
 pub const DEFAULT_EXACT_SHARE: u8 = 10;
@@ -80,6 +88,7 @@ impl Default for Config {
             repair_share: DEFAULT_REPAIR_SHARE,
             exact_share: DEFAULT_EXACT_SHARE,
             prove_minimal: false,
+            low_star: DEFAULT_LOW_STAR,
         }
     }
 }
@@ -105,6 +114,7 @@ impl Config {
             repair_share: DEFAULT_REPAIR_SHARE,
             exact_share: 50,
             prove_minimal: true,
+            low_star: DEFAULT_LOW_STAR,
         })
     }
 }

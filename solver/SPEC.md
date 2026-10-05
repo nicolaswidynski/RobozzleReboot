@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.8 |
+| **Version** | 1.9 |
 | **Status** | Normative implementation specification |
 | **Engine** | `lib/engine/interpreter.dart` at commit `37b5ede` |
 | **Rationale** | [`DESIGN.md`](DESIGN.md) (why each rule exists, alternatives considered) |
@@ -955,8 +955,9 @@ pub struct Config {
     pub repair_share: u8,         // percent of the heuristic phase's nodes repair may use
     pub exact_share: u8,          // percent of each portfolio round for exact search (§17.1)
     pub prove_minimal: bool,      // after a heuristic solution, exact search below its cost (§17.1)
+    pub low_star: u8,             // low-star ranking in §17.3: 0 off, 1 distance, 2 + poses (ordering only)
 }   // Default: all true, except heuristic_only = false, prove_minimal = false;
-    // repair_share = 25, exact_share = 10
+    // repair_share = 25, exact_share = 10, low_star = 2
 ```
 
 Disabling a flag MUST remove only the optimization; it MUST NOT forbid any
@@ -1099,9 +1100,11 @@ LDS(state, allowance):                       # state is already normalized
     Dead     -> return NotFound
     frontier -> kids := every child (§13), each normalized once (lookahead):
                     a Solved kid returns Found immediately; Dead kids are dropped
-                rank kids by (stars left, walking distance to the nearest star,
+                rank kids by (−PROGRESS, −poses, walking distance to the nearest star,
                               used_slots, generation order)    # ascending
-                    # with config.history: stars collected := max(own, HISTORY[decision])
+                    # PROGRESS = 16 · stars collected (low-star mode: see below)
+                    # with config.history: PROGRESS := max(own, HISTORY[decision])
+                    # poses = 0 unless low-star mode at level 2
                 with config.repair: REPAIR_TICK()           # §17.5, may return Found
                 for kid of rank r:
                     if r > allowance: cut := true; break
@@ -1127,6 +1130,23 @@ LDS(state, allowance):                       # state is already normalized
   of the way down). A decision whose subtrees keep disappointing therefore
   stops being tried first. Without `history_decay`, the entry becomes
   `max(h, 16·b)`. Both only reorder.
+- **Low-star ranking** (`config.low_star > 0` and the puzzle has at most 2
+  stars). With so few stars, almost every node has collected the same
+  number (usually 0), so the star count cannot tell branches apart.
+  Progress is then measured geometrically. Each LDS node carries a side
+  channel `Progress` (not part of the machine state, so §12 and exact
+  search never see it), inherited from its parent and updated after every
+  executed action of its normalization: `best_distance` is the smallest
+  walking distance to a remaining star reached since the last star was
+  collected (reset to the current distance when a star is collected), and
+  `poses` is the set of distinct (tile, direction) pairs reached. A node's
+  `PROGRESS` is `65536 · stars collected + (65535 − best_distance)`; the
+  history (and its decay) stores this value instead of `16 · stars`, dead
+  nodes included, so a branch whose run came close to a star before dying
+  pulls the search back to its prefix. Level 2 breaks ties between equal
+  `PROGRESS` by more distinct poses first; at level 1 and outside low-star
+  mode the poses key is 0. Ordering only: completeness and determinism are
+  unaffected, and the root's `Progress` starts from the initial pose.
 - **FINALIZE_HEURISTIC:** drop `CondOnly` cells (they never ran on their
   color, so they were always skipped), turn `Pending` into `Any`, verify with
   `REFERENCE_RUN` (MUST succeed), then **shrink**: repeatedly delete the first
@@ -1576,6 +1596,7 @@ solver <catalog.json> [--id <sourceId>]... [--all]
        [--repair-share <percent>]     share of the heuristic phase's nodes repair may use, default 25
        [--exact-share <percent>]      share of each portfolio round for exact search, default 10
        [--prove-minimal]              after a heuristic solution, look for a shorter one / prove minimality
+       [--low-star <0|1|2>]           low-star ranking for puzzles with ≤ 2 stars (§17.3), default 2
        [--no-anonymous-functions]     keep auxiliary function identities (P-SYM only)
        [--no-condition-sets]          one deferred cell per color (no D-DEFER-SET)
        [--out <solutions.json>]

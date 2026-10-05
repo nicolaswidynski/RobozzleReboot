@@ -132,6 +132,31 @@ SPEC.md'deki isimler kullanılır.
 > karşılaştırıldığı aramayı değiştiremez (yakalanmayan sonsuz döngü de adım
 > sınırında ölür); sonuçlar ve node sayıları birebir aynı, en yavaş 20
 > bulmacada süre 4,1 kat, #1877'de 14 kat düştü.
+>
+> **v1.9 — az yıldızlı bulmacalarda geometrik ilerleme.** 1–2 yıldızlı bir
+> bulmacada neredeyse her düğüm aynı sayıda (çoğunlukla sıfır) yıldız
+> toplamıştır; yıldız sayan LDS sıralaması ve history, yıldıza yaklaşıp
+> ölen bir dalı hiçbir yere gitmeyen daldan ayıramıyordu. v1.9'da bu
+> bulmacalarda her LDS düğümü makine durumunun dışında bir yan kanal
+> (`Progress`) taşır: son yıldızdan beri kalan bir yıldıza ulaşılan en kısa
+> yürüme mesafesi ve ulaşılan farklı (kare, yön) pozları. History yıldız
+> sayısı yerine bu ilerlemeyi saklar (ölü dallar dahil); eşitlikte daha çok
+> poz önce gelir (`--low-star 2`, varsayılan). Yalnızca sıralamayı değiştirir,
+> kesin arama ve döngü tespiti onu görmez. 186 bulmacalık kümede (en çok 2
+> yıldız, 20 M node, varsayılan mod) çözülen 122 → 141 (+19 / −0, #2202
+> deftere yeni girdi), ortak 1 yıldızlı çözümlerde süre geometrik ortalama
+> 0,57 kat; kanıtlı en kısa 66 → 57. Ölçerken çıkan yan bulgu:
+> `StarSet::iter` 256 bitin hepsini tek tek dolaşıyordu ve LDS her çocuğu en
+> yakın yıldıza göre sıraladığı için varsayılan arama da bunu ödüyordu;
+> kelime kelime dolaşmak sonucu değiştirmeden süreyi ~%16 azalttı. İlerleme
+> arama durumuna konduğunda kesin arama her çocukta 136 bayt fazla
+> kopyaladığı için %5–7 yavaşladı; bu yüzden LDS çerçevelerinde tutuluyor.
+> Ölçülüp alınmayan: tek koridorlu tahtalarda yalnızca koridorun bir sonraki
+> karesine ilerlemeye izin veren kısıt kesin aramada node'ları yalnızca 0,86
+> kat azalttı (çarpma budaması koridor dışına çıkışları zaten kesiyor). Bu
+> kümede çözülemeyen 24 tek yıldızlı bulmacanın 18'i tek bir uzun koridor;
+> orada eksik olan yön değil, değişen parça uzunluklarını üreten (çoğunlukla
+> özyinelemeli) program.
 
 Kimlik etiketleri (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) koddaki
 yorumlarda ve test isimlerinde referans olarak kullanılır. Örneğin bir budama
@@ -1221,6 +1246,32 @@ names from SPEC.md.
 > observations are compared cannot change the search (an undetected endless
 > loop still dies at the step limit); results and node counts are
 > identical, and the 20 slowest puzzles run 4.1× faster, #1877 14×.
+>
+> **v1.9 — geometric progress on puzzles with few stars.** On a puzzle with
+> one or two stars almost every node has collected the same number of stars
+> (usually none), so the star-counting LDS ranking and history could not
+> tell a branch that came close to a star and died from one that went
+> nowhere. In v1.9 every LDS node on these puzzles carries a side channel
+> outside the machine state (`Progress`): the smallest walking distance to a
+> remaining star reached since the last star, and the distinct (tile,
+> direction) poses reached. The history stores this progress instead of the
+> star count, dead branches included, and ties go to more poses
+> (`--low-star 2`, the default). It only reorders; exact search and loop
+> detection never see it. On the 186 puzzles with at most 2 stars (20 M
+> nodes, default mode): 122 → 141 solved (+19 / −0, #2202 new to the
+> ledger), common one-star solutions 0.57× the time (geometric mean); 66 →
+> 57 proven minimal. A side finding: `StarSet::iter` visited all 256 bits
+> one by one, and since LDS ranks every child by its nearest star the
+> default search paid for it too; iterating word by word cut the time by
+> ~16 % with identical results. Keeping the progress in the search state
+> made exact search 5–7 % slower (136 more bytes copied per child), so it
+> lives next to the LDS frames instead. Measured and rejected: on
+> single-corridor boards, allowing Forward only toward the corridor's next
+> tile cut exact search's nodes to just 0.86× (crash pruning already
+> removes the moves off the corridor). Of the 24 one-star puzzles still
+> unsolved in this set, 18 are a single long corridor; what is missing
+> there is not the direction but a program, usually recursive, that
+> reproduces the changing segment lengths.
 
 Rule IDs (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) are referenced from code
 comments and test names. For example, the code implementing a pruning rule

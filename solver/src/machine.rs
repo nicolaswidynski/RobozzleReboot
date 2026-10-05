@@ -83,10 +83,19 @@ impl StarSet {
         self.words.iter().map(|w| w.count_ones()).sum()
     }
 
+    /// The star tiles in ascending order (one step per star, not per tile:
+    /// LDS ranks every child by its nearest star).
     pub fn iter(&self) -> impl Iterator<Item = TileId> + '_ {
-        (0..MAX_TILES)
-            .filter(|&t| self.contains(t as TileId))
-            .map(|t| t as TileId)
+        self.words.iter().enumerate().flat_map(|(w, &word)| {
+            let mut bits = word;
+            std::iter::from_fn(move || {
+                (bits != 0).then(|| {
+                    let b = bits.trailing_zeros() as usize;
+                    bits &= bits - 1;
+                    (w * 64 + b) as TileId
+                })
+            })
+        })
     }
 }
 
@@ -308,5 +317,9 @@ mod tests {
         assert!(s.remove(255));
         assert!(!s.remove(255));
         assert_eq!(s.iter().collect::<Vec<_>>(), vec![0]);
+        for t in [63, 64, 255, 128, 1] {
+            s.insert(t);
+        }
+        assert_eq!(s.iter().collect::<Vec<_>>(), vec![0, 1, 63, 64, 128, 255]);
     }
 }

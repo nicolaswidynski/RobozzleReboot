@@ -4,8 +4,9 @@
 
 | | Solved / 908 | Proven minimal |
 |---|---|---|
-| **Ledger: best of every run so far** (`solver/ledger.json`, details below) | **676** | 225 |
-| One default run of the solver (`solver --all`, 20 M nodes, v1.8) | 544 | 187 |
+| **Ledger: best of every run so far** (`solver/ledger.json`, details below) | **677** | 225 |
+| One default run of the solver (`solver --all`, 20 M nodes, v1.9; see "v1.9" below) | 563 | 178 |
+| The same, v1.8 | 544 | 187 |
 | Known to have a solution (ledger, other solvers, top human players) | 907 | — |
 
 The default run is what the solver does by itself in one pass; the ledger
@@ -41,8 +42,8 @@ Difficulty is the catalog's player rating, rounded half away from zero.
 run, re-verified on the reference interpreter and on the game's own engine.
 Runs beyond the default mode only work on puzzles the ledger has not
 solved, so a stage can only add solutions (an ordering that "trades
-puzzles" becomes a pure gain). After the campaign of 2026-10-05: **676 /
-908**, of which 225 are proven minimal (cost equal to a proven lower bound;
+puzzles" becomes a pure gain). After the campaign of 2026-10-05 and the
+v1.9 low-star experiment: **677 / 908**, of which 225 are proven minimal (cost equal to a proven lower bound;
 earlier proofs whose runs were not kept are not counted).
 
 | Source | Puzzles added |
@@ -55,7 +56,8 @@ earlier proofs whose runs were not kept are not counted).
 | Seeded heuristic search, 20 M nodes, seeds 1–12 | +50 (per seed: 12, 2, 4, 4, 4, 3, 2, 3, 5, 4, 3, 4) |
 | Whole-program MCMC from the empty program, 600 k evaluations | +7 (6 of the 29 still-unsolved puzzles robozlov had solved, 1 of the 234 others) |
 | Heuristic search with 8× the budget (160 M nodes, 31 puzzles) | +1 |
-| **Total** | **676** |
+| Low-star ranking experiment (v1.9, 20 M nodes, the 186 puzzles with at most 2 stars) | +1 (#2202) |
+| **Total** | **677** |
 
 Yield per CPU-hour (new puzzles for the ledger, one niced core):
 
@@ -67,6 +69,7 @@ Yield per CPU-hour (new puzzles for the ledger, one niced core):
 | Whole-program MCMC | 263 | 7 | 5.05 | 1.4 |
 | Exact search, per-puzzle budget (probes included) | 74 | 6 | 4.92 | 1.2 |
 | Heuristic search at 160 M nodes | 31 | 1 | 0.98 | 1.0 |
+| Low-star ranking, 3 variants (v1.9 experiment) | 186 | 1 | 0.95 | 1.1 |
 
 What the campaign shows:
 
@@ -92,11 +95,11 @@ What the campaign shows:
   speed the campaign up.
 
 By number of functions in the puzzle: 1 function 149 / 149, 2 functions
-258 / 278, 3 functions 182 / 246, 4 functions 58 / 133, 5 functions
+258 / 278, 3 functions 183 / 246, 4 functions 58 / 133, 5 functions
 29 / 102. By the size of the shortest human solution: 319 / 319 (100 %) at
-≤ 8 cells, 178 / 178 (100 %) at 9–10, 73 / 97 (75 %) at 11–12, 31 / 83
+≤ 8 cells, 178 / 178 (100 %) at 9–10, 74 / 97 (76 %) at 11–12, 31 / 83
 (37 %) at 13–15, 11 / 75 (15 %) at 16–20, 3 / 31 (10 %) above 20, 61 / 125
-unknown. Of the 232 unsolved puzzles, 24 have a human solution of at most
+unknown. Of the 231 unsolved puzzles, 23 have a human solution of at most
 12 cells, 30 of 13–14, 114 of 15 or more, and 64 have no recorded size.
 
 **Other solvers and the best humans** (archived robozzle.com profiles,
@@ -194,20 +197,24 @@ program whose cost equals the budget exact search has reached. Wall time
 for the whole catalog: 27 minutes in v1.7 (v1.6: 34). v1.8 changed only the
 loop detector, which cannot change the search (SPEC.md §12.4): its results
 are identical to the table below, and it is faster on the slow puzzles
-(section "v1.8" below); the whole catalog was not re-timed.
+(section "v1.8" below); the whole catalog was not re-timed. v1.9 changes
+the ranking only for the 186 puzzles with at most 2 stars (section "v1.9"
+below: 563 solved, 178 proven minimal); the table and notes below are the
+v1.8 run.
 
 | Difficulty | Puzzles | One default run (v1.8): solved | proven minimal | **Ledger, all runs: solved** | proven minimal |
 |---|---|---|---|---|---|
 | ★ | 7 | 7 | 7 | **7** | 7 |
 | ★★ | 223 | 195 | 97 | **215** | 105 |
-| ★★★ | 533 | 306 | 80 | **393** | 104 |
+| ★★★ | 533 | 306 | 80 | **394** | 104 |
 | ★★★★ | 134 | 34 | 2 | **59** | 8 |
 | ★★★★★ | 11 | 2 | 1 | **2** | 1 |
-| **All** | **908** | **544** | **187** | **676** | **225** |
+| **All** | **908** | **544** | **187** | **677** | **225** |
 
 The default-run columns are one pass of `solver --all`; the ledger columns
 are the best verified program per puzzle from every run (`solver/ledger.json`,
-section "Solution ledger" above; after the 2026-10-05 campaign). The notes
+section "Solution ledger" above; after the 2026-10-05 campaign and the
+v1.9 experiment). The notes
 below describe the default run.
 
 - Time to the solution, on the 544 solved puzzles: median 178 ms (v1.6,
@@ -266,7 +273,8 @@ Each row is a full catalog run; puzzle-by-puzzle comparisons in the notes.
 | + decaying history (v1.6 with `--no-repair`) | 513 | 399 | Against v1.5: +57 / −22 solved; 4-function puzzles 18 → 32. |
 | + local repair (v1.6 default) | 521 | 399 | Against the previous row: +11 / −3 solved (all 11 found by repair); against v1.5: +61 / −18, 4-function puzzles 18 → 34. |
 | FIND first, exact share 10 %, no proof phase (v1.7 default) | 544 | 187 | Against v1.6: +28 / −5; 5-function puzzles 12 → 16, 3-function 119 → 129. Time to the solution: median 178 ms. |
-| **Faster loop detector (v1.8 default)** | **544** | **187** | Identical results by construction (SPEC.md §12.4); 4.1× less CPU on the 20 slowest puzzles. |
+| Faster loop detector (v1.8 default) | 544 | 187 | Identical results by construction (SPEC.md §12.4); 4.1× less CPU on the 20 slowest puzzles. |
+| **Low-star ranking (v1.9 default)** | **563** | **178** | Only puzzles with at most 2 stars change (rerun); the rest are identical to v1.8. +19 / −0; see "v1.9" below. |
 
 The union of all these runs solves 571 puzzles (7 of them only in the
 v1.7 run): changing the search order trades some puzzles for others (for
@@ -333,6 +341,86 @@ Measured and not adopted (both trade puzzles rather than add them):
   search in which every `Forward` must bring the robot one tile closer to
   the nearest remaining star (with some slack for detours), as a share of
   the heuristic budget. FINDER 27 against 26 (+5 / −4).
+
+### v1.9: low-star ranking (puzzles with at most 2 stars)
+
+On a puzzle with one or two stars almost every search node has collected
+the same number of stars (usually none), so the LDS ranking and its history
+heuristic, which count stars, cannot tell a branch that came close from one
+that went nowhere. v1.9 measures progress geometrically on these puzzles
+(SPEC.md §17.3, `--low-star`, default 2): each LDS node carries a side
+channel, outside the machine state, with the smallest walking distance to a
+remaining star its run has reached since the last star, and the set of
+distinct (tile, direction) poses reached. The history stores that progress
+instead of the star count, dead branches included, and level 2 breaks ties
+by more poses first. Ordering only; exact search is untouched.
+
+Set: all 186 puzzles with at most 2 stars, 20 M nodes each, one niced core
+per run: the 159 the ledger had solved (131 with one star, 28 with two)
+and the 27 it had not (24 and 3).
+
+FINDER (heuristic phase only), the three levels:
+
+| | Level 0 (v1.8) | Level 1: distance | **Level 2: distance + poses** |
+|---|---|---|---|
+| Solved, 1 star, ledger-solved (131) | 98 | 115 (+17 / −0) | **118 (+20 / −0)** |
+| Solved, 2 stars, ledger-solved (28) | 23 | 23 | **24 (+1 / −0)** |
+| Solved, unsolved by the ledger (27) | 0 | 1 (#2202) | **1 (#2202)** |
+| Nodes to the solution, common 1-star solves (98), geometric mean | 1 | 0.544 | **0.425** |
+| Time to the solution, same 98, geometric mean | 1 | 0.608 | **0.460** |
+| Time for the whole set (186 puzzles × 20 M nodes at most) | 574 s | 571 s | **535 s** |
+
+PRODUCT (the default mode, level 2 against `--low-star 0`; level 0
+reproduces the v1.8 run on all 186 puzzles):
+
+| | `--low-star 0` (v1.8) | **v1.9 default** |
+|---|---|---|
+| Solved (186) | 122 | **141** (+19 / −0; #2202 is new to the ledger) |
+| Solved within 0.1 s / 1 s / 10 s | 77 / 103 / 121 | **93 / 124 / 140** |
+| Time to the solution, common 1-star solves (98), geometric mean | 1 | **0.574** (total 0.446) |
+| Time to the solution, common 2-star solves (24), geometric mean | 1 | **0.791** |
+| Proven minimal | 66 | 57 |
+
+On the full catalog this gives 563 solved (544 − 122 + 141) and 178 proven
+minimal (187 − 66 + 57); the 722 puzzles with 3 or more stars take the
+unchanged code path (checked on 23 of them: identical programs, steps and
+node counts). The price is the FIND trade-off: an earlier heuristic
+solution leaves exact search fewer nodes, so 9 fewer are proven minimal and
+13 of the 122 common solutions are longer (8 are shorter).
+
+What did not move: none of the 24 unsolved one-star puzzles was solved at
+any level. 18 of them are a single corridor of 37–107 tiles with the star
+at its far end and 3–11 different segment lengths: the route is forced, so
+the walking distance only says how far a program got, and the hard part is
+a program (usually recursive) that reproduces the changing segment lengths.
+
+Replaying the known solutions through the LDS tree (as in "v1.7" below)
+explains where the gain comes from. With an empty history the summed
+discrepancy is the same at every level (1-star median 14, 14, 13), because
+level 1 changes only what the history stores. After 1 M LDS nodes, the
+history has learned enough for level 0 to solve 71 of the 131 one-star
+puzzles, level 1 86 and level 2 92; on the 34 that none solves by then the
+discrepancy of the known solution under the learned history is about the
+same (26.0, 25.6, 25.3).
+
+**A speed fix found while measuring.** `StarSet::iter` visited all 256
+possible tiles bit by bit, and LDS ranks every child by its distance to the
+nearest star, so every run paid for it; the progress side channel, which
+calls it after every executed action, doubled the time. Iterating word by
+word (one step per star) gives identical results (30 dev-set puzzles in
+PRODUCT mode at 5 M nodes: same programs, steps and node counts) and
+0.84× the time (geometric mean; 25 faster, 4 slower in a busy batch). The
+first progress implementation also kept the 136-byte side channel in the
+search state that exact search copies per child, which cost exact search
+5–7 %; v1.9 keeps it next to the LDS frames instead (exact search within
+2 % of v1.8, minimum of 5 runs).
+
+**Measured and rejected: a corridor route constraint.** On boards that are
+a single corridor, Forward could be allowed only toward the corridor's next
+tile. Exact search at 200 M nodes on the corridor puzzles the ledger solves
+(24 compared): the same solutions with 0.863× the nodes (geometric mean;
+best 0.64×, threshold for adopting it 0.1×). Crash pruning already removes
+almost every move off the corridor; the constraint only adds walking back.
 
 ### v1.8: the loop detector was the bottleneck of the slow puzzles
 

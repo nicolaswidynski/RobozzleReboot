@@ -10,6 +10,58 @@ use crate::stack::{self, CallKind, Frame, NodeId, StackArena};
 use crate::stats::{Config, SearchStats};
 use crate::types::{Action, Color, Direction, FnId, TileId};
 
+/// Geometric progress of a branch's run (low-star ranking, SPEC §17.3): a
+/// side channel beside the semantic state. It is not part of `Machine`, so
+/// loop detection, state equality and exact search never see it; only the
+/// heuristic phase carries and updates it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Progress {
+    /// Stars left when `best_distance` was last reset.
+    pub stars_left: u32,
+    /// Smallest walking distance to a remaining star reached since the
+    /// last star was collected.
+    pub best_distance: u16,
+    /// Distinct (tile, direction) poses reached: bit `tile * 4 + direction`.
+    pub visited: [u64; 16],
+}
+
+impl Progress {
+    pub fn new(puzzle: &StaticPuzzle, m: &Machine) -> Self {
+        let mut p = Progress {
+            stars_left: m.stars.len(),
+            best_distance: puzzle.nearest_star(m.position, &m.stars),
+            visited: [0; 16],
+        };
+        p.mark(m);
+        p
+    }
+
+    #[inline]
+    fn mark(&mut self, m: &Machine) {
+        let b = m.position as usize * 4 + m.direction as usize;
+        self.visited[b / 64] |= 1 << (b % 64);
+    }
+
+    /// Records the machine's pose after an executed action.
+    #[inline]
+    pub fn observe(&mut self, puzzle: &StaticPuzzle, m: &Machine) {
+        let left = m.stars.len();
+        let d = puzzle.nearest_star(m.position, &m.stars);
+        if left != self.stars_left {
+            self.stars_left = left;
+            self.best_distance = d;
+        } else {
+            self.best_distance = self.best_distance.min(d);
+        }
+        self.mark(m);
+    }
+
+    /// Number of distinct (tile, direction) poses reached.
+    pub fn coverage(&self) -> u32 {
+        self.visited.iter().map(|w| w.count_ones()).sum()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NormalizeResult {
     Solved,
@@ -285,8 +337,50 @@ pub fn normalize(
     config: &Config,
     stats: &mut SearchStats,
 ) -> NormalizeResult {
+    normalize_with(puzzle, program, machine, arena, cycles, config, stats, None)
+}
+
+/// `normalize` that also records the run's geometric progress (the
+/// heuristic phase in low-star mode, SPEC §17.3). Same result as
+/// `normalize`.
+#[allow(clippy::too_many_arguments)]
+pub fn normalize_tracked(
+    puzzle: &StaticPuzzle,
+    program: &PartialProgram,
+    machine: &mut Machine,
+    arena: &mut StackArena,
+    cycles: &mut CycleDetector,
+    config: &Config,
+    stats: &mut SearchStats,
+    progress: &mut Progress,
+) -> NormalizeResult {
+    normalize_with(
+        puzzle,
+        program,
+        machine,
+        arena,
+        cycles,
+        config,
+        stats,
+        Some(progress),
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn normalize_with(
+    puzzle: &StaticPuzzle,
+    program: &PartialProgram,
+    machine: &mut Machine,
+    arena: &mut StackArena,
+    cycles: &mut CycleDetector,
+    config: &Config,
+    stats: &mut SearchStats,
+    progress: Option<&mut Progress>,
+) -> NormalizeResult {
     let before = stats.instructions_evaluated;
-    let result = normalize_inner(puzzle, program, machine, arena, cycles, config, stats);
+    let result = normalize_inner(
+        puzzle, program, machine, arena, cycles, config, stats, progress,
+    );
     let n = stats.instructions_evaluated - before;
     let bucket = match n {
         0 => 0,
@@ -300,6 +394,7 @@ pub fn normalize(
     result
 }
 
+#[allow(clippy::too_many_arguments)]
 fn normalize_inner(
     puzzle: &StaticPuzzle,
     program: &PartialProgram,
@@ -308,6 +403,7 @@ fn normalize_inner(
     cycles: &mut CycleDetector,
     config: &Config,
     stats: &mut SearchStats,
+    mut progress: Option<&mut Progress>,
 ) -> NormalizeResult {
     stats.normalize_calls += 1;
     cycles.clear();
@@ -412,6 +508,9 @@ fn normalize_inner(
                 ) {
                     return dead;
                 }
+                if let Some(p) = progress.as_deref_mut() {
+                    p.observe(puzzle, machine);
+                }
             }
             Cell::Resolved(instr) => {
                 // N-EXEC: step first (R-STEP), then pc, then the condition.
@@ -434,6 +533,9 @@ fn normalize_inner(
                     instr.action,
                 ) {
                     return dead;
+                }
+                if let Some(p) = progress.as_deref_mut() {
+                    p.observe(puzzle, machine);
                 }
             }
             Cell::Unused => unreachable!("Unused cell inside a function prefix"),

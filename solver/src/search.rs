@@ -6,7 +6,7 @@ use arrayvec::ArrayVec;
 use crate::canonical::{is_useless_paint, turns_canonical};
 use crate::heuristic::HeuristicCursor;
 use crate::machine::{DeadReason, Machine};
-use crate::normalize::{CycleDetector, NormalizeResult, normalize};
+use crate::normalize::{CycleDetector, NormalizeResult, Progress, normalize, normalize_tracked};
 use crate::program::{Cell, PartialProgram, ResolvedProgram};
 use crate::puzzle::StaticPuzzle;
 use crate::reference::{RunStatus, reference_run};
@@ -480,18 +480,48 @@ impl<'a> Solver<'a> {
 
     /// Normalizes one search node (SPEC §10), counting it.
     pub(crate) fn normalize_counted(&mut self, s: &mut SearchState) -> NormalizeResult {
+        self.normalize_node(s, None)
+    }
+
+    /// `normalize_counted` that also records the run's progress (SPEC
+    /// §17.3).
+    pub(crate) fn normalize_tracked_counted(
+        &mut self,
+        s: &mut SearchState,
+        progress: &mut Progress,
+    ) -> NormalizeResult {
+        self.normalize_node(s, Some(progress))
+    }
+
+    fn normalize_node(
+        &mut self,
+        s: &mut SearchState,
+        progress: Option<&mut Progress>,
+    ) -> NormalizeResult {
         self.stats.search_nodes += 1;
         debug_assert!(s.program.check_prefix(), "INV-PREFIX");
         debug_assert_eq!(s.used_slots, s.program.occupied_slots(), "INV-COST");
-        let r = normalize(
-            self.puzzle,
-            &s.program,
-            &mut s.machine,
-            &mut self.arena,
-            &mut self.cycles,
-            &self.config,
-            &mut self.stats,
-        );
+        let r = match progress {
+            None => normalize(
+                self.puzzle,
+                &s.program,
+                &mut s.machine,
+                &mut self.arena,
+                &mut self.cycles,
+                &self.config,
+                &mut self.stats,
+            ),
+            Some(p) => normalize_tracked(
+                self.puzzle,
+                &s.program,
+                &mut s.machine,
+                &mut self.arena,
+                &mut self.cycles,
+                &self.config,
+                &mut self.stats,
+                p,
+            ),
+        };
         if let NormalizeResult::Dead(reason) = r {
             self.count_dead(reason);
         }
