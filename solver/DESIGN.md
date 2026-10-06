@@ -174,6 +174,21 @@ SPEC.md'deki isimler kullanılır.
 > bağımsız 100 bulmacada da maliyetler aynı. Ölçülüp alınmayan:
 > P-DEFERDEAD (bütçe dolmuşken hiç çalışamayacak ertelenmiş hücre): düğüm
 > azaltıyor ama CPU kazandırmıyor.
+>
+> **v1.11 — öğrenilmiş LDS sıralaması (deneysel, `--policy`).** Statik
+> sıralama, bilinen çözümlerin kararlarını ilk sıraya ancak yarı yarıya
+> koyuyor. Kendi çözdüğümüz programlardan (katalog ve robozzle.com
+> arşivi, yalnızca motorun bulduğu programlar) bir log-lineer bağlam modeli
+> eğitildi: her çocuğun 14 ikili bağlamı var, logit ağırlıkların toplamı,
+> çocuklar azalan logit sırasıyla deneniyor. Model yalnızca sıralar; kesin
+> arama, budamalar ve doğrulama değişmez, kötü bir model aramayı sadece
+> yavaşlatır. Değerlendirme dondurulmuş, aile bazlı bir bölünmeyle
+> yapılıyor (eğitim/doğrulama/test 70/10/20; test son karşılaştırmaya
+> kadar kullanılmaz) ve hakem, görülmemiş bulmacalarda eşit sürede çözülen
+> sayı. Eğitim verisi aramanın kendi özellik fonksiyonlarıyla dökülüyor
+> (`replay_dump`), Rust ve Python bağlamlarının eşitliği bir testle
+> korunuyor. Varsayılan değil: tam bir regresyon ve sinir ağı denemesi
+> için kanonik başlangıç noktası.
 
 Kimlik etiketleri (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) koddaki
 yorumlarda ve test isimlerinde referans olarak kullanılır. Örneğin bir budama
@@ -1306,6 +1321,21 @@ names from SPEC.md.
 > and 0.64× time; an independent 100 gave identical costs as well. Measured
 > and not adopted: P-DEFERDEAD (a deferred cell that can never run at full
 > budget) removes nodes but saves no CPU.
+>
+> **v1.11 — a learned LDS ordering (experimental, `--policy`).** The static
+> ranking puts the known solutions' decisions first only about half the
+> time. A log-linear context model was trained on programs our own solver
+> found (catalog and the robozzle.com archive, engine-found programs only):
+> every child has 14 binary contexts, its logit is the sum of their
+> weights, and children are tried in decreasing logit order. The model only
+> orders; exact search, pruning and verification are unchanged, so a bad
+> model can only slow the search. Evaluation uses a frozen family-level
+> split (train / validation / test 70/10/20; test untouched until a final
+> comparison), and the judge is unseen puzzles solved at equal wall-clock.
+> Training data is dumped with the search's own feature functions
+> (`replay_dump`), and a test keeps the Rust and Python contexts equal. Not
+> the default: it is the canonical baseline for a full regression and for
+> a small neural network.
 
 Rule IDs (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) are referenced from code
 comments and test names. For example, the code implementing a pruning rule

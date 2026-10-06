@@ -96,6 +96,10 @@ struct Args {
     /// Without P-PAINTKNOWN (canonical cells at a known tile color).
     #[arg(long)]
     no_paint_known: bool,
+    /// Experimental: learned LDS ordering from this weights file (JSON
+    /// {"weights": {context: weight}}; policy/README.md).
+    #[arg(long)]
+    policy: Option<PathBuf>,
 }
 
 fn id_string(v: &Value) -> String {
@@ -215,7 +219,15 @@ fn main() {
         inline: !args.no_inline,
         turn_order: !args.no_turn_order,
         paint_known: !args.no_paint_known,
+        policy: args.policy.is_some(),
     };
+    if let Some(path) = &args.policy {
+        let policy = solver::policy::Policy::load(path).unwrap_or_else(|e| {
+            eprintln!("error: {}: {e}", path.display());
+            std::process::exit(2);
+        });
+        let _ = solver::policy::POLICY.set(policy);
+    }
     let limits = Limits {
         time: args.timeout_ms.map(Duration::from_millis),
         nodes: Some(args.node_limit),

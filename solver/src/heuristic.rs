@@ -39,6 +39,7 @@
 //! solves the puzzle.
 
 use crate::normalize::{NormalizeResult, Progress};
+use crate::policy::{DecFeat, KidFeat};
 use crate::program::Cell;
 use crate::program::ResolvedProgram;
 use crate::puzzle::StaticPuzzle;
@@ -136,6 +137,8 @@ pub(crate) struct HeuristicCursor {
     /// Best progress (`history_value`) reached anywhere below each decision
     /// (history heuristic); a decaying maximum with `config.history_decay`.
     history: Vec<u32>,
+    /// Memoized context weights of the learned ordering (`config.policy`).
+    policy_memo: crate::policy::Memo,
 }
 
 struct HeuristicFrame {
@@ -248,12 +251,27 @@ impl Solver<'_> {
         }
         let (f, index) = frontier_slot(result);
         let total = self.puzzle.initial_stars.len();
+        let policy = if self.config.policy {
+            Some(
+                crate::policy::POLICY
+                    .get()
+                    .expect("--policy weights loaded"),
+            )
+        } else {
+            None
+        };
+        let dec = policy.map(|_| self.policy_dec(state, result, f, index, budget));
         let kids = self.children(state, result, budget);
         let mut best = 0;
-        let mut ranked: Vec<(Score, SearchState, Progress, NormalizeResult, u16)> =
+        let mut ranked: Vec<(Score, SearchState, Progress, NormalizeResult, u16, KidFeat)> =
             Vec::with_capacity(kids.len());
         for (i, mut kid) in kids.into_iter().enumerate() {
             let key = history_key(f, index, decision_code(&kid, f, index));
+            let pre = dec.map(|_| {
+                let (ct, cc, ac) = cell_parts(&kid, f, index);
+                let newfn = (kid.introduced_functions & !state.introduced_functions) != 0;
+                (ct, cc, ac, newfn)
+            });
             let mut kid_progress = *progress;
             let r = self.lds_normalize(&mut kid, &mut kid_progress);
             let collected = total - kid.machine.stars.len();
@@ -270,16 +288,25 @@ impl Solver<'_> {
                 r => {
                     self.record_progress(&kid, true);
                     let score = self.score(&kid, &kid_progress, i, key);
-                    ranked.push((score, kid, kid_progress, r, key));
+                    let feat = match pre {
+                        Some(pre) => self.policy_kid(state, &kid, r, pre),
+                        None => KidFeat::default(),
+                    };
+                    ranked.push((score, kid, kid_progress, r, key, feat));
                 }
             }
         }
         ranked.sort_by_key(|(score, ..)| *score);
+        if let (Some(policy), Some(dec)) = (policy, dec)
+            && ranked.len() > 1
+        {
+            ranked = self.policy_order(policy, &dec, ranked);
+        }
         let mark = self.arena.mark();
         self.heuristic.stack.push(HeuristicFrame {
             kids: ranked
                 .into_iter()
-                .map(|(_, k, p, r, key)| (k, p, r, key))
+                .map(|(_, k, p, r, key, _)| (k, p, r, key))
                 .collect(),
             next: 0,
             allowance,
@@ -431,6 +458,220 @@ impl Solver<'_> {
             optimal: false,
             found_by,
         }
+    }
+}
+
+/// One live kid of a frontier as `push_heuristic_frame` ranks it.
+type RankedKid = (Score, SearchState, Progress, NormalizeResult, u16, KidFeat);
+
+/// Kind code of a normalize result: 0 open, 1 need-condition, 2
+/// need-action, 3 solved, 4 dead.
+fn result_kind(r: NormalizeResult) -> u8 {
+    match r {
+        NormalizeResult::OpenSlot { .. } => 0,
+        NormalizeResult::NeedCondition { .. } => 1,
+        NormalizeResult::NeedAction { .. } => 2,
+        NormalizeResult::Solved => 3,
+        NormalizeResult::Dead(_) => 4,
+    }
+}
+
+/// (cell type, condition code, action code) of the cell at (f, index), as
+/// the training dump: cell type 0 END, 1 resolved, 2 cond-only, 3 pending,
+/// 4 cond-set; condition 0 any / 1+c color / 4+mask set; action
+/// `action_code` or 15 unknown.
+fn cell_parts(s: &SearchState, f: FnId, index: u8) -> (u8, u8, u8) {
+    let d = s.program.function(f);
+    if index >= d.len {
+        return (0, 0, 15);
+    }
+    match d.cell(index) {
+        Cell::Resolved(i) => {
+            let c = match i.condition {
+                Condition::Any => 0,
+                Condition::Color(c) => 1 + c as u8,
+            };
+            (1, c, action_code(i.action) as u8)
+        }
+        Cell::CondOnly(c) => (2, 1 + c as u8, 15),
+        Cell::Pending { action, color } => (3, 1 + color as u8, action_code(action) as u8),
+        Cell::CondSet(m) => (4, 4 + m.0, 15),
+        Cell::Unused => (9, 0, 15),
+    }
+}
+
+impl Solver<'_> {
+    /// The learned ordering (`config.policy`): the frontier's context
+    /// features (also written by `replay_dump` for training).
+    fn policy_dec(
+        &self,
+        state: &SearchState,
+        result: NormalizeResult,
+        f: FnId,
+        index: u8,
+        budget: u8,
+    ) -> DecFeat {
+        let pm = &state.machine;
+        let total = self.puzzle.initial_stars.len();
+        let mut depth = 0u32;
+        let mut cursor = pm.callers;
+        while let Some(id) = cursor {
+            depth += 1;
+            if depth >= 2 {
+                break; // the model only sees min(depth, 2)
+            }
+            cursor = self.arena.get(id).parent;
+        }
+        DecFeat {
+            fk: result_kind(result),
+            f,
+            index,
+            stars: total - pm.stars.len(),
+            total,
+            dist: if !pm.stars.is_empty() {
+                self.puzzle.nearest_star(pm.position, &pm.stars)
+            } else {
+                0
+            },
+            tile: pm.tile_color() as u8,
+            fwd: match self.puzzle.forward_target(pm.position, pm.direction) {
+                None => 0,
+                Some(t) => 1 + pm.colors.get(t) as u8,
+            },
+            depth,
+            intro: state.introduced_functions.count_ones(),
+            budget: budget as u32,
+            used: state.used_slots as u32,
+            prev: if index > 0 {
+                Some(cell_parts(state, f, index - 1))
+            } else {
+                None
+            },
+        }
+    }
+
+    /// The learned ordering: a live kid's context features (`pre`: its new
+    /// cell and whether it introduced a function, taken before the
+    /// lookahead).
+    fn policy_kid(
+        &self,
+        parent: &SearchState,
+        kid: &SearchState,
+        r: NormalizeResult,
+        pre: (u8, u8, u8, bool),
+    ) -> KidFeat {
+        let (pm, km) = (&parent.machine, &kid.machine);
+        let total = self.puzzle.initial_stars.len();
+        KidFeat {
+            ct: pre.0,
+            cc: pre.1,
+            ac: pre.2,
+            newfn: pre.3,
+            kind: result_kind(r),
+            stars: total - km.stars.len(),
+            dist: if !km.stars.is_empty() {
+                self.puzzle.nearest_star(km.position, &km.stars)
+            } else {
+                0
+            },
+            dsteps: km.steps.saturating_sub(pm.steps),
+            moved: km.position != pm.position,
+        }
+    }
+
+    /// Reorders the live kids (given in static rank order) by learned
+    /// probability, most probable first, ties by static rank.
+    fn policy_order(
+        &mut self,
+        policy: &crate::policy::Policy,
+        dec: &DecFeat,
+        ranked: Vec<RankedKid>,
+    ) -> Vec<RankedKid> {
+        let memo = &mut self.heuristic.policy_memo;
+        let z: Vec<f64> = ranked
+            .iter()
+            .enumerate()
+            .map(|(rank, e)| policy.logit(memo, dec, &e.5, rank))
+            .collect();
+        let mut order: Vec<usize> = (0..ranked.len()).collect();
+        order.sort_by(|&a, &b| z[b].total_cmp(&z[a]).then(a.cmp(&b)));
+        let mut slots: Vec<Option<RankedKid>> = ranked.into_iter().map(Some).collect();
+        order
+            .iter()
+            .map(|&i| slots[i].take().expect("each kid once"))
+            .collect()
+    }
+
+    /// Training data for the learned ordering: replays a known program
+    /// (internal labels, `canon::internal_bodies`) through the LDS tree
+    /// under the static ranking (empty history) and returns, for every
+    /// decision on its path, the frontier's context features, every child's
+    /// features and static score (live children), and the child that
+    /// follows the program. The features come from `policy_dec` and
+    /// `policy_kid`, the functions the search itself uses.
+    pub fn replay_dump(
+        &mut self,
+        known: &[Vec<crate::types::Instruction>],
+    ) -> Result<Vec<serde_json::Value>, String> {
+        use serde_json::json;
+        self.heuristic.history = vec![0; HISTORY_SIZE];
+        let budget = self.puzzle.total_capacity() as u8;
+        let mut state = self.root();
+        let mut progress = Progress::new(self.puzzle, &state.machine);
+        let mut r = self.lds_normalize(&mut state, &mut progress);
+        let mut out = Vec::new();
+        for _ in 0..5000 {
+            match r {
+                NormalizeResult::Solved => return Ok(out),
+                NormalizeResult::Dead(x) => return Err(format!("the known path died: {x:?}")),
+                _ => {}
+            }
+            let (f, index) = frontier_slot(r);
+            let dec = self.policy_dec(&state, r, f, index, budget);
+            let kids = self.children(&state, r, budget);
+            let mut rows = Vec::with_capacity(kids.len());
+            let mut next = None;
+            for (i, mut kid) in kids.into_iter().enumerate() {
+                let follows = crate::canon::consistent(&kid, r, known);
+                let key = history_key(f, index, decision_code(&kid, f, index));
+                let (ct, cc, ac) = cell_parts(&kid, f, index);
+                let newfn = (kid.introduced_functions & !state.introduced_functions) != 0;
+                let mut kid_progress = progress;
+                let kr = self.lds_normalize(&mut kid, &mut kid_progress);
+                let k = self.policy_kid(&state, &kid, kr, (ct, cc, ac, newfn));
+                let score = (k.kind <= 2).then(|| {
+                    let s = self.score(&kid, &kid_progress, i, key);
+                    vec![s.0 as u64, s.1 as u64, s.2 as u64, s.3 as u64, s.4 as u64]
+                });
+                rows.push(json!({
+                    "ct": k.ct, "cc": k.cc, "ac": k.ac, "newfn": k.newfn, "kind": k.kind,
+                    "stars": k.stars, "dist": k.dist, "dsteps": k.dsteps, "moved": k.moved,
+                    "score": score, "follows": follows,
+                }));
+                if follows && next.is_none() {
+                    next = Some((i, kid, kid_progress, kr));
+                }
+            }
+            let Some((chosen, kid, kid_progress, kr)) = next else {
+                return Err(format!("no child follows the known program at {r:?}"));
+            };
+            out.push(json!({
+                "kind": dec.fk, "f": dec.f, "index": dec.index, "stars": dec.stars,
+                "total": dec.total, "dist": dec.dist, "tile": dec.tile, "fwd": dec.fwd,
+                "depth": dec.depth, "intro": dec.intro, "budget": dec.budget, "used": dec.used,
+                "prev": dec.prev.map(|(a, b, c)| vec![a, b, c]).unwrap_or_default(),
+                "chosen": chosen, "kids": rows,
+            }));
+            match kr {
+                NormalizeResult::Solved => return Ok(out),
+                NormalizeResult::Dead(_) => return Err("the known path's child dies".into()),
+                _ => {}
+            }
+            state = kid;
+            progress = kid_progress;
+            r = kr;
+        }
+        Err("too long".into())
     }
 }
 
@@ -636,6 +877,53 @@ mod tests {
             assert_eq!(a.outcome, b.outcome);
             assert_eq!(a.stats.search_nodes, b.stats.search_nodes);
         }
+    }
+
+    /// The learned ordering (`--policy`) only reorders: LDS still finds a
+    /// valid solution when one exists, proves exhaustion otherwise, and is
+    /// deterministic.
+    #[test]
+    fn t_policy_ordering() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("policy/linear_b.json");
+        let policy = crate::policy::Policy::load(&path).expect("policy/linear_b.json");
+        let _ = crate::policy::POLICY.set(policy);
+        type Mc = (
+            &'static [&'static str],
+            (i64, i64),
+            &'static str,
+            &'static [i64],
+            Option<u8>,
+        );
+        let cases: &[Mc] = &[
+            (&["bbbB"], (0, 0), "right", &[3], Some(2)),
+            (&["Bbbb"], (0, 3), "right", &[4], None),
+            (&["bbb", "b b", "bbB"], (0, 0), "right", &[4], Some(4)),
+            (&["bbr", "  b", "  B"], (0, 0), "right", &[4], Some(3)),
+            (&["bbbbB"], (0, 0), "right", &[1, 2], Some(3)),
+            (&["BbbbB"], (0, 2), "left", &[3, 1], None),
+        ];
+        let config = Config {
+            policy: true,
+            ..Config::default()
+        };
+        for (rows, start, dir, caps, optimum) in cases {
+            let p = puzzle(rows, *start, dir, caps, 0);
+            let mut solver = Solver::new(&p, config, Limits::default());
+            match (solver.heuristic_resume(), optimum) {
+                (Step::Found(s), Some(opt)) => assert!(s.cost >= *opt),
+                (Step::Exhausted, None) => {}
+                _ => panic!("{rows:?}: unexpected outcome"),
+            }
+        }
+        let p = puzzle(&["bbr", "  b", "rbB"], (0, 0), "right", &[3, 2], 1);
+        let limits = Limits {
+            nodes: Some(500),
+            time: None,
+        };
+        let a = solve(&p, config, limits);
+        let b = solve(&p, config, limits);
+        assert_eq!(a.outcome, b.outcome);
+        assert_eq!(a.stats.search_nodes, b.stats.search_nodes);
     }
 
     #[test]

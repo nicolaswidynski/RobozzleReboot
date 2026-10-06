@@ -67,6 +67,10 @@ pub struct Config {
     /// turns the tile color is known to be `d`; constant conditions,
     /// no-op and overwritten paints are not generated.
     pub paint_known: bool,
+    /// Experimental learned LDS ordering (SPEC §17.3): the live kids of a
+    /// frontier in decreasing order of a log-linear context model's logit
+    /// (weights loaded into `policy::POLICY`). Ordering only.
+    pub policy: bool,
 }
 
 /// Default `Config::low_star`.
@@ -106,6 +110,7 @@ impl Default for Config {
             inline: true,
             turn_order: true,
             paint_known: true,
+            policy: false,
         }
     }
 }
@@ -135,6 +140,7 @@ impl Config {
             inline: b & 256 != 0,
             turn_order: b & 512 != 0,
             paint_known: b & 1024 != 0,
+            policy: false,
         })
     }
 }

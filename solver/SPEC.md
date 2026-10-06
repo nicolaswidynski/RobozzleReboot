@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.10 |
+| **Version** | 1.11 |
 | **Status** | Normative implementation specification |
 | **Engine** | `lib/engine/interpreter.dart` at commit `37b5ede` |
 | **Rationale** | [`DESIGN.md`](DESIGN.md) (why each rule exists, alternatives considered) |
@@ -1033,8 +1033,9 @@ pub struct Config {
     pub inline: bool,             // P-INLINE (§15.6)
     pub turn_order: bool,         // P-TURNORDER, P-TURNMIN (§15.2a)
     pub paint_known: bool,        // P-PAINTKNOWN (§15.1a)
+    pub policy: bool,             // learned ordering in §17.3 (experimental; weights from --policy)
 }   // Default: all true, except heuristic_only = false, prove_minimal = false;
-    // repair_share = 25, exact_share = 10, low_star = 2
+    // repair_share = 25, exact_share = 10, low_star = 2, policy = false
 ```
 
 Disabling a flag MUST remove only the optimization; it MUST NOT forbid any
@@ -1224,6 +1225,19 @@ LDS(state, allowance):                       # state is already normalized
   `PROGRESS` by more distinct poses first; at level 1 and outside low-star
   mode the poses key is 0. Ordering only: completeness and determinism are
   unaffected, and the root's `Progress` starts from the initial pose.
+- **Learned ordering** (`config.policy`, experimental, CLI `--policy
+  <weights.json>`). After the kids are ranked as above, they are re-sorted
+  by decreasing logit of a log-linear context model, ties by that rank. A
+  kid's logit is the sum of the weights of its 14 contexts, built from the
+  frontier (kind, function, slot, stars, nearest-star distance, tile and
+  forward-tile colors, call depth, introduced functions, budget, used slots,
+  previous cell), the kid's new cell (type, condition, action, new
+  function), its lookahead (kind, stars, distance change, moved, steps) and
+  its rank; contexts absent from the weights file weigh 0. The templates are
+  `solver/policy/features.py` (`kid_contexts`) and `src/policy.rs`, checked
+  equal by `t_policy_vectors`. The discrepancy of a kid is its position in
+  this order. Ordering only: a given weights file keeps completeness and
+  determinism. Training data and the canonical weights: `solver/policy/`.
 - **FINALIZE_HEURISTIC:** drop `CondOnly` cells (they never ran on their
   color, so they were always skipped), turn `Pending` into `Any`, verify with
   `REFERENCE_RUN` (MUST succeed), then **shrink**: repeatedly delete the first
@@ -1604,6 +1618,8 @@ Test names are those of the implementation (`cargo test` in `solver/`).
 | `t_p_turn`, `t_p_paint` | TV-16, P-PAINT. |
 | `t_e2e_min_cost_all_configs` | §24.5 under all 2048 `Config` combinations (this is also `t_config_equivalence`). |
 | `t_p_turnorder`, `t_p_turnmin`, `t_p_paintknown` | P-TURNORDER, P-TURNMIN, P-PAINTKNOWN on hand-made windows. |
+| `t_policy_vectors` | The solver's context strings and logits equal `policy/features.py`'s on 500 recorded rows. |
+| `t_policy_ordering` | With `--policy`, LDS still finds a valid solution when one exists, proves exhaustion otherwise, and is deterministic. |
 | `t_prune_rules_equivalence` | 300 random puzzles (up to three colors, paint, three functions): each of P-INLINE, P-TURNORDER/P-TURNMIN, P-PAINTKNOWN alone and all together find the same minimal cost as none of them. |
 | `t_condition_sets_bruteforce` | 30 random tiny three-color puzzles (capacities `[3]` or `[2, 2]`): with and without D-DEFER-SET, exact search matches exhaustive enumeration. |
 | `t_anonymous_functions_fit_and_realize` | INV-FIT on capacities 1, 3, 2; Realize maps bodies and renames calls in `Resolved` and `Pending` cells; output slot counts equal real capacities. |
@@ -1678,6 +1694,7 @@ solver <catalog.json> [--id <sourceId>]... [--all]
        [--low-star <0|1|2>]           low-star ranking for puzzles with ≤ 2 stars (§17.3), default 2
        [--no-anonymous-functions]     keep auxiliary function identities (P-SYM only)
        [--no-inline] [--no-turn-order] [--no-paint-known]   without P-INLINE, P-TURNORDER/P-TURNMIN, P-PAINTKNOWN
+       [--policy <weights.json>]      experimental learned LDS ordering (§17.3, solver/policy/)
        [--no-condition-sets]          one deferred cell per color (no D-DEFER-SET)
        [--out <solutions.json>]
        [--jobs <n>]                    puzzles solved in parallel, default: all CPUs

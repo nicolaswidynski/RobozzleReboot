@@ -43,10 +43,10 @@ Difficulty is the catalog's player rating, rounded half away from zero.
 ## Overnight experiments (2026-10-06)
 
 All runs niced on the laptop; every new program verified on the reference
-interpreter and in the Dart test. The learned policy and the new prunes are
-measured in copies outside the repository (patches in
-`robozzle-data/exp-policy/policy.patch` and `robozzle-data/exp-prunes/prunes.patch`)
-and are not part of v1.9.
+interpreter and in the Dart test. The learned policy and the new prunes were
+measured in copies outside the repository; the prunes are now v1.10 and the
+policy is `--policy` in v1.11 (sections above), with the numbers below
+being the overnight measurements.
 
 **Learned LDS policy** (engine). A log-linear context model in the style of
 Levin tree search with context models, trained on the verified programs of
@@ -428,6 +428,35 @@ Measured and not adopted (both trade puzzles rather than add them):
   search in which every `Forward` must bring the robot one tile closer to
   the nearest remaining star (with some slack for detours), as a share of
   the heuristic budget. FINDER 27 against 26 (+5 / −4).
+
+### Learned LDS ordering (v1.11, experimental `--policy`)
+
+`policy/linear_b.json` (model B): a log-linear context model trained on
+engine-found programs of the catalog and the robozzle.com archive, train
+split only (SPEC.md §17.3, `policy/README.md`). Judged on the frozen
+**validation** split: 990 puzzles (91 catalog, 899 archive) the model never
+saw, default mode, 2 M nodes, v1.10 solver.
+
+| | v1.10 | **v1.10 + B** | v1.10 + C10 (ablation) |
+|---|---|---|---|
+| Solved (990) | 593 | **644** (+68 / −17, sign test p ≈ 2·10⁻⁸) | 652 (+74 / −15) |
+| Catalog / archive | 44 / 549 | 53 / 591 | 53 / 599 |
+| Solved within 0.1 s / 1 s | 509 / 590 | 550 / 635 | 554 / 645 |
+| Total time | 464 s | 434 s | 417 s |
+| Known program ≤ 12 cells (528) | 470 | 496 | 501 |
+| Known program 13–15 cells (73) | 52 | 59 | 58 |
+| Known program 16+ cells (118) | 66 | 79 | 81 |
+| No known program (271) | 5 | 10 | 12 |
+| 4–5 functions (330) | 104 | 125 | 124 |
+
+The model costs about 5–7 % more time per node and still finishes the set
+faster. C10 adds the LLM planner's programs (×10) to B's training data:
++25 / −17 against B (p ≈ 0.28), so the teacher signal is not established;
+it stays an ablation. Offline (static replay on validation), B halves the
+known solutions' cumulative LDS discrepancy (median 12 → 6) and archive
+data helps significantly over catalog-only training; an ordering that
+looked slightly worse offline (C10) did best in the solver, so offline
+numbers only filter.
 
 ### v1.10: three new sound prunes (exact search)
 
