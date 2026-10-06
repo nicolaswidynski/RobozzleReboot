@@ -81,8 +81,9 @@ By functions (v1.9 2 M / policy 2 M / robozlov): 1: 95.5 / 96.7 / 98.3%,
 2: 78.2 / 83.1 / 88.8%, 3: 56.5 / 64.0 / 71.7%, 4: 38.3 / 45.8 / 55.2%,
 5: 30.5 / 36.6 / 44.0%.
 
-**New sound prunes** (engine): P-INLINE, P-TURNORDER/P-TURNMIN,
-P-PAINTKNOWN and P-DEFERDEAD. Exact search on 40 proven-optimal puzzles:
+**New sound prunes** (engine; adopted in v1.10 except P-DEFERDEAD, see
+"v1.10" below): P-INLINE, P-TURNORDER/P-TURNMIN, P-PAINTKNOWN and
+P-DEFERDEAD. Exact search on 40 proven-optimal puzzles:
 0.67× nodes and 0.64× CPU (one-function puzzles 0.50×), with identical
 minimal costs; an independent check on 100 more gave identical costs and
 0.76× nodes. FINDER on the dev set: 42 vs 39 (+11 / −8, not significant).
@@ -427,6 +428,28 @@ Measured and not adopted (both trade puzzles rather than add them):
   search in which every `Forward` must bring the robot one tile closer to
   the nearest remaining star (with some slack for detours), as a share of
   the heuristic budget. FINDER 27 against 26 (+5 / −4).
+
+### v1.10: three new sound prunes (exact search)
+
+P-TURNORDER/P-TURNMIN, P-PAINTKNOWN and P-INLINE (SPEC.md §15.1a, §15.2a,
+§15.6). Exact search, `--exact-only`, 300 M-node limit, on 40 puzzles of
+the ledger with a proven minimum (cost 6–10, 1–5 functions), v1.10 against
+v1.9:
+
+| | Result |
+|---|---|
+| Minimal cost found | identical on 40 / 40, equal to the ledger |
+| Search nodes (geometric mean) | 0.74× |
+| Time (11 puzzles taking ≥ 0.5 s with v1.9) | 0.64× |
+
+Per rule (measured in an experiment copy; nodes on 16 puzzles / CPU on
+12, geometric means): the turn rules 0.71× / 0.66×,
+P-INLINE 0.96× / 0.95×, P-PAINTKNOWN 0.98× / 1.00×; one-function puzzles
+gain most (about 0.5× CPU). A further 100 proven-minimal puzzles gave
+identical costs. P-DEFERDEAD was measured and left out: 0.94× nodes but
+1.00× CPU. The rules also prune the heuristic phase's children; FINDER on
+the dev set at 5 M nodes, with all four candidate rules, was 42 vs 39
+solved (+11 / −8, not significant), and the full catalog was not re-run.
 
 ### v1.9: low-star ranking (puzzles with at most 2 stars)
 

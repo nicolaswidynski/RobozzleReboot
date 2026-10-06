@@ -53,6 +53,20 @@ pub struct Config {
     /// reached, 2 = 1 plus distinct poses reached as a tie-break. Ordering
     /// only.
     pub low_star: u8,
+    /// P-INLINE (SPEC §15.6): one cell beyond P-RESERVE when more
+    /// auxiliary functions could be inlined at their only call site than
+    /// the free cells could give a second call site. Prunes only programs
+    /// that a cheaper program dominates.
+    pub inline: bool,
+    /// P-TURNORDER and P-TURNMIN (SPEC §15.2a): adjacent resolved
+    /// turns with different conditions in the order Any < red < green <
+    /// blue, and no turn block longer than the shortest block with the same
+    /// rotation on every color.
+    pub turn_order: bool,
+    /// P-PAINTKNOWN (SPEC §15.1a): after `Any: Paint(d)` and
+    /// turns the tile color is known to be `d`; constant conditions,
+    /// no-op and overwritten paints are not generated.
+    pub paint_known: bool,
 }
 
 /// Default `Config::low_star`.
@@ -89,15 +103,18 @@ impl Default for Config {
             exact_share: DEFAULT_EXACT_SHARE,
             prove_minimal: false,
             low_star: DEFAULT_LOW_STAR,
+            inline: true,
+            turn_order: true,
+            paint_known: true,
         }
     }
 }
 
 impl Config {
-    /// All 256 combinations of the flags that shape the exact search, for
+    /// All 2048 combinations of the flags that shape the exact search, for
     /// `t_config_equivalence`.
     pub fn all_combinations() -> impl Iterator<Item = Config> {
-        (0u16..256).map(|b| Config {
+        (0u16..2048).map(|b| Config {
             lazy_conditions: b & 1 != 0,
             function_symmetry: b & 2 != 0,
             peephole: b & 4 != 0,
@@ -115,6 +132,9 @@ impl Config {
             exact_share: 50,
             prove_minimal: true,
             low_star: DEFAULT_LOW_STAR,
+            inline: b & 256 != 0,
+            turn_order: b & 512 != 0,
+            paint_known: b & 1024 != 0,
         })
     }
 }
@@ -225,6 +245,12 @@ pub struct SearchStats {
     pub prune_single: u64,
     /// Children cut because used slots plus P-RESERVE exceed the budget.
     pub prune_reserve: u64,
+    /// Children cut by P-INLINE (one cell beyond P-RESERVE).
+    pub prune_inline: u64,
+    /// Turn cells not created because of P-TURNORDER or P-TURNMIN.
+    pub prune_turn_order: u64,
+    /// Candidates not created because of P-PAINTKNOWN.
+    pub prune_paint_known: u64,
     /// Auxiliary bodies closed because INV-FIT forbids any growth.
     pub forced_closes: u64,
     /// `Pending{Paint(x)}` evaluated on an `x` tile: no decision needed.

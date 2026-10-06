@@ -157,6 +157,23 @@ SPEC.md'deki isimler kullanılır.
 > kümede çözülemeyen 24 tek yıldızlı bulmacanın 18'i tek bir uzun koridor;
 > orada eksik olan yön değil, değişen parça uzunluklarını üreten (çoğunlukla
 > özyinelemeli) program.
+>
+> **v1.10 — üç yeni sağlam budama.** Kesin aramanın dallanma anatomisi
+> ölçüldü: düğümlerin %88–93'ü son hücre yerleştikten sonra, koşul ve
+> ertelenmiş eylem seçerken harcanıyor. Üç kural eklendi. P-TURNORDER /
+> P-TURNMIN: art arda dönüşler aynı karede değerlendirilir; farklı
+> koşullular sabit bir sırada olmalı ve bir dönüş dizisi, her renkte aynı
+> dönüşü yapan en kısa bloktan uzun olamaz. P-PAINTKNOWN: `Any: Paint(d)`
+> ve ardından yalnızca dönüşler varsa kare rengi `d`'dir; sabit koşullar,
+> etkisiz ve üzerine yazılan boyalar üretilmez. P-INLINE: tek çağrı yerinde
+> `Any` ile çağrılan bir yardımcı fonksiyon oraya gömülebiliyorsa program
+> minimal değildir; bütçe dolmuşken kurtarabilecek hücre sayısından fazla
+> böyle fonksiyon varsa dal kesilir. Aynı maliyet ve adımlı yeniden
+> yazmalar bir kanonik anahtarla birlikte sağlam tutulur. 40 kanıtlı
+> minimal bulmacada maliyetler aynı, düğümler 0,74 kat, süre 0,64 kat;
+> bağımsız 100 bulmacada da maliyetler aynı. Ölçülüp alınmayan:
+> P-DEFERDEAD (bütçe dolmuşken hiç çalışamayacak ertelenmiş hücre): düğüm
+> azaltıyor ama CPU kazandırmıyor.
 
 Kimlik etiketleri (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) koddaki
 yorumlarda ve test isimlerinde referans olarak kullanılır. Örneğin bir budama
@@ -1272,6 +1289,23 @@ names from SPEC.md.
 > unsolved in this set, 18 are a single long corridor; what is missing
 > there is not the direction but a program, usually recursive, that
 > reproduces the changing segment lengths.
+>
+> **v1.10 — three new sound prunes.** An anatomy of exact search showed that
+> 88–93 % of its nodes are spent after the last cell is placed, choosing
+> conditions and deferred actions. Three rules were added. P-TURNORDER /
+> P-TURNMIN: adjacent turns are evaluated on one tile, so turns with
+> different conditions must come in a fixed order and a turn run may not be
+> longer than the shortest block with the same rotation on every color.
+> P-PAINTKNOWN: after `Any: Paint(d)` followed only by turns the tile color
+> is `d`, so constant conditions and no-op or overwritten paints are not
+> generated. P-INLINE: an auxiliary function called from a single `Any`
+> site that could be inlined there makes the program non-minimal; at full
+> budget, more such functions than cells that could rescue them cut the
+> branch. Rewrites that keep cost and steps stay sound together through a
+> canonical key. On 40 proven-minimal puzzles: identical costs, 0.74× nodes
+> and 0.64× time; an independent 100 gave identical costs as well. Measured
+> and not adopted: P-DEFERDEAD (a deferred cell that can never run at full
+> budget) removes nodes but saves no CPU.
 
 Rule IDs (`R-*`, `N-*`, `S-*`, `INV-*`, `P-*`, `T-*`) are referenced from code
 comments and test names. For example, the code implementing a pruning rule

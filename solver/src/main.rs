@@ -87,6 +87,15 @@ struct Args {
     /// reached.
     #[arg(long, default_value_t = solver::stats::DEFAULT_LOW_STAR)]
     low_star: u8,
+    /// Without P-INLINE (lower bound: an inlinable auxiliary function).
+    #[arg(long)]
+    no_inline: bool,
+    /// Without P-TURNORDER and P-TURNMIN (canonical turn blocks).
+    #[arg(long)]
+    no_turn_order: bool,
+    /// Without P-PAINTKNOWN (canonical cells at a known tile color).
+    #[arg(long)]
+    no_paint_known: bool,
 }
 
 fn id_string(v: &Value) -> String {
@@ -203,6 +212,9 @@ fn main() {
         exact_share: args.exact_share,
         prove_minimal: args.prove_minimal,
         low_star: args.low_star,
+        inline: !args.no_inline,
+        turn_order: !args.no_turn_order,
+        paint_known: !args.no_paint_known,
     };
     let limits = Limits {
         time: args.timeout_ms.map(Duration::from_millis),

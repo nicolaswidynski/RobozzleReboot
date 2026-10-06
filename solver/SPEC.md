@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Version** | 1.9 |
+| **Version** | 1.10 |
 | **Status** | Normative implementation specification |
 | **Engine** | `lib/engine/interpreter.dart` at commit `37b5ede` |
 | **Rationale** | [`DESIGN.md`](DESIGN.md) (why each rule exists, alternatives considered) |
@@ -854,6 +854,29 @@ D-RESOLVE. (*Proof:* it runs only when the tile is already `c`, so it never
 changes state; removing it lowers cost and steps.) `Any: Paint(cur)` MUST
 still be generated.
 
+### 15.1a P-PAINTKNOWN (`config.paint_known`)
+
+The tile color at cell `k` of a function is **known** to be `d` when the
+cells before it, back to a `Resolved` `Any: Paint(d)`, are all turns
+(`Resolved` or `Pending`). The body is entered only at index 0, no call lies
+in between, the paint always fires and turns neither move nor paint, so
+every evaluation of cell `k` sees color `d`. (A `Pending` turn in between
+was created after the paint ran, so on `d`; it never splits.) Then:
+
+- a `Resolved` cell with a color condition MUST NOT be created at `k`:
+  `Color(x ≠ d)` never fires (removable), and `Color(d)` always fires, so
+  `Any` (also generated) is its canonical form;
+- no deferred cell (D-DEFER, D-DEFER-SET) is generated at `k`: it is
+  conditioned on colors other than `d` and would never fire;
+- `Paint(d)` is not generated at `k` (no effect), and when every turn in
+  between is unconditional no paint is generated at `k` (a paint that fires
+  makes the earlier one dead, one on another color never fires);
+- a `Resolved` paint immediately followed by a `Resolved` `Any: Paint` is
+  forbidden (the first is never observed).
+
+Every case is removable (lower cost and steps) or, for `Color(d) → Any`,
+lowers the canonical key of §15.2a.
+
 ### 15.2 P-TURN
 
 For consecutive `Resolved` turn cells of the same function **with the same
@@ -875,6 +898,33 @@ cell `i + 1` is evaluated immediately after cell `i`. A turn does not change
 the tile color. So two adjacent turns with the same condition either both
 run or both skip, and each rewrite above preserves the state with lower or
 equal cost and steps.
+
+### 15.2a P-TURNORDER and P-TURNMIN (`config.turn_order`)
+
+Both look at maximal runs of consecutive `Resolved` turn cells, which are
+evaluated on one tile color (§15.2).
+
+- **P-TURNORDER.** Adjacent turns with **different** conditions MUST appear
+  in the order `Any < red < green < blue`. (Rotations commute; swapping keeps
+  behavior, cost and steps and lowers the canonical key below.)
+- **P-TURNMIN.** A run's effect is a rotation `rot(x)` (quarter turns mod 4)
+  per possible color `x`, at one cell and one step per turn. `Any` turns
+  rotating by `b` followed by `Color(x)` turns rotating by `rot(x) − b` have
+  the same effect with `q(b) + Σₓ q(rot(x) − b)` cells, where `q = [0, 1, 2,
+  1]` (`L`, `L L`, `R`). A run longer than the minimum over `b` MUST NOT be
+  created: it is replaceable by a block with fewer cells and steps. The run
+  checked is a contiguous part of a run of every completion, and shortening
+  a part shortens the whole.
+
+**Canonical key.** P-TURN's `R R → L L`, P-TURNORDER and P-PAINTKNOWN's
+`Color(d) → Any` keep cost and steps. They are sound together because each
+strictly lowers one key: the cells in (function, index) order, each compared
+by (condition: `Any < red < green < blue`, then `turnLeft < turnRight`).
+None touches a call cell or the order of executed calls, so P-SYM naming is
+unchanged. Among the minimal-cost solutions with the fewest steps, the one
+with the smallest key passes every rule. The rules are applied only to
+`Resolved` cells, which never change afterwards, so every window rejected
+is present in every completion.
 
 ### 15.3 P-EMPTYFN
 
@@ -924,6 +974,30 @@ lower bound on the remaining program size in the solver; it applies at
 every node, including D-RESOLVE children and calls to new functions (which
 reserve 2 more slots at once).
 
+### 15.6 P-INLINE (`config.inline`)
+
+An auxiliary function `g` is **inlinable** when it has exactly one call site,
+that site is a `Resolved` `Any: Call(g)` in another function `h`, and `h`
+with the call replaced by `g`'s body still fits at the final lengths:
+`len(h) − 1 + len(g) ≤ cap(h)`, or INV-FIT with `h` grown and `g` gone for
+anonymous functions. A child state is discarded when `used + reserve =
+budget` (P-RESERVE's sum) and more functions are inlinable than there are
+deferred cells (`CondOnly`, `CondSet`) plus reserved cells.
+
+*Proof.* Inlining (replace the site by `g`'s body, delete `g`) gives one cell
+and at least one step less with the same behavior: the site fires every
+time it is evaluated, a call neither moves nor paints, frames of `g`
+correspond to frames of `h` at shifted indices, and R-TAIL only drops frames
+with nothing left to run. So a minimal solution contains no inlinable
+function. With `used + reserve = budget`, a minimal completion within the
+budget adds exactly the reserved cells (every cell of a minimal solution
+fires, so every introduced auxiliary function is called and has at least 2
+cells), so the final lengths are fixed; `g` can then stop being inlinable
+only by a second call site, which only a deferred cell or a reserved cell
+can supply, one per cell. With more inlinable functions than such cells, no
+completion is minimal. The rule is checked only for children that change
+the cells or the reserve; every other child keeps its frontier's answer.
+
 ### 15.4 P-STEPCUT
 
 If `machine.steps == MAX_STEPS` at a frontier:
@@ -956,6 +1030,9 @@ pub struct Config {
     pub exact_share: u8,          // percent of each portfolio round for exact search (§17.1)
     pub prove_minimal: bool,      // after a heuristic solution, exact search below its cost (§17.1)
     pub low_star: u8,             // low-star ranking in §17.3: 0 off, 1 distance, 2 + poses (ordering only)
+    pub inline: bool,             // P-INLINE (§15.6)
+    pub turn_order: bool,         // P-TURNORDER, P-TURNMIN (§15.2a)
+    pub paint_known: bool,        // P-PAINTKNOWN (§15.1a)
 }   // Default: all true, except heuristic_only = false, prove_minimal = false;
     // repair_share = 25, exact_share = 10, low_star = 2
 ```
@@ -964,7 +1041,7 @@ Disabling a flag MUST remove only the optimization; it MUST NOT forbid any
 program. In particular, disabling `lazy_conditions` MUST expand dormant
 conditions eagerly (the last row of §14.1), not drop them, and disabling
 `lazy_active_conditions` MUST generate both `Any: a` and `Color(cur): a`.
-Every `Config` (all 256 combinations of the flags that shape exact search)
+Every `Config` (all 2048 combinations of the flags that shape exact search)
 MUST yield the same minimal cost.
 
 P-CONN, P-COLOR and P-DISABLED are part of the representation and have no
@@ -1525,7 +1602,9 @@ Test names are those of the implementation (`cargo test` in `solver/`).
 | `t_candidates` | TV-14a … TV-14i. |
 | `t_p_sym_callable_sets` | TV-15. |
 | `t_p_turn`, `t_p_paint` | TV-16, P-PAINT. |
-| `t_e2e_min_cost_all_configs` | §24.5 under all 256 `Config` combinations (this is also `t_config_equivalence`). |
+| `t_e2e_min_cost_all_configs` | §24.5 under all 2048 `Config` combinations (this is also `t_config_equivalence`). |
+| `t_p_turnorder`, `t_p_turnmin`, `t_p_paintknown` | P-TURNORDER, P-TURNMIN, P-PAINTKNOWN on hand-made windows. |
+| `t_prune_rules_equivalence` | 300 random puzzles (up to three colors, paint, three functions): each of P-INLINE, P-TURNORDER/P-TURNMIN, P-PAINTKNOWN alone and all together find the same minimal cost as none of them. |
 | `t_condition_sets_bruteforce` | 30 random tiny three-color puzzles (capacities `[3]` or `[2, 2]`): with and without D-DEFER-SET, exact search matches exhaustive enumeration. |
 | `t_anonymous_functions_fit_and_realize` | INV-FIT on capacities 1, 3, 2; Realize maps bodies and renames calls in `Resolved` and `Pending` cells; output slot counts equal real capacities. |
 | `t_anonymous_functions_bruteforce` | 25 random tiny puzzles with auxiliary capacities `[2, 1]` or `[1, 2]`: anonymous and labelled exact search both match exhaustive enumeration. |
@@ -1598,6 +1677,7 @@ solver <catalog.json> [--id <sourceId>]... [--all]
        [--prove-minimal]              after a heuristic solution, look for a shorter one / prove minimality
        [--low-star <0|1|2>]           low-star ranking for puzzles with ≤ 2 stars (§17.3), default 2
        [--no-anonymous-functions]     keep auxiliary function identities (P-SYM only)
+       [--no-inline] [--no-turn-order] [--no-paint-known]   without P-INLINE, P-TURNORDER/P-TURNMIN, P-PAINTKNOWN
        [--no-condition-sets]          one deferred cell per color (no D-DEFER-SET)
        [--out <solutions.json>]
        [--jobs <n>]                    puzzles solved in parallel, default: all CPUs
@@ -1673,6 +1753,8 @@ heuristic (unsound) pruning (the heuristic phase only reorders); pushdown analys
 | P-COLOR, P-PAINT, P-DISABLED | §14.1, §15.1, §14.3 | `t_candidates` |
 | P-SYM | §14.4 | `t_p_sym_callable_sets`, `t_e2e_min_cost_all_configs` |
 | P-TURN | §15.2 | `t_p_turn`, `t_e2e_min_cost_all_configs` |
+| P-TURNORDER, P-TURNMIN, P-PAINTKNOWN | §15.2a, §15.1a | `t_p_turnorder`, `t_p_turnmin`, `t_p_paintknown`, `t_prune_rules_equivalence`, `t_e2e_min_cost_all_configs` |
+| P-INLINE | §15.6 | `t_prune_rules_equivalence`, `t_e2e_min_cost_all_configs`, `t_e2e_bruteforce` |
 | P-EMPTYFN | §15.3 | `t_candidates` (TV-14a/b/f) |
 | P-CRASH, P-ENDDEAD | §14.1, §15.3a | `t_candidates` (TV-14i), `t_e2e_min_cost_all_configs` |
 | D-PENDING, D-CHOOSE, N-NEEDCOND | §10, §13, §14 | `t_candidates` (TV-14g/h), `t_frontier_no_step`, `t_e2e_min_cost_all_configs`, `t_e2e_bruteforce` |

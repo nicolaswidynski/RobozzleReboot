@@ -3,7 +3,9 @@
 
 use arrayvec::ArrayVec;
 
-use crate::canonical::{is_useless_paint, turns_canonical};
+use crate::canonical::{
+    is_useless_paint, known_color, paint_overwritten, turns_canonical, turns_minimal, turns_ordered,
+};
 use crate::heuristic::HeuristicCursor;
 use crate::machine::{DeadReason, Machine};
 use crate::normalize::{CycleDetector, NormalizeResult, Progress, normalize, normalize_tracked};
@@ -25,6 +27,75 @@ pub struct SearchState {
     pub used_slots: u8,
     /// Bit f set: F(f+1) is introduced (SPEC §14.4).
     pub introduced_functions: u8,
+    /// What P-INLINE needs to know about the cells, kept up to date by
+    /// every decision (checked against a scan in test builds).
+    pub summary: CellSummary,
+}
+
+/// Deferred cells and call sites of a partial program (P-INLINE). Cells
+/// are never removed and a call cell stays a call to the same function, so
+/// call sites only ever grow.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct CellSummary {
+    /// Bit `k` of `deferred[f]`: cell `k` of `f` is `CondOnly` or `CondSet`.
+    pub deferred: [u16; MAX_FUNCTIONS],
+    /// Call sites (`Resolved` or `Pending`) per target, saturating at 2.
+    pub sites: [u8; MAX_FUNCTIONS],
+    /// The function holding the first call site of each target.
+    pub host: [u8; MAX_FUNCTIONS],
+    /// Bit `g`: the first call site of `g` is a `Resolved` `Any: Call(g)`.
+    pub first_any: u8,
+}
+
+impl CellSummary {
+    fn add_call(&mut self, g: FnId, host: FnId, any: bool) {
+        let g = g as usize;
+        if self.sites[g] == 0 {
+            self.host[g] = host;
+            if any {
+                self.first_any |= 1 << g;
+            }
+        }
+        self.sites[g] = (self.sites[g] + 1).min(2);
+    }
+
+    fn deferred_count(&self) -> u32 {
+        self.deferred.iter().map(|m| m.count_ones()).sum()
+    }
+
+    /// The summary of `program` from a full scan.
+    fn scan(program: &PartialProgram) -> Self {
+        let mut out = Self::default();
+        for (f, d) in program.functions.iter().enumerate() {
+            for (k, cell) in d.decided().iter().enumerate() {
+                match *cell {
+                    Cell::Resolved(Instruction {
+                        condition,
+                        action: Action::Call(g),
+                    }) => out.add_call(g, f as FnId, condition == Condition::Any),
+                    Cell::Pending {
+                        action: Action::Call(g),
+                        ..
+                    } => out.add_call(g, f as FnId, false),
+                    Cell::CondOnly(_) | Cell::CondSet(_) => out.deferred[f] |= 1 << k,
+                    _ => {}
+                }
+            }
+        }
+        out
+    }
+
+    /// Only the fields that mean something (`host` and `first_any` of
+    /// targets with exactly one site), for comparisons.
+    fn normalized(mut self) -> Self {
+        for g in 0..MAX_FUNCTIONS {
+            if self.sites[g] != 1 {
+                self.host[g] = 0;
+                self.first_any &= !(1 << g);
+            }
+        }
+        self
+    }
 }
 
 /// At most 3 moves + 3 paints + 5 calls.
@@ -200,6 +271,7 @@ impl<'a> Solver<'a> {
             machine: Machine::new(self.puzzle),
             used_slots: 0,
             introduced_functions: 0b00001,
+            summary: CellSummary::default(),
         }
     }
 
@@ -234,13 +306,129 @@ impl<'a> Solver<'a> {
     }
 
     /// Whether a child already needs more slots than the budget once the
-    /// P-RESERVE slots are counted.
-    fn over_reserve(&mut self, child: &SearchState, budget: u8) -> bool {
-        let over = self.config.peephole && child.used_slots + self.reserved_slots(child) > budget;
-        if over {
-            self.stats.prune_reserve += 1;
+    /// P-RESERVE slots are counted, or (with `bounds`) one slot more
+    /// (P-INLINE).
+    fn over_reserve(&mut self, child: &SearchState, budget: u8, bounds: bool) -> bool {
+        let bounds = bounds && self.config.inline;
+        if !self.config.peephole && !bounds {
+            return false;
         }
-        over
+        let reserve = self.reserved_slots(child);
+        if self.config.peephole && child.used_slots + reserve > budget {
+            self.stats.prune_reserve += 1;
+            return true;
+        }
+        bounds && self.needs_one_more(child, budget, reserve)
+    }
+
+    /// P-INLINE (SPEC §15.6): every minimal completion of `s` needs at
+    /// least one cell beyond `used + reserve`. It only matters once that sum
+    /// has reached the budget.
+    ///
+    /// Why the final lengths are then known: in a minimal solution every
+    /// cell fires (a cell that never fires can be removed), so every
+    /// introduced auxiliary function is called and has at least 2 cells
+    /// (P-EMPTYFN, P-SINGLE). With `used + reserve = budget`, a minimal
+    /// completion within the budget therefore adds exactly the P-RESERVE
+    /// cells: each open introduced auxiliary body ends at exactly
+    /// `max(len, 2)` cells, F1 and every other body keep their length, and
+    /// no function is introduced (it would need 2 more cells). With `used +
+    /// reserve > budget` (possible without `peephole`) there is no minimal
+    /// completion at all.
+    fn needs_one_more(&mut self, s: &SearchState, budget: u8, reserve: u8) -> bool {
+        if s.used_slots + reserve < budget {
+            return false;
+        }
+        if self.config.inline && self.inline_possible(s, reserve, None) {
+            self.stats.prune_inline += 1;
+            return true;
+        }
+        false
+    }
+
+    /// P-INLINE: whether more auxiliary functions are *inlinable* than the
+    /// free cells could rescue. `g` is inlinable when it has exactly one call
+    /// site, that site is a `Resolved` `Any: Call(g)` in another function
+    /// `h`, and `h` with the call replaced by `g`'s body still fits at the
+    /// final lengths (`needs_one_more`): `len(h) − 1 + len(g) ≤ cap(h)`, or
+    /// INV-FIT with `h` grown and `g` gone for anonymous functions.
+    ///
+    /// *Proof.* Inlining (replace the site by `g`'s body, delete `g`'s body)
+    /// gives a program with one cell less and the same behavior: the site
+    /// fires every time it is evaluated; a call neither moves the robot nor
+    /// paints, so `g`'s cells run in the same order on the same tiles as
+    /// they would inline, and when they are done execution continues after
+    /// the site in both programs. A frame of `g` at `pc` corresponds to the
+    /// frame of `h` at `site + pc` (and later frames of `h` shift by
+    /// `len(g) − 1`), so calls inside `g` (also to `h`; not to `g`, which
+    /// would be a second site) resume at corresponding cells; R-TAIL only
+    /// drops frames with nothing left to run. Each executed call saved is
+    /// one step less.
+    /// So a minimal solution contains no inlinable function. In a minimal
+    /// completion within the budget, `g` can only stop being inlinable by a
+    /// second call site (the final lengths are fixed and the existing site
+    /// never changes), and only a deferred cell resolved to `Call(g)` or one
+    /// of the `reserve` new cells can add one, one site per cell. `Pending`
+    /// call cells count as (conditional) sites already. So with more
+    /// inlinable functions than deferred plus reserved cells, some function
+    /// stays inlinable in every completion: none is minimal.
+    ///
+    /// `resolved`: answer for the program in which this deferred cell has
+    /// been resolved to an action that is not a call (D-RESOLVE).
+    fn inline_possible(&self, s: &SearchState, reserve: u8, resolved: Option<(FnId, u8)>) -> bool {
+        let aux = s.introduced_functions & !1;
+        if aux.count_ones() <= reserve as u32 {
+            return false;
+        }
+        let c = &s.summary;
+        // A deferred cell resolved to a non-call no longer rescues.
+        debug_assert!(resolved.is_none_or(|(f, k)| c.deferred[f as usize] & (1 << k) != 0));
+        let rescue = reserve as u32 + c.deferred_count() - resolved.is_some() as u32;
+        let mut candidates = 0u8;
+        for g in 1..MAX_FUNCTIONS {
+            if aux & c.first_any & (1 << g) != 0 && c.sites[g] == 1 && c.host[g] as usize != g {
+                candidates |= 1 << g;
+            }
+        }
+        if candidates.count_ones() <= rescue {
+            return false;
+        }
+        let p = &s.program;
+        let final_len = |f: usize| -> u8 {
+            let d = &p.functions[f];
+            if f != 0 && aux & (1 << f) != 0 && !d.closed() {
+                d.len.max(2)
+            } else {
+                d.len
+            }
+        };
+        let mut inlinable = 0u32;
+        for g in 1..MAX_FUNCTIONS {
+            if candidates & (1 << g) == 0 {
+                continue;
+            }
+            let h = c.host[g] as usize;
+            let merged = final_len(h) - 1 + final_len(g);
+            let fits = if h == 0 {
+                merged <= self.capacities[0]
+            } else if self.config.anonymous_functions {
+                let mut lens: ArrayVec<u8, 4> = (1..=self.aux_capacities.len())
+                    .filter(|&f| f != g)
+                    .map(|f| if f == h { merged } else { final_len(f) })
+                    .collect();
+                lens.sort_unstable_by(|a, b| b.cmp(a));
+                lens.iter().zip(&self.aux_capacities).all(|(l, c)| l <= c)
+            } else {
+                merged <= self.capacities[h]
+            };
+            if fits {
+                inlinable += 1;
+                if inlinable > rescue {
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     /// P-RESERVE (SPEC §15.5): every introduced auxiliary body that is not
@@ -501,6 +689,11 @@ impl<'a> Solver<'a> {
         self.stats.search_nodes += 1;
         debug_assert!(s.program.check_prefix(), "INV-PREFIX");
         debug_assert_eq!(s.used_slots, s.program.occupied_slots(), "INV-COST");
+        debug_assert_eq!(
+            s.summary.normalized(),
+            CellSummary::scan(&s.program).normalized(),
+            "cell summary"
+        );
         let r = match progress {
             None => normalize(
                 self.puzzle,
@@ -546,12 +739,20 @@ impl<'a> Solver<'a> {
         budget: u8,
     ) -> Vec<SearchState> {
         let mut out = Vec::new();
+        // P-INLINE is checked only for children that change the cells or the
+        // reserve (D-PLACE, D-DEFER, D-PENDING, D-RESOLVE, D-CHOOSE(Any) on a
+        // call, END without `peephole`); every other child gets its
+        // frontier's answer, which was "no" when the frontier was created.
         match result {
             NormalizeResult::OpenSlot { function, index } => {
                 for cand in self.open_candidates(state, function, index, budget) {
                     let mut child = *state;
                     self.apply_open(&mut child, function, index, cand);
-                    if self.over_reserve(&child, budget) {
+                    // With `peephole`, END is offered only where it leaves the
+                    // reserve unchanged (P-EMPTYFN, P-SINGLE) and it changes no
+                    // cell: P-INLINE says what it said for the frontier.
+                    let bounds = cand != Candidate::End || !self.config.peephole;
+                    if self.over_reserve(&child, budget, bounds) {
                         continue;
                     }
                     out.push(child);
@@ -562,13 +763,43 @@ impl<'a> Solver<'a> {
                     self.stats.prune_step_cut += 1;
                     return out;
                 }
+                // D-CHOOSE changes neither the cost, the reserve, the calls
+                // nor the frames; only `Any` on a pending call can make a
+                // function inlinable (P-INLINE).
+                let pending_call = match state.program.function(function).cell(index) {
+                    Cell::Pending {
+                        action: Action::Call(g),
+                        ..
+                    } => Some(g),
+                    _ => None,
+                };
+                let reserve = if self.config.inline && pending_call.is_some() {
+                    self.reserved_slots(state)
+                } else {
+                    0
+                };
                 for condition in self.condition_candidates(state, function, index) {
                     let mut child = *state;
                     child
                         .program
                         .function_mut(function)
                         .resolve_pending(index, condition);
+                    if let Some(g) = pending_call
+                        && condition == Condition::Any
+                        && child.summary.sites[g as usize] == 1
+                    {
+                        child.summary.first_any |= 1 << g; // it is the only site
+                    }
                     self.stats.pending_resolved += 1;
+                    if self.config.inline
+                        && pending_call.is_some()
+                        && condition == Condition::Any
+                        && child.used_slots + reserve >= budget
+                        && self.inline_possible(&child, reserve, None)
+                    {
+                        self.stats.prune_inline += 1;
+                        continue;
+                    }
                     out.push(child);
                 }
             }
@@ -582,17 +813,34 @@ impl<'a> Solver<'a> {
                     return out;
                 }
                 // D-RESOLVE: the member conditioned on `condition` runs now.
+                // A child whose action is not a call differs from the frontier
+                // only in that this cell is no longer deferred (same cost,
+                // reserve, calls and frames), so P-RESERVE cannot cut it and
+                // P-INLINE is decided once for all of them.
+                let reserve = if self.config.inline {
+                    self.reserved_slots(state)
+                } else {
+                    0
+                };
+                let plain_inline = self.config.inline
+                    && state.used_slots + reserve >= budget
+                    && self.inline_possible(state, reserve, Some((function, index)));
                 for action in self.need_candidates(state, function, index, condition) {
                     let mut child = *state;
                     child
                         .program
                         .function_mut(function)
                         .resolve_deferred(index, condition, action);
+                    child.summary.deferred[function as usize] &= !(1 << index);
+                    self.stats.condonly_resolved += 1;
                     if let Action::Call(g) = action {
                         child.introduced_functions |= 1 << g;
-                    }
-                    self.stats.condonly_resolved += 1;
-                    if self.over_reserve(&child, budget) {
+                        child.summary.add_call(g, function, false);
+                        if self.over_reserve(&child, budget, true) {
+                            continue;
+                        }
+                    } else if plain_inline {
+                        self.stats.prune_inline += 1;
                         continue;
                     }
                     out.push(child);
@@ -635,16 +883,19 @@ impl<'a> Solver<'a> {
                 s.used_slots += 1;
                 if let Action::Call(g) = i.action {
                     s.introduced_functions |= 1 << g;
+                    s.summary.add_call(g, f, i.condition == Condition::Any);
                 }
             }
             Candidate::Defer(c) => {
                 s.program.function_mut(f).push(Cell::CondOnly(c));
                 s.used_slots += 1;
+                s.summary.deferred[f as usize] |= 1 << k;
                 self.stats.condonly_created += 1;
             }
             Candidate::DeferSet(mask) => {
                 s.program.function_mut(f).push(Cell::CondSet(mask));
                 s.used_slots += 1;
+                s.summary.deferred[f as usize] |= 1 << k;
                 self.stats.condset_created += 1;
             }
             Candidate::Pending(action, color) => {
@@ -654,6 +905,7 @@ impl<'a> Solver<'a> {
                 s.used_slots += 1;
                 if let Action::Call(g) = action {
                     s.introduced_functions |= 1 << g;
+                    s.summary.add_call(g, f, false);
                 }
                 self.stats.pending_created += 1;
             }
@@ -764,28 +1016,48 @@ impl<'a> Solver<'a> {
         cell: Cell,
         resolving: bool,
     ) -> bool {
-        if !self.config.peephole {
+        let Cell::Resolved(i) = cell else {
+            return true;
+        };
+        if !(self.config.peephole || self.config.turn_order || self.config.paint_known) {
             return true;
         }
-        let ok = match cell {
-            Cell::Resolved(i) if is_useless_paint(i) => false,
-            Cell::Resolved(_) => {
-                let d = state.program.function(f);
-                let mut cells = d.cells;
-                cells[k as usize] = cell;
-                let len = if resolving {
-                    d.len as usize
-                } else {
-                    k as usize + 1
-                };
-                turns_canonical(&cells[..len], k as usize)
-            }
-            _ => true,
-        };
-        if !ok {
+        if self.config.peephole && is_useless_paint(i) {
             self.stats.prune_peephole += 1;
+            return false;
         }
-        ok
+        let d = state.program.function(f);
+        let mut cells = d.cells;
+        cells[k as usize] = cell;
+        let len = if resolving {
+            d.len as usize
+        } else {
+            k as usize + 1
+        };
+        let (cells, k) = (&cells[..len], k as usize);
+        if self.config.peephole && !turns_canonical(cells, k) {
+            self.stats.prune_peephole += 1;
+            return false;
+        }
+        // P-TURNORDER, P-TURNMIN (canonical.rs).
+        if self.config.turn_order
+            && !(turns_ordered(cells, k) && turns_minimal(cells, k, self.puzzle.possible_colors))
+        {
+            self.stats.prune_turn_order += 1;
+            return false;
+        }
+        // P-PAINTKNOWN (canonical.rs): an overwritten paint, or a color
+        // condition at a known tile color `d`. `Color(x ≠ d)` never fires
+        // (removable); `Color(d)` always fires, and `Any` is the canonical
+        // form (same cost and steps, smaller key), which is generated too.
+        if self.config.paint_known
+            && (paint_overwritten(cells, k)
+                || (i.condition != Condition::Any && known_color(cells, k).is_some()))
+        {
+            self.stats.prune_paint_known += 1;
+            return false;
+        }
+        true
     }
 
     /// P-CRASH: an action that runs immediately in this state and drives the
@@ -842,9 +1114,26 @@ impl<'a> Solver<'a> {
             self.stats.prune_capacity += 1;
         }
         if state.used_slots < budget && fits {
-            let actions = self.actions(state);
+            let mut actions = self.actions(state);
             let pc = self.puzzle.possible_colors;
             let cur = state.machine.tile_color();
+            // P-PAINTKNOWN: after `Any: Paint(d)` and turns the tile is `d`
+            // (canonical.rs). `Paint(d)` here never changes anything, and
+            // when every turn in between is unconditional nothing reads the
+            // tile between the two paints, so a `Paint(c)` that fires makes
+            // the earlier one dead (and one conditioned on another color
+            // never fires): each is removable.
+            let known = if self.config.paint_known {
+                known_color(state.program.function(f).decided(), k as usize)
+            } else {
+                None
+            };
+            if let Some((d, all_any)) = known {
+                debug_assert_eq!(d, cur, "P-PAINTKNOWN: the tile color is known");
+                let before = actions.len();
+                actions.retain(|a| !matches!(*a, Action::Paint(c) if c == d || all_any));
+                self.stats.prune_paint_known += (before - actions.len()) as u64;
+            }
             if pc.count() >= 2 && self.config.lazy_active_conditions {
                 // D-PENDING: `Any` and `Color(cur)` merged until observable.
                 for &action in &actions {
@@ -877,7 +1166,11 @@ impl<'a> Solver<'a> {
                     }
                 }
             }
-            if pc.count() >= 2 {
+            if pc.count() >= 2 && known.is_some() {
+                // P-PAINTKNOWN: a deferred cell here is conditioned on colors
+                // other than `cur = d`, so it would never fire (removable).
+                self.stats.prune_paint_known += 1;
+            } else if pc.count() >= 2 {
                 let deferred = ColorMask(pc.0 & !(1 << cur as u8));
                 let as_set = self.config.lazy_conditions
                     && self.config.condition_sets
@@ -1311,6 +1604,19 @@ mod tests {
                 peephole: false,
                 ..Config::default()
             },
+            // The v1.10 rules off, and on without the other peephole
+            // rules and with eager conditions.
+            Config {
+                inline: false,
+                turn_order: false,
+                paint_known: false,
+                ..Config::default()
+            },
+            Config {
+                peephole: false,
+                lazy_active_conditions: false,
+                ..Config::default()
+            },
         ];
         let (mut solved, mut unsolvable, mut checked) = (0, 0, 0);
         while checked < 60 {
@@ -1558,6 +1864,124 @@ mod tests {
             solved += expected.is_some() as u32;
         }
         assert!(solved >= 5, "only {solved} solvable cases");
+    }
+
+    /// P-INLINE, P-TURNORDER/P-TURNMIN and P-PAINTKNOWN, each
+    /// alone and together, find the same minimal cost as exact search
+    /// without them, on random puzzles larger than the brute-force ones
+    /// (up to three colors, paint, up to three functions).
+    #[test]
+    fn t_prune_rules_equivalence() {
+        let mut rng = Rng(2026);
+        let palette = ['r', 'g', 'b'];
+        let off = Config {
+            heuristic: false,
+            inline: false,
+            turn_order: false,
+            paint_known: false,
+            ..Config::default()
+        };
+        let variants = [
+            Config {
+                inline: true,
+                ..off
+            },
+            Config {
+                turn_order: true,
+                ..off
+            },
+            Config {
+                paint_known: true,
+                ..off
+            },
+            Config {
+                inline: true,
+                turn_order: true,
+                paint_known: true,
+                ..off
+            },
+            Config {
+                inline: true,
+                turn_order: true,
+                paint_known: true,
+                lazy_active_conditions: false,
+                anonymous_functions: false,
+                ..off
+            },
+        ];
+        let limits = Limits {
+            time: None,
+            nodes: Some(400_000),
+        };
+        let (mut compared, mut solved, mut tried) = (0, 0, 0);
+        while tried < 300 {
+            let (rows, cols) = (2 + rng.below(3) as usize, 3 + rng.below(3) as usize);
+            let colors = 1 + rng.below(3) as usize;
+            let mut grid: Vec<Vec<char>> = (0..rows)
+                .map(|_| {
+                    (0..cols)
+                        .map(|_| {
+                            if rng.below(4) == 0 {
+                                ' '
+                            } else {
+                                palette[rng.below(colors as u64) as usize]
+                            }
+                        })
+                        .collect()
+                })
+                .collect();
+            grid[0][0] = palette[rng.below(colors as u64) as usize];
+            let tiles: Vec<(usize, usize)> = (0..rows)
+                .flat_map(|r| (0..cols).map(move |c| (r, c)))
+                .filter(|&(r, c)| grid[r][c] != ' ' && (r, c) != (0, 0))
+                .collect();
+            if tiles.is_empty() {
+                continue;
+            }
+            for _ in 0..1 + rng.below(3) {
+                let (r, c) = tiles[rng.below(tiles.len() as u64) as usize];
+                grid[r][c] = grid[r][c].to_ascii_uppercase();
+            }
+            let caps: &[i64] = match rng.below(5) {
+                0 => &[4],
+                1 => &[3, 2],
+                2 => &[2, 2, 2],
+                3 => &[3, 3],
+                _ => &[2, 3, 2],
+            };
+            let paints = rng.below(8) as i64; // allowed paint colors (mask)
+            let rows_s: Vec<String> = grid.iter().map(|r| r.iter().collect()).collect();
+            let rows_ref: Vec<&str> = rows_s.iter().map(|s| s.as_str()).collect();
+            let dirs = ["up", "right", "down", "left"];
+            let p = puzzle(&rows_ref, (0, 0), dirs[rng.below(4) as usize], caps, paints);
+            if !p.stars_connected() {
+                continue;
+            }
+            tried += 1;
+            let cost = |config: Config| match solve(&p, config, limits).outcome {
+                Outcome::Solved(s) => Some(Some(s.cost)),
+                Outcome::Unsolvable(UnsolvableReason::Exhausted) => Some(None),
+                Outcome::Timeout => None,
+                other => panic!("{other:?}"),
+            };
+            let Some(expected) = cost(off) else {
+                continue;
+            };
+            compared += 1;
+            solved += expected.is_some() as u32;
+            for config in variants {
+                if let Some(got) = cost(config) {
+                    assert_eq!(
+                        got, expected,
+                        "{rows_s:?} caps {caps:?} paints {paints} {config:?}"
+                    );
+                }
+            }
+        }
+        assert!(
+            compared >= 150 && solved >= 50,
+            "compared {compared}, solved {solved}"
+        );
     }
 
     #[test]
