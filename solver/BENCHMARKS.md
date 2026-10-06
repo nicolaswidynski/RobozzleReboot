@@ -1,19 +1,23 @@
 # Benchmarks
 
-## Current status (2026-10-05)
+## Current status (2026-10-06)
 
 | | Solved / 908 | Proven minimal |
 |---|---|---|
-| **Ledger: best of every run so far** (`solver/ledger.json`, details below) | **677** | 225 |
+| **Engine ledger: best of every solver run so far** (`solver/ledger.json`, details below) | **715** | 248 |
+| Planner-assisted corpus: the engine ledger plus verified LLM-written programs (teacher data, not engine results; kept outside the repository) | 879 | 249 |
 | One default run of the solver (`solver --all`, 20 M nodes, v1.9; see "v1.9" below) | 563 | 178 |
 | The same, v1.8 | 544 | 187 |
-| Known to have a solution (ledger, other solvers, top human players) | 907 | — |
+| Known to have a solution (ledger, other solvers, top human players) | 908 | — |
 
 The default run is what the solver does by itself in one pass; the ledger
 adds a campaign of runs that only work on still-unsolved puzzles (longer
 exact searches, seeded orderings, whole-program MCMC; 20.7 CPU-hours on one
-niced core per queue). #384 is the only puzzle with no known solution in
-the sources checked.
+niced core per queue). Programs written by a language-model planner
+(section "Overnight experiments" below) are not engine results: they are
+kept outside the ledger as teacher data for learned components, and only
+the planner-assisted row counts them. #384, which no archived human or
+solver had solved, now has a solution, written by the planner.
 
 Full-catalog runs: `assets/levels_catalog.json` (908 puzzles), release
 build, 12 parallel jobs on an Intel Core i7-1255U, default `Config` unless
@@ -36,6 +40,86 @@ but may be longer than necessary.
 
 Difficulty is the catalog's player rating, rounded half away from zero.
 
+## Overnight experiments (2026-10-06)
+
+All runs niced on the laptop; every new program verified on the reference
+interpreter and in the Dart test. The learned policy and the new prunes are
+measured in copies outside the repository (patches in
+`robozzle-data/exp-policy/policy.patch` and `robozzle-data/exp-prunes/prunes.patch`)
+and are not part of v1.9.
+
+**Learned LDS policy** (engine). A log-linear context model in the style of
+Levin tree search with context models, trained on the verified programs of
+the ledger, orders the LDS children (rank allowance unchanged; exact search
+untouched).
+
+| FINDER, dev set (150 puzzles), 5 M nodes | Solved | vs v1.9 |
+|---|---|---|
+| v1.9 | 41 | — |
+| Policy (trained without the dev puzzles) | 52 | +17 / −6; 0.27× nodes to the solution on common solves |
+| Policy retrained on the night's new solutions (bootstrap, dev excluded) | 56 | |
+| Control: seed 13 | 39 | +9 / −11 |
+| Control: the same weights randomly permuted | 10 | |
+
+As a 20 M stage on the 219 then-unsolved puzzles it solved 13, 4 of them
+found by no other method (#1542, #12910, #2952, #2962): 5.7 solves per hour
+against 0.4–0.9 for a seed stage.
+
+**Unseen puzzles.** 8,941 robozzle.com archive puzzles that are not in the
+catalog (converted from the community archive; the conversion reproduces
+the catalog exactly on the 901 overlapping puzzles). The policy model was
+trained on catalog solutions only.
+
+| Default mode | Solved / 8,941 |
+|---|---|
+| v1.9, 2 M nodes | 5,578 (62.4%) |
+| v1.9, 20 M nodes (662 of the 2 M timeouts not reached in time) | ≥ 6,084 (68.0%) |
+| **Policy, 2 M nodes** | **6,053 (67.7%)**: +571 / −96 against v1.9 at 2 M |
+| robozlov (genetic algorithm, 2 minutes per puzzle) | 6,597 (73.8%) |
+
+By functions (v1.9 2 M / policy 2 M / robozlov): 1: 95.5 / 96.7 / 98.3%,
+2: 78.2 / 83.1 / 88.8%, 3: 56.5 / 64.0 / 71.7%, 4: 38.3 / 45.8 / 55.2%,
+5: 30.5 / 36.6 / 44.0%.
+
+**New sound prunes** (engine): P-INLINE, P-TURNORDER/P-TURNMIN,
+P-PAINTKNOWN and P-DEFERDEAD. Exact search on 40 proven-optimal puzzles:
+0.67× nodes and 0.64× CPU (one-function puzzles 0.50×), with identical
+minimal costs; an independent check on 100 more gave identical costs and
+0.76× nodes. FINDER on the dev set: 42 vs 39 (+11 / −8, not significant).
+P-DEFERDEAD removes nodes but saves no CPU.
+
+**Seeded LDS on v1.9**: 11 new puzzles in the first two hours, none in the
+two hours after that.
+
+**Exact search, proofs.** #2128 in 10 cells and #317 in 11 cells, proven
+minimal. Certificates for ledger programs shorter than the shortest
+archived human program: #2634 (7 cells, human 8), #11177 (8, human 10),
+#11266 (9, human 10), #115 (10, human 11), #267 (10, human 11). With
+#2128 (10, human 11), six puzzles have a program proven shorter than every
+archived human solution.
+
+**Genetic algorithm** (robozlov's design, in Rust): with robozlov's
+published fitness (stars + distance-weighted tiles + stack pops per step)
+it solved 0 of 44 calibration puzzles, because the pop term rewards
+call-return loops as much as collecting every star. Without that term, or
+with a distance fitness, it solved 16–18 of 44 at 2 M evaluations. It
+found no puzzle that another method had not found first.
+
+**LLM planner** (not engine). One language-model agent per puzzle, given the
+board, the author's hint, the capacities and a simulator; it designs the
+program and must pass the reference verifier.
+
+| Arm | Solved |
+|---|---|
+| Informed (shown the size of the shortest human program), unsolved puzzles with a human program of ≤ 15 cells | 64 / 65 |
+| Fair (no human data), the same kind of puzzles re-run in pairs | 15 / 15 |
+| Fair, the remaining puzzles (human program of 16+ cells or unknown) | 121 / 127 (28 not attempted: usage limit) |
+
+Its programs are a median of about 2 cells longer than the human minimum.
+They are not in `solver/ledger.json`: the goal is a self-contained engine,
+so planner programs serve only as teacher data for learned components
+(engine ledger 715; with the planner's programs 879).
+
 ## Solution ledger: every run combined
 
 `solver/ledger.json` keeps the best verified program per puzzle from every
@@ -43,8 +127,9 @@ run, re-verified on the reference interpreter and on the game's own engine.
 Runs beyond the default mode only work on puzzles the ledger has not
 solved, so a stage can only add solutions (an ordering that "trades
 puzzles" becomes a pure gain). After the campaign of 2026-10-05 and the
-v1.9 low-star experiment: **677 / 908**, of which 225 are proven minimal (cost equal to a proven lower bound;
-earlier proofs whose runs were not kept are not counted).
+v1.9 low-star experiment: 677 / 908; after the overnight experiments of
+2026-10-06: **715 / 908**, of which 248 are proven minimal (cost equal to a
+proven lower bound; earlier proofs whose runs were not kept are not counted).
 
 | Source | Puzzles added |
 |---|---|
@@ -57,7 +142,8 @@ earlier proofs whose runs were not kept are not counted).
 | Whole-program MCMC from the empty program, 600 k evaluations | +7 (6 of the 29 still-unsolved puzzles robozlov had solved, 1 of the 234 others) |
 | Heuristic search with 8× the budget (160 M nodes, 31 puzzles) | +1 |
 | Low-star ranking experiment (v1.9, 20 M nodes, the 186 puzzles with at most 2 stars) | +1 (#2202) |
-| **Total** | **677** |
+| Overnight 2026-10-06: seeded LDS on v1.9, exact search, learned LDS policy, genetic algorithms | +38 |
+| **Total** | **715** |
 
 Yield per CPU-hour (new puzzles for the ledger, one niced core):
 
@@ -205,16 +291,16 @@ v1.8 run.
 | Difficulty | Puzzles | One default run (v1.8): solved | proven minimal | **Ledger, all runs: solved** | proven minimal |
 |---|---|---|---|---|---|
 | ★ | 7 | 7 | 7 | **7** | 7 |
-| ★★ | 223 | 195 | 97 | **215** | 105 |
-| ★★★ | 533 | 306 | 80 | **394** | 104 |
-| ★★★★ | 134 | 34 | 2 | **59** | 8 |
+| ★★ | 223 | 195 | 97 | **217** | 107 |
+| ★★★ | 533 | 306 | 80 | **422** | 124 |
+| ★★★★ | 134 | 34 | 2 | **67** | 9 |
 | ★★★★★ | 11 | 2 | 1 | **2** | 1 |
-| **All** | **908** | **544** | **187** | **677** | **225** |
+| **All** | **908** | **544** | **187** | **715** | **248** |
 
 The default-run columns are one pass of `solver --all`; the ledger columns
 are the best verified program per puzzle from every run (`solver/ledger.json`,
-section "Solution ledger" above; after the 2026-10-05 campaign and the
-v1.9 experiment). The notes
+section "Solution ledger" above; after the overnight experiments of
+2026-10-06, engine runs only). The notes
 below describe the default run.
 
 - Time to the solution, on the 544 solved puzzles: median 178 ms (v1.6,
